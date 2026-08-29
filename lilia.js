@@ -233,16 +233,12 @@ export class LiliaSkillController {
     if (this.activeChainType !== LILIA_CHAIN_TYPE.LILIA) {
       return [];
     }
-    // A Lilia chain launches one independent bat per chained MyTsum. These are
-    // effect actors rather than board tsums, so the count never depends on how
-    // many transformed BAT tsums happen to be available on the board.
-    return chain.map((node) => ({
-      id: `lilia-flight:${node.id}`,
-      sourceTsumId: node.id,
-      virtual: true,
-      x: node.x,
-      y: node.y
-    }));
+    // A Lilia chain moves existing BAT tsums only. There can never be more
+    // flying bats than the board currently contains, even when the Lilia chain
+    // is longer. Keep board order so the selected bats are deterministic.
+    return liveTsums(game)
+      .filter((node) => this.isBat(node))
+      .slice(0, chain.length);
   }
 
   syncChain(game, chain) {

@@ -74,16 +74,22 @@ test("most common non-MyTsum becomes BAT with available-type tie breaking", () =
   assert.equal(chooseLiliaBatBaseType(game), "subB");
 });
 
-test("Lilia chain always launches one virtual BAT per chained MyTsum", () => {
+test("Lilia chain moves existing BATs up to the chained Lilia count", () => {
   const lilias = [node("l1", "liliaVanrouge", 100, 300), node("l2", "liliaVanrouge", 130, 300), node("l3", "liliaVanrouge", 160, 300)];
-  const bats = [node("b1", "subA", 90, 320), node("b2", "subA", 180, 320)];
+  const bats = [node("b1", "subA", 90, 320), node("b2", "subA", 135, 320), node("b3", "subA", 180, 320), node("b4", "subA", 225, 320)];
   const game = { tsums: [...lilias, ...bats] };
   const controller = new LiliaSkillController("subA");
   assert.equal(controller.syncChain(game, lilias), true);
-  assert.deepEqual(controller.flight.flying.map((bat) => bat.tsumId), [
-    "lilia-flight:l1", "lilia-flight:l2", "lilia-flight:l3"
-  ]);
-  assert.equal(controller.flight.flying.every((bat) => bat.virtual), true);
+  assert.deepEqual(controller.flight.flying.map((bat) => bat.tsumId), ["b1", "b2", "b3"]);
+  assert.equal(controller.flight.flying.every((bat) => !bat.virtual), true);
+});
+
+test("Lilia chain longer than the BAT count moves every available BAT and creates none", () => {
+  const lilias = [node("l1", "liliaVanrouge", 100, 300), node("l2", "liliaVanrouge", 130, 300), node("l3", "liliaVanrouge", 160, 300)];
+  const bats = [node("b1", "subA", 90, 320), node("b2", "subA", 180, 320)];
+  const controller = new LiliaSkillController("subA");
+  assert.equal(controller.syncChain({ tsums: [...lilias, ...bats] }, lilias), true);
+  assert.deepEqual(controller.flight.flying.map((bat) => bat.tsumId), ["b1", "b2"]);
 });
 
 test("default Lilia BAT flight speed is doubled to 210", () => {

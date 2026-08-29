@@ -34,7 +34,7 @@ import {
   drawGlossButton,
   drawStarPath
 } from './config.js?v=tsum-images-5';
-import { drawLiliaBat } from './lilia.js?v=tsum-images-5';
+import { drawLiliaBat } from './lilia.js?v=tsum-images-6';
 import { drawTsumArtwork, preloadTsumImages } from './tsumImages.js?v=tsum-images-5';
 
 let sharedFeltTexture = null;
