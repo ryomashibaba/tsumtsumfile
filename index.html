@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>TsumTsum</title>
+  <link rel="stylesheet" href="./style.css?v=selection-refresh-1">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <div id="bootStatus" class="boot-status" role="status" aria-live="polite">
+    <div class="boot-status__spinner" aria-hidden="true"></div>
+    <span>ゲームを準備しています…</span>
+  </div>
+  <main id="gameArena" class="game-arena" data-mode="solo">
+    <section class="game-station player-station" aria-label="Player game board">
+      <div class="station-label">PLAYER</div>
+      <canvas id="gameCanvas"></canvas>
+    </section>
+    <section class="game-station cpu-station" aria-label="CPU game board" aria-hidden="true">
+      <div class="station-label">CPU</div>
+      <canvas id="cpuCanvas"></canvas>
+    </section>
+  </main>
+
+  <script type="module" src="./main.js?v=tsum-images-5"></script>
+</body>
+</html>

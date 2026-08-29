@@ -1,0 +1,8 @@
+{
+  "name": "canvas-tsum-puzzle",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test battle.test.mjs lilia.test.mjs bombLogic.test.mjs boardTypeSelection.test.mjs tsumImages.test.mjs server.test.mjs"
+  }
+}
