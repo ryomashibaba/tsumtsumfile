@@ -92,6 +92,14 @@ test("Lilia chain longer than the BAT count moves every available BAT and create
   assert.deepEqual(controller.flight.flying.map((bat) => bat.tsumId), ["b1", "b2"]);
 });
 
+test("Lilia chain never uses a virtual BAT actor", () => {
+  const lilias = [node("l1", "liliaVanrouge", 100, 300), node("l2", "liliaVanrouge", 130, 300), node("l3", "liliaVanrouge", 160, 300)];
+  const bats = [node("virtual-bat", "subA", 90, 320, { virtual: true }), node("b1", "subA", 180, 320)];
+  const controller = new LiliaSkillController("subA");
+  assert.equal(controller.syncChain({ tsums: [...lilias, ...bats] }, lilias), true);
+  assert.deepEqual(controller.flight.flying.map((bat) => bat.tsumId), ["b1"]);
+});
+
 test("default Lilia BAT flight speed is doubled to 210", () => {
   const flight = new LiliaBatFlightController(LILIA_TUNING);
   flight.sync([node("b1", "subA", 207, 360)]);

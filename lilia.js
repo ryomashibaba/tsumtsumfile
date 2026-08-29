@@ -237,7 +237,7 @@ export class LiliaSkillController {
     // flying bats than the board currently contains, even when the Lilia chain
     // is longer. Keep board order so the selected bats are deterministic.
     return liveTsums(game)
-      .filter((node) => this.isBat(node))
+      .filter((node) => this.isBat(node) && !node.virtual)
       .slice(0, chain.length);
   }
 

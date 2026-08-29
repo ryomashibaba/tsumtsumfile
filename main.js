@@ -86,7 +86,7 @@ async function bootGame() {
   const debugImport = params.get("coronationElsaDebug") === "1" || params.get("liliaDebug") === "1";
   const gameModuleUrl = debugImport
     ? `./game.js?t=${encodeURIComponent(params.get("t") || Date.now())}`
-    : "./game.js?v=tsum-images-6";
+    : "./game.js?v=tsum-images-7";
   const { Game } = await import(gameModuleUrl);
   const { BattleController } = await import("./battle.js?v=tsum-images-5");
   const game = new Game(canvas, {

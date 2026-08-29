@@ -56,7 +56,7 @@ import {
   drawLiliaBat,
   isLiliaBatNode,
   registerLiliaSkill
-} from './lilia.js?v=tsum-images-6';
+} from './lilia.js?v=tsum-images-7';
 import { drawTsumArtwork } from './tsumImages.js?v=tsum-images-5';
 import { getSubTsumCandidates, selectBoardTypes } from './boardTypeSelection.js?v=tsum-images-5';
 import { distancePointToSegment } from './clearGeometry.js?v=tsum-images-5';
