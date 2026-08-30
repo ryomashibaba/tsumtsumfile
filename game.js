@@ -77,7 +77,10 @@ import {
   shouldSpawnLargeTsum
 } from './bombLogic.js?v=tsum-images-5';
 import { getGameplayClockDelta, resolveGameplayPauseState } from './gameplayTiming.js?v=skill-timing-1';
-import { shouldUseStrongestModeFeverBombCancel } from './strongestModeLogic.js?v=fever-bomb-cancel-1';
+import {
+  shouldTapStrongestModeCoronationElsaCompletedIce,
+  shouldUseStrongestModeFeverBombCancel
+} from './strongestModeLogic.js?v=strongest-mode-coronation-ice-1';
 
 const TITLE_TSUMS_PER_PAGE = 10;
 const JUDY_NICK_MOVING_FREEZE_KIND = "judyNickMovingIce";
@@ -2310,6 +2313,19 @@ const strongestSkillStrategies = {
         frozenSampleLimit: 20
       });
     }
+    if (frozenCount === 0) {
+      const lowerChain = game.findStrongestModeCoronationElsaLowerChain({
+        maxLength: 6,
+        minLength: 3,
+        minY: safePlayableY
+      });
+      if (Array.isArray(lowerChain) && lowerChain.length >= 3) {
+        if (track) {
+          game.recordStrongestModeCoronationElsaStrategyPick("lower");
+        }
+        return lowerChain;
+      }
+    }
     if (track) {
       game.recordStrongestModeCoronationElsaStrategyPick("fallback");
     }
@@ -2417,6 +2433,7 @@ class Game {
     this.strongestModeJudyNickJudyPreferLowerChainOnce = false;
     this.strongestModeCoronationElsaFreezeTapDelayFrames = 10;
     this.strongestModeCoronationElsaNoChainFrames = 0;
+    this.strongestModeCoronationElsaNoTraceDurationSec = 0;
     this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
     this.strongestModeCoronationElsaNoFreezeTargetMaxWaitFrames = 10;
     this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
@@ -5448,7 +5465,7 @@ class Game {
       return;
     }
     this.strongestModeStepTimer = 0;
-    this.performStrongestModeStep();
+    this.performStrongestModeStep(dt);
   }
 
   isStrongestModeBusy() {
@@ -5592,7 +5609,7 @@ class Game {
     });
   }
 
-  performStrongestModeStep() {
+  performStrongestModeStep(dt = 0) {
     if (this.isStrongestModeBusy()) {
       return false;
     }
@@ -5690,6 +5707,7 @@ class Game {
     };
     if (!isCoronationElsaSkillActive) {
       this.strongestModeCoronationElsaStopLogged = false;
+      this.strongestModeCoronationElsaNoTraceDurationSec = 0;
       this.strongestModeCoronationElsaWaitRecentSpawnSettle = false;
       this.strongestModeCoronationElsaPendingExtraFreezeTap = false;
       this.strongestModeCoronationElsaSuppressRelaxedFallback = false;
@@ -5749,9 +5767,15 @@ class Game {
         return false;
       }
       const chain = this.findStrongestModeChain();
+      if (Array.isArray(chain) && chain.length >= 3) {
+        this.strongestModeCoronationElsaNoTraceDurationSec = 0;
+      } else {
+        this.strongestModeCoronationElsaNoTraceDurationSec += Math.max(0, dt || 0);
+      }
       const chained = this.performStrongestModeChains(chain);
       if (chained) {
         this.strongestModeCoronationElsaNoChainFrames = 0;
+        this.strongestModeCoronationElsaNoTraceDurationSec = 0;
         this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
         this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
         this.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
@@ -5764,6 +5788,9 @@ class Game {
         return false;
       }
       this.strongestModeCoronationElsaNoChainFrames += 1;
+      if (this.tryTapStrongestModeCoronationElsaCompletedIce()) {
+        return true;
+      }
       if (this.strongestModeCoronationElsaNoChainFrames < this.strongestModeCoronationElsaFreezeTapDelayFrames) {
         return false;
       }
@@ -6392,6 +6419,18 @@ class Game {
     return best;
   }
 
+  findStrongestModeCoronationElsaLowerChain(options = {}) {
+    const safeLowerY = Math.max(
+      Number.isFinite(options.minY) ? options.minY : -Infinity,
+      FIELD_CENTER_Y
+    );
+    return this.findStrongestModeBestChain({
+      ...options,
+      minY: safeLowerY,
+      filterNode: (tsum) => this.isStrongestModeCoronationElsaSemiStableTsum(tsum)
+    });
+  }
+
   findStrongestModeCoronationElsaEdgeChain(options = {}) {
     const minLength = options.minLength || 3;
     const maxLength = Number.isFinite(options.maxLength) ? options.maxLength : Infinity;
@@ -6634,7 +6673,10 @@ class Game {
       return false;
     }
     const frozenCount = this.boardState.getFrozenNodesByKind("coronationElsa").length;
-    if (frozenCount < 38) {
+    if (!shouldTapStrongestModeCoronationElsaCompletedIce({
+      frozenCount,
+      noTraceDurationSec: this.strongestModeCoronationElsaNoTraceDurationSec
+    })) {
       return false;
     }
     const specialTarget = this.findStrongestSpecialTapTarget();
@@ -6646,6 +6688,7 @@ class Game {
       return false;
     }
     this.strongestModeCoronationElsaNoChainFrames = 0;
+    this.strongestModeCoronationElsaNoTraceDurationSec = 0;
     this.strongestModeCoronationElsaStopLogged = false;
     this.strongestModeCoronationElsaSuppressRelaxedFallback = false;
     this.strongestModeCoronationElsaSuppressSpecialTapFrames = 0;
@@ -10148,6 +10191,7 @@ SkillRegistry.coronationElsa = {
   onActivate(ctx) {
     ctx.game.pushCenterMessage("FREEZE!", "#dff5ff", 0.95);
     ctx.game.strongestModeCoronationElsaAfterChainTimer = 0;
+    ctx.game.strongestModeCoronationElsaNoTraceDurationSec = 0;
     ctx.game.strongestModeCoronationElsaWaitRecentSpawnSettle = false;
     ctx.game.strongestModeCoronationElsaWaitStartElapsed = null;
     ctx.game.strongestModeCoronationElsaPendingExtraFreezeTap = false;
@@ -10218,6 +10262,7 @@ SkillRegistry.coronationElsa = {
       ctx.game.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
       ctx.game.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
       ctx.game.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
+      ctx.game.strongestModeCoronationElsaNoTraceDurationSec = 0;
     }
     ctx?.game?.resetStrongestModeCoronationElsaTracePlan();
   },

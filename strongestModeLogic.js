@@ -1,5 +1,6 @@
 export const FEVER_ENTRY_CLEAR_COUNT = 29;
 export const STRONGEST_MODE_FEVER_BOMB_CANCEL_MIN_REMAINING = 5;
+export const STRONGEST_MODE_CORONATION_ELSA_NO_TRACE_TAP_DELAY_SEC = 0.15;
 
 export function getFeverClearsRemaining(gauge) {
   const normalizedGauge = Number.isFinite(gauge)
@@ -22,5 +23,15 @@ export function shouldUseStrongestModeFeverBombCancel({
     Math.max(0, activeSkillCount || 0) === 0 &&
     Math.max(0, validBombCount || 0) >= 1 &&
     getFeverClearsRemaining(feverGauge) >= STRONGEST_MODE_FEVER_BOMB_CANCEL_MIN_REMAINING
+  );
+}
+
+export function shouldTapStrongestModeCoronationElsaCompletedIce({
+  frozenCount,
+  noTraceDurationSec
+} = {}) {
+  return (
+    Math.max(0, frozenCount || 0) >= 38 ||
+    Math.max(0, noTraceDurationSec || 0) >= STRONGEST_MODE_CORONATION_ELSA_NO_TRACE_TAP_DELAY_SEC
   );
 }

@@ -5,6 +5,7 @@ import { Game } from "./game.js";
 import {
   FEVER_ENTRY_CLEAR_COUNT,
   getFeverClearsRemaining,
+  shouldTapStrongestModeCoronationElsaCompletedIce,
   shouldUseStrongestModeFeverBombCancel
 } from "./strongestModeLogic.js";
 
@@ -31,6 +32,12 @@ test("fever bomb cancel eligibility requires strongest mode, no fever, no skill,
   assert.equal(shouldUseStrongestModeFeverBombCancel({ ...eligible, activeSkillCount: 1 }), false);
   assert.equal(shouldUseStrongestModeFeverBombCancel({ ...eligible, validBombCount: 0 }), false);
   assert.equal(shouldUseStrongestModeFeverBombCancel({ ...eligible, feverGauge: gaugeAfterClears(25) }), false);
+});
+
+test("Coronation Elsa taps completed ice at 38 frozen Tsums or after 0.15 seconds with no trace", () => {
+  assert.equal(shouldTapStrongestModeCoronationElsaCompletedIce({ frozenCount: 38, noTraceDurationSec: 0 }), true);
+  assert.equal(shouldTapStrongestModeCoronationElsaCompletedIce({ frozenCount: 37, noTraceDurationSec: 0.149 }), false);
+  assert.equal(shouldTapStrongestModeCoronationElsaCompletedIce({ frozenCount: 0, noTraceDurationSec: 0.15 }), true);
 });
 
 test("fever bomb cancel queues every snapshot chain once and ignores later nodes", () => {
