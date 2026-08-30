@@ -2309,37 +2309,14 @@ const strongestSkillStrategies = {
       game.strongestModeCoronationElsaAnchorSide = null;
       game.resetStrongestModeCoronationElsaTracePlan();
     }
-    if (frozenCount >= 10) {
-      if (track) {
-        game.recordStrongestModeCoronationElsaStrategyPick("proximity");
-      }
-      return game.findStrongestModeCoronationElsaProximityChain({
-        maxLength: 6,
-        minLength: 3,
-        minY: safePlayableY,
-        frozenSampleLimit: 20
-      });
-    }
-    if (frozenCount === 0) {
-      const lowerChain = game.findStrongestModeCoronationElsaLowerChain({
-        maxLength: 6,
-        minLength: 3,
-        minY: safePlayableY
-      });
-      if (Array.isArray(lowerChain) && lowerChain.length >= 3) {
-        if (track) {
-          game.recordStrongestModeCoronationElsaStrategyPick("lower");
-        }
-        return lowerChain;
-      }
-    }
     if (track) {
-      game.recordStrongestModeCoronationElsaStrategyPick("fallback");
+      game.recordStrongestModeCoronationElsaStrategyPick("preview");
     }
-    return game.findStrongestModeCoronationElsaEdgeChain({
+    return game.findStrongestModeCoronationElsaBestPreviewChain({
       maxLength: 6,
       minLength: 3,
-      minY: safePlayableY
+      minY: safePlayableY,
+      filterNode: (tsum) => game.isStrongestModeCoronationElsaSemiStableTsum(tsum)
     });
   },
   jamilViper(game) {
@@ -5636,13 +5613,15 @@ class Game {
         return;
       }
       const strategyChain = strongestSkillStrategies.coronationElsa(this, { track: false }) || [];
-      const stableFallbackChain = this.findStrongestModeBestChain({
+      const stableFallbackChain = this.findStrongestModeCoronationElsaBestPreviewChain({
         minLength: 3,
+        maxLength: 6,
         minY: this.getStrongestModeCoronationElsaSafePlayableY(),
         filterNode: (tsum) => this.isStrongestModeCoronationElsaStableTsum(tsum)
       }) || [];
-      const relaxedFallbackChain = this.findStrongestModeBestChain({
+      const relaxedFallbackChain = this.findStrongestModeCoronationElsaBestPreviewChain({
         minLength: 3,
+        maxLength: 6,
         minY: this.getStrongestModeCoronationElsaSafePlayableY()
       }) || [];
       const relaxedFallbackStableNodeCount = relaxedFallbackChain.filter((tsum) => (
@@ -6198,8 +6177,9 @@ class Game {
     }
     if (isCoronationElsaSkillActive) {
       const safePlayableY = this.getStrongestModeCoronationElsaSafePlayableY();
-      const stableFallback = this.findStrongestModeBestChain({
+      const stableFallback = this.findStrongestModeCoronationElsaBestPreviewChain({
         minLength: 3,
+        maxLength: 6,
         minY: safePlayableY,
         filterNode: (tsum) => this.isStrongestModeCoronationElsaSemiStableTsum(tsum)
       });
@@ -6212,8 +6192,9 @@ class Game {
       if (this.strongestModeCoronationElsaSuppressRelaxedFallback) {
         return stableFallback;
       }
-      const relaxedFallback = this.findStrongestModeBestChain({
+      const relaxedFallback = this.findStrongestModeCoronationElsaBestPreviewChain({
         minLength: 3,
+        maxLength: 6,
         minY: safePlayableY
       });
       const frozenCount = this.boardState.getFrozenNodesByKind("coronationElsa").length;
@@ -6297,6 +6278,119 @@ class Game {
       }
     }
     return best;
+  }
+
+  isStrongestModeCoronationElsaEdgeStart(tsum) {
+    if (!tsum || !Number.isFinite(tsum.x) || !Number.isFinite(tsum.y)) {
+      return false;
+    }
+    const edgeBand = TSUM_RADIUS * 2;
+    return (
+      Math.abs(tsum.x - FIELD_LEFT) <= edgeBand ||
+      Math.abs(FIELD_RIGHT - tsum.x) <= edgeBand ||
+      Math.abs(FIELD_BOTTOM - tsum.y) <= edgeBand
+    );
+  }
+
+  findStrongestModeCoronationElsaBestPreviewChain(options = {}) {
+    const minLength = options.minLength || 3;
+    const maxLength = Number.isFinite(options.maxLength) ? options.maxLength : Infinity;
+    const minY = Number.isFinite(options.minY) ? options.minY : -Infinity;
+    const filterNode = typeof options.filterNode === "function" ? options.filterNode : null;
+    const liveNodes = this.getStrongestModeChainNodes().filter((tsum) => (
+      tsum.y >= minY &&
+      (!filterNode || filterNode(tsum))
+    ));
+    const candidateKeys = new Set();
+    const candidates = [];
+    for (const start of liveNodes) {
+      if (!this.isStrongestModeCoronationElsaEdgeStart(start)) {
+        continue;
+      }
+      const rule = this.getChainBehaviorForStart(start);
+      if (!rule || !rule.allowedTypeIds?.size) {
+        continue;
+      }
+      const nodes = liveNodes.filter((tsum) => rule.allowedTypeIds.has(this.boardState.getResolvedType(tsum).id));
+      const chain = this.findStrongestModeGreedyChain(start, nodes, rule, maxLength);
+      if (chain.length < minLength) {
+        continue;
+      }
+      const forwardKey = chain.map((tsum) => String(tsum.id)).join("|");
+      const reverseKey = chain.map((tsum) => String(tsum.id)).reverse().join("|");
+      const pathKey = forwardKey < reverseKey ? forwardKey : reverseKey;
+      if (candidateKeys.has(pathKey)) {
+        continue;
+      }
+      candidateKeys.add(pathKey);
+      const preview = computeCoronationElsaFreezePreview(this, chain, this.selectedSkillLevel);
+      const newFrozenCount = preview.targets.reduce((count, tsum) => (
+        count + (preview.priorFrozenIds.has(tsum.id) ? 0 : 1)
+      ), 0);
+      candidates.push({
+        chain,
+        pathKey,
+        preview,
+        predictedClearCount: preview.targets.length,
+        newFrozenCount,
+        nextChainPotential: null
+      });
+    }
+    if (!candidates.length) {
+      return [];
+    }
+    const getNextChainPotential = (candidate) => {
+      if (candidate.nextChainPotential != null) {
+        return candidate.nextChainPotential;
+      }
+      const frozenIds = new Set(candidate.preview.targets.map((tsum) => tsum.id));
+      const remainingNodes = liveNodes.filter((tsum) => !frozenIds.has(tsum.id));
+      let potential = 0;
+      for (const start of remainingNodes) {
+        if (!this.isStrongestModeCoronationElsaEdgeStart(start)) {
+          continue;
+        }
+        const rule = this.getChainBehaviorForStart(start);
+        if (!rule || !rule.allowedTypeIds?.size) {
+          continue;
+        }
+        const nodes = remainingNodes.filter((tsum) => rule.allowedTypeIds.has(this.boardState.getResolvedType(tsum).id));
+        potential = Math.max(
+          potential,
+          this.findStrongestModeGreedyChain(start, nodes, rule, maxLength).length
+        );
+      }
+      candidate.nextChainPotential = potential;
+      return potential;
+    };
+    let best = candidates[0];
+    for (let index = 1; index < candidates.length; index += 1) {
+      const candidate = candidates[index];
+      if (candidate.predictedClearCount !== best.predictedClearCount) {
+        if (candidate.predictedClearCount > best.predictedClearCount) {
+          best = candidate;
+        }
+        continue;
+      }
+      if (candidate.newFrozenCount !== best.newFrozenCount) {
+        if (candidate.newFrozenCount > best.newFrozenCount) {
+          best = candidate;
+        }
+        continue;
+      }
+      const candidatePotential = getNextChainPotential(candidate);
+      const bestPotential = getNextChainPotential(best);
+      if (candidatePotential !== bestPotential) {
+        if (candidatePotential > bestPotential) {
+          best = candidate;
+        }
+        continue;
+      }
+      if (candidate.pathKey < best.pathKey) {
+        best = candidate;
+      }
+    }
+    return best.chain;
   }
 
   findStrongestModeCoronationElsaProximityChain(options = {}) {
@@ -6608,13 +6702,15 @@ class Game {
 
   getStrongestModeCoronationElsaNoChainDiagnostics() {
     const strategyChain = strongestSkillStrategies.coronationElsa(this, { track: false }) || [];
-    const stableFallbackChain = this.findStrongestModeBestChain({
+    const stableFallbackChain = this.findStrongestModeCoronationElsaBestPreviewChain({
       minLength: 3,
+      maxLength: 6,
       minY: this.getStrongestModeCoronationElsaSafePlayableY(),
       filterNode: (tsum) => this.isStrongestModeCoronationElsaStableTsum(tsum)
     }) || [];
-    const relaxedFallbackChain = this.findStrongestModeBestChain({
+    const relaxedFallbackChain = this.findStrongestModeCoronationElsaBestPreviewChain({
       minLength: 3,
+      maxLength: 6,
       minY: this.getStrongestModeCoronationElsaSafePlayableY()
     }) || [];
     const relaxedFallbackStableNodeCount = relaxedFallbackChain.filter((tsum) => (
@@ -6732,8 +6828,9 @@ class Game {
   }
 
   findStrongestModeCoronationElsaSafeWaitReleaseChain() {
-    return this.findStrongestModeBestChain({
+    return this.findStrongestModeCoronationElsaBestPreviewChain({
       minLength: 3,
+      maxLength: 6,
       minY: this.getStrongestModeCoronationElsaSafePlayableY(),
       filterNode: (tsum) => this.isStrongestModeCoronationElsaSemiStableTsum(tsum)
     }) || [];
@@ -6849,6 +6946,7 @@ class Game {
       playableLowWaitCount: 0,
       noChainCandidateCount: 0,
       busyAfterChainCount: 0,
+      previewStrategyPickCount: 0,
       proximityStrategyPickCount: 0,
       fallbackStrategyPickCount: 0,
       performChainsCallCount: 0,
@@ -6907,7 +7005,9 @@ class Game {
     if (!summary) {
       return;
     }
-    if (type === "proximity") {
+    if (type === "preview") {
+      summary.previewStrategyPickCount += 1;
+    } else if (type === "proximity") {
       summary.proximityStrategyPickCount += 1;
     } else {
       summary.fallbackStrategyPickCount += 1;
@@ -6955,13 +7055,15 @@ class Game {
     const savedAnchorSide = this.strongestModeCoronationElsaAnchorSide;
     const strategyChain = strongestSkillStrategies.coronationElsa(this, { track: false }) || [];
     this.strongestModeCoronationElsaAnchorSide = savedAnchorSide;
-    const stableFallbackChain = this.findStrongestModeBestChain({
+    const stableFallbackChain = this.findStrongestModeCoronationElsaBestPreviewChain({
       minLength: 3,
+      maxLength: 6,
       minY: this.getStrongestModeCoronationElsaSafePlayableY(),
       filterNode: (tsum) => this.isStrongestModeCoronationElsaStableTsum(tsum)
     }) || [];
-    const relaxedFallbackChain = this.findStrongestModeBestChain({
+    const relaxedFallbackChain = this.findStrongestModeCoronationElsaBestPreviewChain({
       minLength: 3,
+      maxLength: 6,
       minY: this.getStrongestModeCoronationElsaSafePlayableY()
     }) || [];
     const relaxedFallbackStableNodeCount = relaxedFallbackChain.filter((tsum) => (
@@ -6982,6 +7084,7 @@ class Game {
       playableLowWaitCount: summary.playableLowWaitCount,
       noChainCandidateCount: summary.noChainCandidateCount,
       busyAfterChainCount: summary.busyAfterChainCount,
+      previewStrategyPickCount: summary.previewStrategyPickCount,
       proximityStrategyPickCount: summary.proximityStrategyPickCount,
       fallbackStrategyPickCount: summary.fallbackStrategyPickCount,
       performChainsCallCount: summary.performChainsCallCount,
@@ -7146,8 +7249,9 @@ class Game {
       if (waitDuration < this.strongestModeCoronationElsaNoRecentSpawnMinWaitSec) {
         return true;
       }
-      const stableFallbackChain = this.findStrongestModeBestChain({
+      const stableFallbackChain = this.findStrongestModeCoronationElsaBestPreviewChain({
         minLength: 3,
+        maxLength: 6,
         minY: this.getStrongestModeCoronationElsaSafePlayableY(),
         filterNode: (tsum) => this.isStrongestModeCoronationElsaStableTsum(tsum)
       });

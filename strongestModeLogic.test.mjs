@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { FIELD_BOTTOM, FIELD_LEFT, FIELD_RIGHT, TSUM_RADIUS } from "./config.js";
 import { Game } from "./game.js";
 import {
   FEVER_ENTRY_CLEAR_COUNT,
@@ -38,6 +39,111 @@ test("Coronation Elsa taps completed ice at 38 frozen Tsums or after 0.15 second
   assert.equal(shouldTapStrongestModeCoronationElsaCompletedIce({ frozenCount: 38, noTraceDurationSec: 0 }), true);
   assert.equal(shouldTapStrongestModeCoronationElsaCompletedIce({ frozenCount: 37, noTraceDurationSec: 0.149 }), false);
   assert.equal(shouldTapStrongestModeCoronationElsaCompletedIce({ frozenCount: 0, noTraceDurationSec: 0.15 }), true);
+});
+
+const makeCoronationElsaNode = (id, x, y) => ({
+  id,
+  x,
+  y,
+  dead: false,
+  removing: false,
+  clearOccupying: false,
+  inChain: false,
+  type: { id: "test" }
+});
+
+const makeCoronationElsaPreviewHarness = ({ nodes, chainsByStart }) => ({
+  tsums: nodes,
+  selectedSkillLevel: 6,
+  boardState: {
+    getFrozenNodesByKind: () => [],
+    getResolvedType: (node) => node.type
+  },
+  getStrongestModeChainNodes: () => nodes,
+  getChainBehaviorForStart(start) {
+    return chainsByStart.has(start.id) ? { allowedTypeIds: new Set(["test"]) } : null;
+  },
+  findStrongestModeGreedyChain(start) {
+    return chainsByStart.get(start.id) || [];
+  },
+  isStrongestModeCoronationElsaEdgeStart: Game.prototype.isStrongestModeCoronationElsaEdgeStart,
+  isTsumInPlayArea: () => true
+});
+
+test("Coronation Elsa edge starts include exactly two Tsum radii and exclude top-only or central starts", () => {
+  const harness = {};
+  const edgeBand = TSUM_RADIUS * 2;
+  assert.equal(Game.prototype.isStrongestModeCoronationElsaEdgeStart.call(
+    harness,
+    makeCoronationElsaNode("left-limit", FIELD_LEFT + edgeBand, 300)
+  ), true);
+  assert.equal(Game.prototype.isStrongestModeCoronationElsaEdgeStart.call(
+    harness,
+    makeCoronationElsaNode("right-limit", FIELD_RIGHT - edgeBand, 300)
+  ), true);
+  assert.equal(Game.prototype.isStrongestModeCoronationElsaEdgeStart.call(
+    harness,
+    makeCoronationElsaNode("bottom-limit", 207, FIELD_BOTTOM - edgeBand)
+  ), true);
+  assert.equal(Game.prototype.isStrongestModeCoronationElsaEdgeStart.call(
+    harness,
+    makeCoronationElsaNode("outside-limit", FIELD_LEFT + edgeBand + 0.001, 300)
+  ), false);
+  assert.equal(Game.prototype.isStrongestModeCoronationElsaEdgeStart.call(
+    harness,
+    makeCoronationElsaNode("top-only", 207, 145)
+  ), false);
+});
+
+test("Coronation Elsa preview selects the largest predicted clear without edge-direction bonuses", () => {
+  const left = [
+    makeCoronationElsaNode("left-start", 20, 270),
+    makeCoronationElsaNode("left-mid", 20, 330),
+    makeCoronationElsaNode("left-end", 20, 390)
+  ];
+  const right = [
+    makeCoronationElsaNode("right-start", 394, 270),
+    makeCoronationElsaNode("right-mid", 394, 330),
+    makeCoronationElsaNode("right-end", 394, 390)
+  ];
+  const rightLineExtras = [
+    makeCoronationElsaNode("right-extra-1", 380, 450),
+    makeCoronationElsaNode("right-extra-2", 382, 510)
+  ];
+  const nodes = [...left, ...right, ...rightLineExtras];
+  const harness = makeCoronationElsaPreviewHarness({
+    nodes,
+    chainsByStart: new Map([
+      [left[0].id, left],
+      [right[0].id, right]
+    ])
+  });
+
+  const selected = Game.prototype.findStrongestModeCoronationElsaBestPreviewChain.call(harness, {
+    minLength: 3,
+    maxLength: 6
+  });
+
+  assert.deepEqual(selected.map((node) => node.id), right.map((node) => node.id));
+});
+
+test("Coronation Elsa preview never falls back to a central start", () => {
+  const central = [
+    makeCoronationElsaNode("center-start", 207, 280),
+    makeCoronationElsaNode("center-mid", 207, 340),
+    makeCoronationElsaNode("center-end", 207, 400)
+  ];
+  const harness = makeCoronationElsaPreviewHarness({
+    nodes: central,
+    chainsByStart: new Map([[central[0].id, central]])
+  });
+
+  const selected = Game.prototype.findStrongestModeCoronationElsaBestPreviewChain.call(harness, {
+    minLength: 3,
+    maxLength: 6
+  });
+
+  assert.deepEqual(selected, []);
 });
 
 test("fever bomb cancel queues every snapshot chain once and ignores later nodes", () => {
