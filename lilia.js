@@ -21,7 +21,7 @@ export const LILIA_SKILL_COST = 19;
 
 export const LILIA_TUNING = Object.freeze({
   // TODO LILIA_VERIFY: Exact flight motion, radii and boundary behavior are not known.
-  batSpeed: 210,
+  batSpeed: 315,
   batTurnRate: 0.75,
   batLineRadius: 34,
   liliaAuraRadius: 58,

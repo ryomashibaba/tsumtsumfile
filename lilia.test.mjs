@@ -100,11 +100,11 @@ test("Lilia chain never uses a virtual BAT actor", () => {
   assert.deepEqual(controller.flight.flying.map((bat) => bat.tsumId), ["b1"]);
 });
 
-test("default Lilia BAT flight speed is doubled to 210", () => {
+test("default Lilia BAT flight speed is increased 1.5x to 315", () => {
   const flight = new LiliaBatFlightController(LILIA_TUNING);
   flight.sync([node("b1", "subA", 207, 360)]);
   const bat = flight.snapshot()[0];
-  assert.ok(Math.abs(Math.hypot(bat.vx, bat.vy) - 210) < 1e-9);
+  assert.ok(Math.abs(Math.hypot(bat.vx, bat.vy) - 315) < 1e-9);
 });
 
 test("BAT chain flies the selected BATs themselves in chain order", () => {
