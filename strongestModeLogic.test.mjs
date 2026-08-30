@@ -67,6 +67,16 @@ const makeCoronationElsaPreviewHarness = ({ nodes, chainsByStart }) => ({
     return chainsByStart.get(start.id) || [];
   },
   isStrongestModeCoronationElsaEdgeStart: Game.prototype.isStrongestModeCoronationElsaEdgeStart,
+  getStrongestModeCoronationElsaStartDirections: Game.prototype.getStrongestModeCoronationElsaStartDirections,
+  getStrongestModeCoronationElsaDirectionalGeometry: Game.prototype.getStrongestModeCoronationElsaDirectionalGeometry,
+  findStrongestModeCoronationElsaDirectionalChains(start, nodes, rule, maxLength, direction) {
+    const entry = chainsByStart.get(start.id);
+    if (!entry || entry.direction !== direction) {
+      return [];
+    }
+    const geometry = Game.prototype.getStrongestModeCoronationElsaDirectionalGeometry.call(this, entry.chain, direction);
+    return geometry?.valid ? [{ chain: entry.chain, geometry, searchScore: entry.searchScore || 0 }] : [];
+  },
   isTsumInPlayArea: () => true
 });
 
@@ -95,27 +105,108 @@ test("Coronation Elsa edge starts include exactly two Tsum radii and exclude top
   ), false);
 });
 
+test("Coronation Elsa maps bottom starts to vertical and side starts to horizontal searches", () => {
+  const harness = {
+    isStrongestModeCoronationElsaEdgeStart: Game.prototype.isStrongestModeCoronationElsaEdgeStart
+  };
+  assert.deepEqual(
+    Game.prototype.getStrongestModeCoronationElsaStartDirections.call(
+      harness,
+      makeCoronationElsaNode("bottom", 207, FIELD_BOTTOM - 20)
+    ),
+    ["vertical"]
+  );
+  assert.deepEqual(
+    Game.prototype.getStrongestModeCoronationElsaStartDirections.call(
+      harness,
+      makeCoronationElsaNode("left", FIELD_LEFT + 20, 320)
+    ),
+    ["horizontal"]
+  );
+  assert.deepEqual(
+    Game.prototype.getStrongestModeCoronationElsaStartDirections.call(
+      harness,
+      makeCoronationElsaNode("corner", FIELD_LEFT + 20, FIELD_BOTTOM - 20)
+    ),
+    ["vertical", "horizontal"]
+  );
+});
+
+test("Coronation Elsa directional geometry requires 58 pixels of progress within 35 percent tilt", () => {
+  const bottom = makeCoronationElsaNode("bottom", 200, 560);
+  const verticalValid = [bottom, makeCoronationElsaNode("vertical-valid", 220, 480)];
+  const verticalTilted = [bottom, makeCoronationElsaNode("vertical-tilted", 235, 480)];
+  const verticalShort = [bottom, makeCoronationElsaNode("vertical-short", 200, 503)];
+  assert.equal(
+    Game.prototype.getStrongestModeCoronationElsaDirectionalGeometry.call({}, verticalValid, "vertical").valid,
+    true
+  );
+  assert.equal(
+    Game.prototype.getStrongestModeCoronationElsaDirectionalGeometry.call({}, verticalTilted, "vertical").valid,
+    false
+  );
+  assert.equal(
+    Game.prototype.getStrongestModeCoronationElsaDirectionalGeometry.call({}, verticalShort, "vertical").valid,
+    false
+  );
+
+  const left = makeCoronationElsaNode("left", 20, 340);
+  const horizontalValid = [left, makeCoronationElsaNode("horizontal-valid", 100, 365)];
+  const horizontalTilted = [left, makeCoronationElsaNode("horizontal-tilted", 100, 370)];
+  assert.equal(
+    Game.prototype.getStrongestModeCoronationElsaDirectionalGeometry.call({}, horizontalValid, "horizontal").valid,
+    true
+  );
+  assert.equal(
+    Game.prototype.getStrongestModeCoronationElsaDirectionalGeometry.call({}, horizontalTilted, "horizontal").valid,
+    false
+  );
+});
+
+test("Coronation Elsa directional search builds a valid parallel chain from connected Tsums", () => {
+  const nodes = [
+    makeCoronationElsaNode("bottom", 207, 560),
+    makeCoronationElsaNode("mid", 212, 500),
+    makeCoronationElsaNode("top", 216, 440)
+  ];
+  const harness = {
+    canConnectWithChainRule: (rule, from, to) => Math.hypot(from.x - to.x, from.y - to.y) <= 70,
+    getStrongestModeCoronationElsaDirectionalGeometry: Game.prototype.getStrongestModeCoronationElsaDirectionalGeometry,
+    countStrongestModeOnwardConnections: Game.prototype.countStrongestModeOnwardConnections
+  };
+  const chains = Game.prototype.findStrongestModeCoronationElsaDirectionalChains.call(
+    harness,
+    nodes[0],
+    nodes,
+    { allowedTypeIds: new Set(["test"]) },
+    6,
+    "vertical"
+  );
+  assert.deepEqual(chains[0].chain.map((node) => node.id), ["bottom", "mid", "top"]);
+  assert.equal(chains[0].geometry.valid, true);
+});
+
 test("Coronation Elsa preview selects the largest predicted clear without edge-direction bonuses", () => {
   const left = [
     makeCoronationElsaNode("left-start", 20, 270),
-    makeCoronationElsaNode("left-mid", 20, 330),
-    makeCoronationElsaNode("left-end", 20, 390)
+    makeCoronationElsaNode("left-mid", 80, 270),
+    makeCoronationElsaNode("left-end", 140, 270)
   ];
   const right = [
-    makeCoronationElsaNode("right-start", 394, 270),
-    makeCoronationElsaNode("right-mid", 394, 330),
-    makeCoronationElsaNode("right-end", 394, 390)
+    makeCoronationElsaNode("right-start", 394, 390),
+    makeCoronationElsaNode("right-mid", 334, 390),
+    makeCoronationElsaNode("right-end", 274, 390)
   ];
   const rightLineExtras = [
-    makeCoronationElsaNode("right-extra-1", 380, 450),
-    makeCoronationElsaNode("right-extra-2", 382, 510)
+    makeCoronationElsaNode("right-extra-1", 210, 382),
+    makeCoronationElsaNode("right-extra-2", 150, 380)
   ];
   const nodes = [...left, ...right, ...rightLineExtras];
   const harness = makeCoronationElsaPreviewHarness({
     nodes,
     chainsByStart: new Map([
-      [left[0].id, left],
-      [right[0].id, right]
+      [left[0].id, { chain: left, direction: "horizontal" }],
+      [right[0].id, { chain: right, direction: "horizontal" }]
     ])
   });
 
@@ -127,6 +218,38 @@ test("Coronation Elsa preview selects the largest predicted clear without edge-d
   assert.deepEqual(selected.map((node) => node.id), right.map((node) => node.id));
 });
 
+test("Coronation Elsa preview re-evaluates vertical and horizontal directions from the current board", () => {
+  const vertical = [
+    makeCoronationElsaNode("bottom-start", 207, 560),
+    makeCoronationElsaNode("bottom-mid", 210, 500),
+    makeCoronationElsaNode("bottom-end", 212, 440)
+  ];
+  const horizontal = [
+    makeCoronationElsaNode("side-start", 20, 260),
+    makeCoronationElsaNode("side-mid", 80, 260),
+    makeCoronationElsaNode("side-end", 140, 260)
+  ];
+  const verticalLineExtras = [
+    makeCoronationElsaNode("vertical-extra-1", 205, 380),
+    makeCoronationElsaNode("vertical-extra-2", 215, 320)
+  ];
+  const nodes = [...vertical, ...horizontal, ...verticalLineExtras];
+  const harness = makeCoronationElsaPreviewHarness({
+    nodes,
+    chainsByStart: new Map([
+      [vertical[0].id, { chain: vertical, direction: "vertical" }],
+      [horizontal[0].id, { chain: horizontal, direction: "horizontal" }]
+    ])
+  });
+
+  const selected = Game.prototype.findStrongestModeCoronationElsaBestPreviewChain.call(harness, {
+    minLength: 3,
+    maxLength: 6
+  });
+
+  assert.deepEqual(selected.map((node) => node.id), vertical.map((node) => node.id));
+});
+
 test("Coronation Elsa preview never falls back to a central start", () => {
   const central = [
     makeCoronationElsaNode("center-start", 207, 280),
@@ -135,7 +258,7 @@ test("Coronation Elsa preview never falls back to a central start", () => {
   ];
   const harness = makeCoronationElsaPreviewHarness({
     nodes: central,
-    chainsByStart: new Map([[central[0].id, central]])
+    chainsByStart: new Map([[central[0].id, { chain: central, direction: "vertical" }]])
   });
 
   const selected = Game.prototype.findStrongestModeCoronationElsaBestPreviewChain.call(harness, {

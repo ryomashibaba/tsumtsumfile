@@ -217,7 +217,7 @@ export const SKILL_TABLES = {
     cost: [22, 22, 19, 19, 16, 16],
     inactivitySec: [10, 10, 10, 10, 10, 10],
     tapCount: [2, 3, 3, 4, 4, 5],
-    eraseRadius: [62, 66, 66, 72, 72, 78],
+    eraseRadius: [150, 150, 150, 150, 150, 150],
     coinCorrectionType: ["correction_-1", "correction_-1", "correction_-1", "correction_-1", "correction_-1", "correction_-1"],
     scoreMultiplier: [1.2, 1.2, 1.2, 1.2, 1.2, 1.2],
     chargeMultiplier: [0.25, 0.25, 0.25, 0.25, 0.25, 0.25]

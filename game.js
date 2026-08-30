@@ -6292,6 +6292,104 @@ class Game {
     );
   }
 
+  getStrongestModeCoronationElsaStartDirections(tsum) {
+    if (!this.isStrongestModeCoronationElsaEdgeStart(tsum)) {
+      return [];
+    }
+    const edgeBand = TSUM_RADIUS * 2;
+    const directions = [];
+    if (Math.abs(FIELD_BOTTOM - tsum.y) <= edgeBand) {
+      directions.push("vertical");
+    }
+    if (
+      Math.abs(tsum.x - FIELD_LEFT) <= edgeBand ||
+      Math.abs(FIELD_RIGHT - tsum.x) <= edgeBand
+    ) {
+      directions.push("horizontal");
+    }
+    return directions;
+  }
+
+  getStrongestModeCoronationElsaDirectionalGeometry(chain, direction) {
+    if (!Array.isArray(chain) || chain.length < 2) {
+      return null;
+    }
+    const start = chain[0];
+    const end = chain[chain.length - 1];
+    const startsAtLeft = Math.abs(start.x - FIELD_LEFT) <= TSUM_RADIUS * 2;
+    const startsAtRight = Math.abs(FIELD_RIGHT - start.x) <= TSUM_RADIUS * 2;
+    let primarySpan = 0;
+    let perpendicularSpan = 0;
+    let lane = 0;
+    if (direction === "vertical") {
+      primarySpan = start.y - end.y;
+      perpendicularSpan = Math.abs(end.x - start.x);
+      lane = (start.x + end.x) * 0.5;
+    } else if (direction === "horizontal" && (startsAtLeft || startsAtRight)) {
+      primarySpan = startsAtLeft ? end.x - start.x : start.x - end.x;
+      perpendicularSpan = Math.abs(end.y - start.y);
+      lane = (start.y + end.y) * 0.5;
+    } else {
+      return null;
+    }
+    const alignmentRatio = primarySpan > 0 ? perpendicularSpan / primarySpan : Infinity;
+    return {
+      direction,
+      primarySpan,
+      perpendicularSpan,
+      alignmentRatio,
+      lane,
+      valid: primarySpan >= TSUM_RADIUS * 2 && alignmentRatio <= 0.35
+    };
+  }
+
+  findStrongestModeCoronationElsaDirectionalChains(start, nodes, rule, maxLength, direction) {
+    if (!start || !Array.isArray(nodes) || !rule || maxLength < 3) {
+      return [];
+    }
+    const beamWidth = 8;
+    const resultLimit = 4;
+    let beam = [{ chain: [start], used: new Set([start.id]), searchScore: 0 }];
+    const results = [];
+    for (let depth = 1; depth < maxLength; depth += 1) {
+      const expanded = [];
+      for (const state of beam) {
+        const current = state.chain[state.chain.length - 1];
+        for (const candidate of nodes) {
+          if (state.used.has(candidate.id) || !this.canConnectWithChainRule(rule, current, candidate)) {
+            continue;
+          }
+          const chain = [...state.chain, candidate];
+          const used = new Set(state.used);
+          used.add(candidate.id);
+          const geometry = this.getStrongestModeCoronationElsaDirectionalGeometry(chain, direction);
+          const onward = this.countStrongestModeOnwardConnections(candidate, nodes, rule, used);
+          const primarySpan = geometry?.primarySpan ?? 0;
+          const perpendicularSpan = geometry?.perpendicularSpan ?? Infinity;
+          const searchScore = primarySpan * 2.2 - perpendicularSpan * 3.2 + onward * 18 + chain.length * 4;
+          const nextState = { chain, used, searchScore };
+          expanded.push(nextState);
+          if (chain.length >= 3 && geometry?.valid) {
+            results.push({ chain, geometry, searchScore });
+          }
+        }
+      }
+      if (!expanded.length) {
+        break;
+      }
+      expanded.sort((a, b) => (
+        b.searchScore - a.searchScore ||
+        String(a.chain.map((tsum) => tsum.id).join("|")).localeCompare(String(b.chain.map((tsum) => tsum.id).join("|")))
+      ));
+      beam = expanded.slice(0, beamWidth);
+    }
+    results.sort((a, b) => (
+      b.searchScore - a.searchScore ||
+      String(a.chain.map((tsum) => tsum.id).join("|")).localeCompare(String(b.chain.map((tsum) => tsum.id).join("|")))
+    ));
+    return results.slice(0, resultLimit);
+  }
+
   findStrongestModeCoronationElsaBestPreviewChain(options = {}) {
     const minLength = options.minLength || 3;
     const maxLength = Number.isFinite(options.maxLength) ? options.maxLength : Infinity;
@@ -6302,9 +6400,10 @@ class Game {
       (!filterNode || filterNode(tsum))
     ));
     const candidateKeys = new Set();
-    const candidates = [];
+    const directionalCandidates = [];
     for (const start of liveNodes) {
-      if (!this.isStrongestModeCoronationElsaEdgeStart(start)) {
+      const directions = this.getStrongestModeCoronationElsaStartDirections(start);
+      if (!directions.length) {
         continue;
       }
       const rule = this.getChainBehaviorForStart(start);
@@ -6312,33 +6411,79 @@ class Game {
         continue;
       }
       const nodes = liveNodes.filter((tsum) => rule.allowedTypeIds.has(this.boardState.getResolvedType(tsum).id));
-      const chain = this.findStrongestModeGreedyChain(start, nodes, rule, maxLength);
-      if (chain.length < minLength) {
-        continue;
+      for (const direction of directions) {
+        const directionalChains = this.findStrongestModeCoronationElsaDirectionalChains(
+          start,
+          nodes,
+          rule,
+          maxLength,
+          direction
+        );
+        for (const directionalChain of directionalChains) {
+          const chain = directionalChain.chain;
+          if (chain.length < minLength) {
+            continue;
+          }
+          const pathKey = `${direction}:${chain.map((tsum) => String(tsum.id)).join("|")}`;
+          if (candidateKeys.has(pathKey)) {
+            continue;
+          }
+          candidateKeys.add(pathKey);
+          directionalCandidates.push({ ...directionalChain, direction, pathKey });
+        }
       }
-      const forwardKey = chain.map((tsum) => String(tsum.id)).join("|");
-      const reverseKey = chain.map((tsum) => String(tsum.id)).reverse().join("|");
-      const pathKey = forwardKey < reverseKey ? forwardKey : reverseKey;
-      if (candidateKeys.has(pathKey)) {
-        continue;
-      }
-      candidateKeys.add(pathKey);
-      const preview = computeCoronationElsaFreezePreview(this, chain, this.selectedSkillLevel);
+    }
+    if (!directionalCandidates.length) {
+      return [];
+    }
+    directionalCandidates.sort((a, b) => b.searchScore - a.searchScore || a.pathKey.localeCompare(b.pathKey));
+    const previewCandidateLimitPerDirection = 32;
+    const previewCandidates = ["vertical", "horizontal"].flatMap((direction) => (
+      directionalCandidates
+        .filter((candidate) => candidate.direction === direction)
+        .slice(0, previewCandidateLimitPerDirection)
+    ));
+    const lineRadius = skillValue("coronationElsa", "freezeRadius", this.selectedSkillLevel) * 0.58;
+    const laneCandidates = new Map();
+    for (const candidate of previewCandidates) {
+      const preview = computeCoronationElsaFreezePreview(this, candidate.chain, this.selectedSkillLevel);
       const newFrozenCount = preview.targets.reduce((count, tsum) => (
         count + (preview.priorFrozenIds.has(tsum.id) ? 0 : 1)
       ), 0);
-      candidates.push({
-        chain,
-        pathKey,
+      const evaluated = {
+        ...candidate,
         preview,
         predictedClearCount: preview.targets.length,
+        lineTargetCount: preview.lineTargets.length,
         newFrozenCount,
         nextChainPotential: null
-      });
+      };
+      const laneKey = `${candidate.direction}:${Math.round(candidate.geometry.lane / Math.max(1, lineRadius))}`;
+      const current = laneCandidates.get(laneKey);
+      if (
+        !current ||
+        evaluated.predictedClearCount > current.predictedClearCount ||
+        (
+          evaluated.predictedClearCount === current.predictedClearCount &&
+          (
+            evaluated.lineTargetCount > current.lineTargetCount ||
+            (
+              evaluated.lineTargetCount === current.lineTargetCount &&
+              (
+                evaluated.newFrozenCount > current.newFrozenCount ||
+                (
+                  evaluated.newFrozenCount === current.newFrozenCount &&
+                  evaluated.pathKey < current.pathKey
+                )
+              )
+            )
+          )
+        )
+      ) {
+        laneCandidates.set(laneKey, evaluated);
+      }
     }
-    if (!candidates.length) {
-      return [];
-    }
+    const candidates = Array.from(laneCandidates.values());
     const getNextChainPotential = (candidate) => {
       if (candidate.nextChainPotential != null) {
         return candidate.nextChainPotential;
@@ -6347,7 +6492,8 @@ class Game {
       const remainingNodes = liveNodes.filter((tsum) => !frozenIds.has(tsum.id));
       let potential = 0;
       for (const start of remainingNodes) {
-        if (!this.isStrongestModeCoronationElsaEdgeStart(start)) {
+        const directions = this.getStrongestModeCoronationElsaStartDirections(start);
+        if (!directions.length) {
           continue;
         }
         const rule = this.getChainBehaviorForStart(start);
@@ -6355,10 +6501,21 @@ class Game {
           continue;
         }
         const nodes = remainingNodes.filter((tsum) => rule.allowedTypeIds.has(this.boardState.getResolvedType(tsum).id));
-        potential = Math.max(
-          potential,
-          this.findStrongestModeGreedyChain(start, nodes, rule, maxLength).length
-        );
+        for (const direction of directions) {
+          const nextChains = this.findStrongestModeCoronationElsaDirectionalChains(
+            start,
+            nodes,
+            rule,
+            maxLength,
+            direction
+          );
+          for (const nextChain of nextChains) {
+            potential = Math.max(potential, nextChain.chain.length);
+          }
+        }
+        if (potential >= maxLength) {
+          break;
+        }
       }
       candidate.nextChainPotential = potential;
       return potential;
@@ -6368,6 +6525,12 @@ class Game {
       const candidate = candidates[index];
       if (candidate.predictedClearCount !== best.predictedClearCount) {
         if (candidate.predictedClearCount > best.predictedClearCount) {
+          best = candidate;
+        }
+        continue;
+      }
+      if (candidate.lineTargetCount !== best.lineTargetCount) {
+        if (candidate.lineTargetCount > best.lineTargetCount) {
           best = candidate;
         }
         continue;
