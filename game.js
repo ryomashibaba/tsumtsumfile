@@ -29,6 +29,7 @@ import {
   AI_LEARNING_BUTTON_RECT,
   AI_LEARNING_REPEAT_BUTTON_RECT,
   TSUM_TYPES,
+  FIXED_SUB_TSUM_IDS_BY_MY_TSUM,
   ITEM_DEFS,
   BOMB_DATA,
   SKILL_TABLES,
@@ -58,7 +59,7 @@ import {
   registerLiliaSkill
 } from './lilia.js?v=tsum-images-7';
 import { drawTsumArtwork } from './tsumImages.js?v=tsum-images-5';
-import { getSubTsumCandidates, selectBoardTypes } from './boardTypeSelection.js?v=tsum-images-5';
+import { areBoardTypesColorCompatible } from './boardTypeSelection.js?v=tsum-images-5';
 import { distancePointToSegment } from './clearGeometry.js?v=tsum-images-5';
 import {
   DEFAULT_LARGE_TSUM_SPAWN_CHANCE,
@@ -229,7 +230,7 @@ class Tsum {
           ctx.shadowColor = highlighted ? "rgba(255,255,255,0.95)" : "rgba(0,0,0,0.22)";
           ctx.scale(1 - motionStretch * 0.35, 1 + motionStretch * 0.45);
 
-          const hasArtwork = !liliaBat && drawTsumArtwork(ctx, displayType, 0, 0, r);
+          const hasArtwork = !liliaBat && drawTsumArtwork(ctx, displayType, 0, 0, r, { fit: "cover" });
           if (liliaBat) {
             drawLiliaBat(ctx, r, highlighted);
           } else if (hasArtwork) {
@@ -4901,26 +4902,28 @@ class Game {
   getPairBoardTypes(maxTypes = this.getBoardTypeLimit()) {
     const pairJudy = TSUM_TYPES.find((type) => type.id === "judyNickJudy");
     const pairNick = TSUM_TYPES.find((type) => type.id === "judyNickNickMate");
-    return selectBoardTypes({
-      requiredTypes: [pairJudy, pairNick],
-      candidates: this.getSubTsumTypes(),
-      targetCount: maxTypes
-    });
+    return this.getFixedBoardTypes([pairJudy, pairNick], maxTypes);
   }
 
-  getSubTsumTypes() {
-    return getSubTsumCandidates(TSUM_TYPES);
+  getFixedBoardTypes(requiredTypes, maxTypes) {
+    const subIds = FIXED_SUB_TSUM_IDS_BY_MY_TSUM[this.myTsum.id]?.[maxTypes];
+    if (!subIds) {
+      throw new Error(`No fixed sub-Tsum board selection for ${this.myTsum.id} (${maxTypes} types)`);
+    }
+
+    const subTypes = subIds.map((id) => TSUM_TYPES.find((type) => type.id === id));
+    const boardTypes = [...requiredTypes, ...subTypes];
+    if (subTypes.some((type) => !type) || boardTypes.length !== maxTypes || !areBoardTypesColorCompatible(boardTypes)) {
+      throw new Error(`Invalid fixed sub-Tsum board selection for ${this.myTsum.id} (${maxTypes} types)`);
+    }
+    return boardTypes;
   }
 
   getBoardTypes(maxTypes = this.getBoardTypeLimit()) {
     if (this.myTsum.id === "judyNick") {
       return this.getPairBoardTypes(maxTypes);
     }
-    return selectBoardTypes({
-      requiredTypes: [this.myTsum],
-      candidates: this.getSubTsumTypes(),
-      targetCount: maxTypes
-    });
+    return this.getFixedBoardTypes([this.myTsum], maxTypes);
   }
 
   getBoardWeights(typeCount = this.availableTypes?.length || this.getBoardTypeLimit()) {

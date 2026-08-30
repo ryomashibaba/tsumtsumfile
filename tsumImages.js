@@ -24,6 +24,34 @@ function drawFittedImage(ctx, image, x, y, maxWidth, maxHeight) {
   ctx.drawImage(image, x - width * 0.5, y - height * 0.5, width, height);
 }
 
+export function getCoverSourceRect(image, targetWidth, targetHeight) {
+  const sourceAspect = image.naturalWidth / image.naturalHeight;
+  const targetAspect = targetWidth / targetHeight;
+
+  if (sourceAspect > targetAspect) {
+    const width = image.naturalHeight * targetAspect;
+    return { x: (image.naturalWidth - width) * 0.5, y: 0, width, height: image.naturalHeight };
+  }
+
+  const height = image.naturalWidth / targetAspect;
+  return { x: 0, y: (image.naturalHeight - height) * 0.5, width: image.naturalWidth, height };
+}
+
+function drawCoveredImage(ctx, image, x, y, width, height) {
+  const source = getCoverSourceRect(image, width, height);
+  ctx.drawImage(
+    image,
+    source.x,
+    source.y,
+    source.width,
+    source.height,
+    x - width * 0.5,
+    y - height * 0.5,
+    width,
+    height
+  );
+}
+
 export function preloadTsumImages(types) {
   for (const type of types || []) {
     const sources = type.imageSources || (type.imageSrc ? [type.imageSrc] : []);
@@ -31,7 +59,7 @@ export function preloadTsumImages(types) {
   }
 }
 
-export function drawTsumArtwork(ctx, type, x, y, radius) {
+export function drawTsumArtwork(ctx, type, x, y, radius, { fit = "contain" } = {}) {
   const sources = type?.imageSources || (type?.imageSrc ? [type.imageSrc] : []);
   const images = sources.map(getImage);
   if (images.length === 0 || images.some((image) => !isDrawable(image))) {
@@ -40,7 +68,15 @@ export function drawTsumArtwork(ctx, type, x, y, radius) {
 
   ctx.save();
   if (images.length === 1) {
-    drawFittedImage(ctx, images[0], x, y, radius * 2.08, radius * 2.08);
+    const size = radius * 2.18;
+    if (fit === "cover") {
+      ctx.beginPath();
+      ctx.arc(x, y, radius * 1.04, 0, Math.PI * 2);
+      ctx.clip();
+      drawCoveredImage(ctx, images[0], x, y, size, size);
+    } else {
+      drawFittedImage(ctx, images[0], x, y, size, size);
+    }
   } else {
     const pairRadius = radius * 0.78;
     drawFittedImage(ctx, images[0], x - radius * 0.36, y, pairRadius * 2, pairRadius * 2);

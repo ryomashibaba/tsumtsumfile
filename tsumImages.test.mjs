@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import { TSUM_TYPES } from "./config.js";
+import { getCoverSourceRect } from "./tsumImages.js";
 
 const EXPECTED_ARTWORK_IDS = [
   "coronationElsa",
@@ -62,4 +63,15 @@ test("characters without supplied artwork keep their fallback rendering", () => 
 
   assert.deepEqual(getSources(typesById.get("coingain")), []);
   assert.deepEqual(getSources(typesById.get("namineSora")), []);
+});
+
+test("cover source rectangles center-crop inconsistent artwork dimensions into a square", () => {
+  assert.deepEqual(
+    getCoverSourceRect({ naturalWidth: 338, naturalHeight: 261 }, 64, 64),
+    { x: 38.5, y: 0, width: 261, height: 261 }
+  );
+  assert.deepEqual(
+    getCoverSourceRect({ naturalWidth: 487, naturalHeight: 512 }, 64, 64),
+    { x: 0, y: 12.5, width: 487, height: 487 }
+  );
 });

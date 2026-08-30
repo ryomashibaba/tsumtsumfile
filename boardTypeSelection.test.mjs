@@ -1,11 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { TSUM_TYPES } from "./config.js";
+import { FIXED_SUB_TSUM_IDS_BY_MY_TSUM, TSUM_TYPES } from "./config.js";
 import {
   MIN_BOARD_COLOR_DISTANCE,
   areBoardTypesColorCompatible,
   findValidBoardTypeLineups,
+  getBoardColorDistance,
   getSubTsumCandidates,
   hasTsumArtwork,
   selectBoardTypes
@@ -62,6 +63,32 @@ test("every selectable my Tsum has color-safe 3, 4, and 5-type lineups", () => {
         const subs = lineup.filter((type) => !requiredTypesFor(myTsum).includes(type));
         assert.ok(subs.every(hasTsumArtwork), `${myTsum.id} has an image-less sub Tsum`);
       }
+    }
+  }
+});
+
+test("fixed sub-Tsum selections maximize board color separation for every board size", () => {
+  const candidates = getSubTsumCandidates(TSUM_TYPES);
+  const selectable = TSUM_TYPES.filter((type) => type.selectable !== false && type.skillType !== "auxiliary");
+
+  for (const myTsum of selectable) {
+    const required = requiredTypesFor(myTsum);
+    for (const targetCount of [3, 4, 5]) {
+      const subIds = FIXED_SUB_TSUM_IDS_BY_MY_TSUM[myTsum.id]?.[targetCount];
+      assert.ok(subIds, `${myTsum.id} is missing a fixed ${targetCount}-type selection`);
+      const lineup = [...required, ...subIds.map(byId)];
+      assert.equal(lineup.length, targetCount);
+      assert.equal(areBoardTypesColorCompatible(lineup), true);
+
+      const minimumDistance = (types) => Math.min(...types.flatMap((type, index) => (
+        types.slice(index + 1).map((other) => getBoardColorDistance(type, other))
+      )));
+      const bestMinimumDistance = Math.max(...findValidBoardTypeLineups({
+        requiredTypes: required,
+        candidates,
+        targetCount
+      }).map(minimumDistance));
+      assert.equal(minimumDistance(lineup), bestMinimumDistance, `${myTsum.id} ${targetCount}-type selection is not farthest`);
     }
   }
 });
