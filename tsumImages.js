@@ -68,12 +68,18 @@ export function drawTsumArtwork(ctx, type, x, y, radius, { fit = "contain" } = {
 
   ctx.save();
   if (images.length === 1) {
-    const size = radius * 2.18;
+    const size = radius * 2.18 * (type.artworkScale ?? 1);
     if (fit === "cover") {
-      ctx.beginPath();
-      ctx.arc(x, y, radius * 1.04, 0, Math.PI * 2);
-      ctx.clip();
-      drawCoveredImage(ctx, images[0], x, y, size, size);
+      if (type.artworkOverflow) {
+        // Grogu's body is centered on the physics circle; its pointed ears are
+        // intentionally allowed to extend beyond it.
+        drawFittedImage(ctx, images[0], x, y, size, size);
+      } else {
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 1.04, 0, Math.PI * 2);
+        ctx.clip();
+        drawCoveredImage(ctx, images[0], x, y, size, size);
+      }
     } else {
       drawFittedImage(ctx, images[0], x, y, size, size);
     }

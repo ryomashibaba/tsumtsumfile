@@ -76,6 +76,8 @@ import {
   resolveBombGeneration,
   shouldSpawnLargeTsum
 } from './bombLogic.js?v=tsum-images-5';
+import { getGameplayClockDelta, resolveGameplayPauseState } from './gameplayTiming.js?v=skill-timing-1';
+import { shouldUseStrongestModeFeverBombCancel } from './strongestModeLogic.js?v=fever-bomb-cancel-1';
 
 const TITLE_TSUMS_PER_PAGE = 10;
 const JUDY_NICK_MOVING_FREEZE_KIND = "judyNickMovingIce";
@@ -5272,8 +5274,16 @@ class Game {
     return !!session?.data?.loopActive;
   }
 
-  getCurrentGameplayDelta(dt) {
-    return this.pendingClear?.freezeGameplayTime || this.isCoingainTimerPaused() ? 0 : dt;
+  getCurrentGameplayPauseState() {
+    return resolveGameplayPauseState({
+      pendingClear: this.pendingClear,
+      coingainClockPaused: this.isCoingainTimerPaused(),
+      coingainPhysicsPaused: this.isCoingainPhysicsPaused()
+    });
+  }
+
+  getCurrentGameplayDelta(dt, pauseState = this.getCurrentGameplayPauseState()) {
+    return getGameplayClockDelta(dt, pauseState);
   }
 
   getLiliaSession() {
@@ -5588,6 +5598,9 @@ class Game {
     }
     if (this.isSkillReadyForActivation()) {
       return this.attemptSkillActivation(false);
+    }
+    if (this.tryPerformStrongestModeFeverBombCancel()) {
+      return true;
     }
     const isCoronationElsaSkillActive = (
       this.myTsum?.id === "coronationElsa" &&
@@ -5955,12 +5968,7 @@ class Game {
   }
 
   findStrongestModeBombTarget(nextChain = []) {
-    const liveBombs = this.bombs.filter((bomb) => (
-      bomb &&
-      !bomb.dead &&
-      !bomb.removing &&
-      this.findBombAt(bomb.x, bomb.y) === bomb
-    ));
+    const liveBombs = this.getStrongestModeValidBombs();
     if (liveBombs.length <= 0) {
       return null;
     }
@@ -5970,8 +5978,12 @@ class Game {
     if (liveBombs.length < 2 && !nextChainCreatesBomb) {
       return null;
     }
+    return this.findStrongestModeBestBomb(liveBombs);
+  }
+
+  findStrongestModeBestBomb(bombs = this.getStrongestModeValidBombs()) {
     let best = null;
-    for (const bomb of liveBombs) {
+    for (const bomb of bombs) {
       const radius = bomb.effectRadius || BOMB_BLAST_RADIUS;
       let effectCount = 0;
       for (const tsum of this.tsums) {
@@ -5995,6 +6007,84 @@ class Game {
       }
     }
     return best?.bomb || null;
+  }
+
+  tryPerformStrongestModeFeverBombCancel() {
+    const validBombs = this.getStrongestModeValidBombs();
+    if (!shouldUseStrongestModeFeverBombCancel({
+      strongestModeEnabled: this.strongestModeEnabled,
+      feverActive: this.feverSystem.active,
+      feverGauge: this.feverSystem.gauge,
+      activeSkillCount: this.skillRuntime.sessions.length,
+      validBombCount: validBombs.length
+    })) {
+      return false;
+    }
+
+    const snapshotNodes = this.getStrongestModeChainNodes();
+    if (snapshotNodes.length < 3) {
+      return false;
+    }
+    const remainingSnapshotIds = new Set(snapshotNodes.map((tsum) => tsum.id));
+    let reservedBomb = this.findStrongestModeBestBomb(validBombs);
+    if (!reservedBomb) {
+      return false;
+    }
+
+    const maxChains = Math.floor(snapshotNodes.length / 3);
+    let performed = 0;
+    const performedLengths = [];
+    while (performed < maxChains) {
+      const chain = this.findStrongestModeBestChain({
+        minLength: 3,
+        filterNode: (tsum) => remainingSnapshotIds.has(tsum.id)
+      });
+      if (
+        !Array.isArray(chain) ||
+        chain.length < 3 ||
+        chain.some((tsum) => !remainingSnapshotIds.has(tsum.id))
+      ) {
+        break;
+      }
+      const chained = this.performStrongestModeChain(chain, {
+        allowChainQueueDuringActiveClear: true
+      });
+      if (!chained) {
+        break;
+      }
+      for (const tsum of chain) {
+        remainingSnapshotIds.delete(tsum.id);
+      }
+      performedLengths.push(chain.length);
+      performed += 1;
+    }
+
+    if (performed <= 0) {
+      return false;
+    }
+    if (!this.isStrongestModeDeferredBombTargetValid(reservedBomb)) {
+      reservedBomb = this.findStrongestModeBestBomb();
+    }
+    let bombCancelMethod = "unavailable";
+    if (reservedBomb && this.isStrongestModeDeferredBombTargetValid(reservedBomb)) {
+      const tapped = this.inputRouter.handleTap({ x: reservedBomb.x, y: reservedBomb.y });
+      bombCancelMethod = tapped ? "tap" : "tap-failed";
+      if (!tapped && this.canBombCancelActiveChain()) {
+        this.explodeBomb(reservedBomb);
+        bombCancelMethod = "direct";
+      }
+    }
+    if (this.coronationElsaDebug || this.aiLearningDebug) {
+      console.log("[STRONGEST FEVER BOMB CANCEL]", {
+        feverGauge: this.feverSystem.gauge,
+        snapshotNodeCount: snapshotNodes.length,
+        chainCount: performed,
+        chainLengths: performedLengths,
+        bombId: reservedBomb?.id || null,
+        bombCancelMethod
+      });
+    }
+    return true;
   }
 
   isStrongestModeDeferredBombTargetValid(bomb) {
@@ -9643,7 +9733,8 @@ class Game {
       this.fanCooldown = Math.max(0, this.fanCooldown - dt);
     }
     this.fanPulse = Math.max(0, this.fanPulse - dt * 2.4);
-    const gameplayDt = this.getCurrentGameplayDelta(dt);
+    const gameplayPauseState = this.getCurrentGameplayPauseState();
+    const gameplayDt = this.getCurrentGameplayDelta(dt, gameplayPauseState);
     if (this.isCoingainInputLocked()) {
       this.cancelActiveInputForCoingainLock();
     }
@@ -9673,7 +9764,7 @@ class Game {
       }
     }
 
-    if (!this.isCoingainPhysicsPaused()) {
+    if (!gameplayPauseState.physicsPaused) {
       this.physicsAccumulator += dt / FIXED_STEP;
       let steps = 0;
       while (this.physicsAccumulator >= 1 && steps < 5) {
@@ -9696,8 +9787,8 @@ class Game {
     this.updateSkillChargeFlights();
     this.skillRuntime.update(gameplayDt * 1000);
     this.skillSystem.update(dt);
-    this.feverSystem.update(this.isCoingainTimerPaused() ? 0 : dt);
-    this.comboSystem.update(dt);
+    this.feverSystem.update(gameplayDt);
+    this.comboSystem.update(gameplayDt);
     this.refreshRenderBodies();
     if (this.strongestModeEnabled) {
       this.updateStrongestMode(gameplayDt);
@@ -10312,7 +10403,8 @@ SkillRegistry.gaston = {
         x: WIDTH * 0.5,
         y: FIELD_CENTER_Y,
         allowBomb: false,
-        freezeGameplayTime: true,
+        pauseClock: true,
+        pausePhysics: true,
         correctionType: skillValue("gaston", "coinCorrectionType", ctx.level),
         onFinalize: activateLoop
       });
@@ -10368,7 +10460,8 @@ SkillRegistry.guidingMoana = {
           x: WIDTH * 0.5,
           y: FIELD_TOP + 72,
           allowBomb: false,
-          freezeGameplayTime: true,
+          pauseClock: true,
+          pausePhysics: true,
           onFinalize: spawnCenterBomb
         });
       } else {

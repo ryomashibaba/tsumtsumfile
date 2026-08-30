@@ -65,6 +65,13 @@ test("characters without supplied artwork keep their fallback rendering", () => 
   assert.deepEqual(getSources(typesById.get("namineSora")), []);
 });
 
+test("Grogu aligns its circular body with the Tsum hit area while retaining ear overflow", () => {
+  const grogu = TSUM_TYPES.find((type) => type.id === "grogu");
+
+  assert.equal(grogu.artworkScale, 1.65);
+  assert.equal(grogu.artworkOverflow, true);
+});
+
 test("cover source rectangles center-crop inconsistent artwork dimensions into a square", () => {
   assert.deepEqual(
     getCoverSourceRect({ naturalWidth: 338, naturalHeight: 261 }, 64, 64),
