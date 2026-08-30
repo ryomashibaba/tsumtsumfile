@@ -78,6 +78,12 @@ import {
 } from './bombLogic.js?v=tsum-images-5';
 import { getGameplayClockDelta, resolveGameplayPauseState } from './gameplayTiming.js?v=skill-timing-1';
 import {
+  beginBodyRemovalState,
+  isBodyOccupying,
+  isBodyPhysicsActive,
+  isBodyVisible
+} from './bodyLifecycle.js?v=ghost-tsum-1';
+import {
   shouldTapStrongestModeCoronationElsaCompletedIce,
   shouldUseStrongestModeFeverBombCancel
 } from './strongestModeLogic.js?v=strongest-mode-coronation-ice-1';
@@ -178,9 +184,8 @@ class Tsum {
         }
 
         beginRemove() {
-          this.removing = true;
+          beginBodyRemovalState(this);
           this.removeTimer = 0;
-          this.inChain = false;
           this.removeDx += this.vx * 0.3;
           this.removeDy += this.vy * 0.15;
         }
@@ -2141,6 +2146,8 @@ class ClearPipeline {
     if (!info || !Array.isArray(info.targets) || info.targets.length === 0) {
       return;
     }
+    // A layered Coronation Elsa ice counts duplicate clears for score/coins,
+    // but each physical Tsum may charge the MyTsum gauge only once.
     if (!info.skillFlightQueuedIds) {
       info.skillFlightQueuedIds = new Set();
     }
@@ -7769,18 +7776,11 @@ class Game {
   }
 
   getPhysicsBodies() {
-    return [...this.tsums, ...this.bombs].filter((body) => !body.dead && !body.removing);
+    return [...this.tsums, ...this.bombs].filter(isBodyPhysicsActive);
   }
 
   getOccupyingBodies() {
-    const bodies = this.getPhysicsBodies();
-    const seen = new Set(bodies.map((body) => body.id));
-    for (const tsum of this.tsums) {
-      if (!tsum.dead && tsum.clearOccupying && !seen.has(tsum.id)) {
-        bodies.push(tsum);
-      }
-    }
-    return bodies;
+    return [...this.tsums, ...this.bombs].filter(isBodyOccupying);
   }
 
   getBodyCollisionX(body) {
@@ -7792,7 +7792,7 @@ class Game {
   }
 
   getRenderableBodies() {
-    return this.getPhysicsBodies()
+    return [...this.tsums, ...this.bombs]
       .filter((body) => this.isBodyRenderable(body))
       .slice()
       .sort((a, b) => b.y - a.y);
@@ -7806,7 +7806,7 @@ class Game {
   }
 
   isBodyRenderable(body) {
-    if (!body || body.dead || body.removing) {
+    if (!isBodyVisible(body)) {
       return false;
     }
     if (body.isBomb) {
@@ -9815,12 +9815,17 @@ class Game {
         this.physicsAccumulator -= 1;
         steps += 1;
       }
-
       for (const tsum of this.tsums) {
         tsum.update(dt);
       }
       for (const bomb of this.bombs) {
         bomb.update(dt);
+      }
+    } else {
+      for (const tsum of this.tsums) {
+        if (tsum.removing) {
+          tsum.update(dt);
+        }
       }
     }
     this.bombs = this.bombs.filter((bomb) => !bomb.dead);

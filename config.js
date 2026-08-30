@@ -210,7 +210,7 @@ export const SKILL_TABLES = {
     freezeRadius: [58, 62, 66, 70, 74, 78],
     freezeClusterLimit: [5, 6, 7, 8, 9, 10],
     coinCorrectionType: ["correction_-8", "correction_-8", "correction_-7", "correction_-7", "correction_-6", "correction_-5"],
-    chargeMultiplier: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+    chargeMultiplier: [0.4, 0.4, 0.4, 0.4, 0.4, 0.4],
     persistFrozenAfterExpire: [true, true, true, true, true, true]
   },
   captainLightyear: {

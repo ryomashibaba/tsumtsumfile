@@ -93,9 +93,10 @@ function makeUpdateHarness({ pendingClear = null } = {}) {
   return { game, observed };
 }
 
-test("a paused initial clear freezes gameplay clocks and physics but not presentation", () => {
+test("a paused initial clear freezes gameplay clocks and physics while body presentation continues", () => {
   const pendingClear = { pauseClock: true, pausePhysics: true, timer: 1 };
   const { game, observed } = makeUpdateHarness({ pendingClear });
+  game.tsums[0].removing = true;
 
   Game.prototype.update.call(game, 1 / 60);
 
@@ -104,7 +105,7 @@ test("a paused initial clear freezes gameplay clocks and physics but not present
   assert.equal(observed.feverDt, 0);
   assert.equal(observed.comboDt, 0);
   assert.equal(observed.physicsSteps, 0);
-  assert.equal(observed.tsumDt, null);
+  assert.equal(observed.tsumDt, 1 / 60);
   assert.equal(observed.bombDt, null);
   assert.equal(game.physicsAccumulator, 0);
   assert.equal(observed.effectDt, 1 / 60);
