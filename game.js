@@ -60,7 +60,6 @@ import {
 } from './lilia.js?v=tsum-images-7';
 import { drawTsumArtwork } from './tsumImages.js?v=tsum-images-5';
 import { areBoardTypesColorCompatible } from './boardTypeSelection.js?v=tsum-images-5';
-import { distancePointToSegment } from './clearGeometry.js?v=tsum-images-5';
 import {
   DEFAULT_LARGE_TSUM_SPAWN_CHANCE,
   LARGE_TSUM_CLEAR_WEIGHT,
@@ -83,6 +82,13 @@ import {
   isBodyPhysicsActive,
   isBodyVisible
 } from './bodyLifecycle.js?v=ghost-tsum-1';
+import {
+  buildCoronationElsaPlannerAdjacency,
+  buildCoronationElsaPlannerSnapshot,
+  getCoronationElsaPlannerNodeIndex,
+  profileCoronationElsaPlanner,
+  simulateCoronationElsaFreeze
+} from './coronationElsaPlanner.js?v=coronation-elsa-planner-1';
 import {
   shouldTapStrongestModeCoronationElsaCompletedIce,
   shouldUseStrongestModeFeverBombCancel
@@ -2303,6 +2309,9 @@ const strongestSkillStrategies = {
       return null;
     }
     const track = options.track !== false;
+    if (track) {
+      game.maybeProfileStrongestModeCoronationElsaPlanner?.();
+    }
     const safePlayableY = game.getStrongestModeCoronationElsaSafePlayableY();
     const frozenCount = game.boardState.getFrozenNodesByKind("coronationElsa").length;
     if (frozenCount === 0) {
@@ -2452,6 +2461,7 @@ class Game {
     this.strongestModeCoronationElsaSkillSummary = null;
     this.strongestModeCoronationElsaLastTierSearchDiagnostics = null;
     this.strongestModeCoronationElsaLastSearchDiagnostics = null;
+    this.strongestModeCoronationElsaPlannerProfileKey = null;
     this.aiAutoPlay = false;
     this.aiTrainingMode = false;
     this.aiLearningMode = false;
@@ -5429,6 +5439,55 @@ class Game {
     return dLast <= maxChainDist + margin;
   }
 
+  buildCoronationElsaPlannerContext(options = {}) {
+    const level = options.level || this.selectedSkillLevel;
+    if (options.profile) {
+      return profileCoronationElsaPlanner(this, {
+        ...options,
+        level
+      });
+    }
+    const snapshot = buildCoronationElsaPlannerSnapshot(this, level);
+    const adjacency = buildCoronationElsaPlannerAdjacency(this, snapshot);
+    return Object.freeze({
+      snapshot,
+      adjacency,
+      initialState: snapshot.initialState,
+      diagnostics: null
+    });
+  }
+
+  maybeProfileStrongestModeCoronationElsaPlanner() {
+    if (!this.coronationElsaDebug) {
+      return null;
+    }
+    const session = this.getActiveSkillSession("coronationElsa");
+    if (!session) {
+      return null;
+    }
+    const committedTraceCount = this.getStrongestModeCoronationElsaSkillSummary()?.chainCount || 0;
+    const profileKey = `${session.id}:${committedTraceCount}`;
+    if (this.strongestModeCoronationElsaPlannerProfileKey === profileKey) {
+      return null;
+    }
+    this.strongestModeCoronationElsaPlannerProfileKey = profileKey;
+    try {
+      return this.buildCoronationElsaPlannerContext({
+        profile: true,
+        log: true,
+        sessionId: session.id,
+        committedTraceCount
+      });
+    } catch (error) {
+      this.logCodexCoronationPayload("[CODEXLOG CORONATION PLANNER PROFILE ERROR]", {
+        sessionId: session.id,
+        committedTraceCount,
+        message: error instanceof Error ? error.message : String(error)
+      });
+      return null;
+    }
+  }
+
   updateStrongestMode(dt) {
     if (this.isStrongestModeBusy()) {
       this.strongestModeStepTimer = 0;
@@ -5711,6 +5770,7 @@ class Game {
       this.strongestModeCoronationElsaWaitStartElapsed = null;
       this.strongestModeCoronationElsaLastTierSearchDiagnostics = null;
       this.strongestModeCoronationElsaLastSearchDiagnostics = null;
+      this.strongestModeCoronationElsaPlannerProfileKey = null;
       this.resetStrongestModeCoronationElsaTracePlan();
     }
     if (this.tryTapStrongestModeJudyNickJudyBubble()) {
@@ -6524,6 +6584,10 @@ class Game {
 
   findStrongestModeCoronationElsaBestPreviewChain(options = {}) {
     if (!options.searchTier) {
+      const plannerSnapshot = options.plannerSnapshot || buildCoronationElsaPlannerSnapshot(
+        this,
+        this.selectedSkillLevel
+      );
       const committedTraceCount = this.getStrongestModeCoronationElsaSkillSummary?.()?.chainCount || 0;
       const minimumTraceCount = this.strongestModeCoronationElsaMinimumTraceCount || 4;
       const needsMinimumTraces = committedTraceCount < minimumTraceCount;
@@ -6544,7 +6608,8 @@ class Game {
         const candidate = this.findStrongestModeCoronationElsaBestPreviewChain({
           ...options,
           ...tier,
-          committedTraceCount
+          committedTraceCount,
+          plannerSnapshot
         });
         diagnostics[tier.searchTier] = this.strongestModeCoronationElsaLastTierSearchDiagnostics || null;
         if (Array.isArray(candidate) && candidate.length >= (options.minLength || 3)) {
@@ -6564,6 +6629,10 @@ class Game {
       };
       return selected;
     }
+    const plannerSnapshot = options.plannerSnapshot || buildCoronationElsaPlannerSnapshot(
+      this,
+      this.selectedSkillLevel
+    );
     const searchStartedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
     const searchTier = options.searchTier;
     const endpointEdgeBand = Number.isFinite(options.endpointEdgeBand)
@@ -6728,7 +6797,12 @@ class Game {
     const laneCandidates = new Map();
     const evaluatedPreviewCandidates = [];
     for (const candidate of previewCandidates) {
-      const preview = computeCoronationElsaFreezePreview(this, candidate.chain, this.selectedSkillLevel);
+      const preview = computeCoronationElsaFreezePreview(
+        this,
+        candidate.chain,
+        this.selectedSkillLevel,
+        plannerSnapshot
+      );
       const newFrozenCount = preview.targets.reduce((count, tsum) => (
         count + (preview.priorFrozenIds.has(tsum.id) ? 0 : 1)
       ), 0);
@@ -6909,6 +6983,7 @@ class Game {
     let bestScore = -Infinity;
     const previewCandidateLimit = 8;
     const previewCandidates = [];
+    const plannerSnapshot = buildCoronationElsaPlannerSnapshot(this, this.selectedSkillLevel);
     for (const start of liveNodes) {
       const rule = this.getChainBehaviorForStart(start);
       if (!rule || !rule.allowedTypeIds?.size) {
@@ -6989,7 +7064,12 @@ class Game {
       return bestLength;
     };
     for (const candidate of previewCandidates) {
-      const preview = computeCoronationElsaFreezePreview(this, candidate.chain, this.selectedSkillLevel);
+      const preview = computeCoronationElsaFreezePreview(
+        this,
+        candidate.chain,
+        this.selectedSkillLevel,
+        plannerSnapshot
+      );
       const priorOverlapCount = preview.targets.filter((tsum) => preview.priorFrozenIds.has(tsum.id)).length;
       const newFrozenCount = preview.targets.length - priorOverlapCount;
       const excludedIds = new Set(candidate.chain.map((tsum) => tsum.id));
@@ -9275,11 +9355,19 @@ class Game {
 
   findBestAiChain() {
     const useCoronationIceScore = this.skillRuntime.getSessionsByHandlerId("coronationElsa").length > 0;
+    const coronationPlannerSnapshot = useCoronationIceScore
+      ? buildCoronationElsaPlannerSnapshot(this, this.selectedSkillLevel)
+      : null;
     const scoreChain = (chain) => {
       if (!useCoronationIceScore || !Array.isArray(chain) || chain.length < 3) {
         return chain.length;
       }
-      const preview = computeCoronationElsaFreezePreview(this, chain, this.selectedSkillLevel);
+      const preview = computeCoronationElsaFreezePreview(
+        this,
+        chain,
+        this.selectedSkillLevel,
+        coronationPlannerSnapshot
+      );
       const predictedFreezeCount = preview.targets.length;
       const surroundExpansionCount = preview.surroundTargets.filter((tsum) => !preview.priorFrozenIds.has(tsum.id)).length;
       let overlapCount = 0;
@@ -10730,32 +10818,7 @@ function pickMostCommonType(game, excludedTypeId = null) {
   return entries.length ? entries[0].type : null;
 }
 
-function distanceToSegment(px, py, ax, ay, bx, by) {
-  return distancePointToSegment({ x: px, y: py }, { x: ax, y: ay }, { x: bx, y: by });
-}
-
-function collectNodesAlongSegment(game, start, end, radius, predicate = () => true) {
-  return getLiveTsums(game, (tsum) => (
-    predicate(tsum) &&
-    distanceToSegment(tsum.x, tsum.y, start.x, start.y, end.x, end.y) <= radius
-  ));
-}
-
-function collectNodesAlongInfiniteLine(game, start, end, radius, predicate = () => true) {
-  const abx = end.x - start.x;
-  const aby = end.y - start.y;
-  const abLenSq = abx * abx + aby * aby;
-  if (abLenSq <= (TSUM_RADIUS * 0.75) ** 2) {
-    return collectNodesAlongSegment(game, start, end, radius, predicate);
-  }
-  const abLen = Math.sqrt(abLenSq);
-  return getLiveTsums(game, (tsum) => (
-    predicate(tsum) &&
-    Math.abs((tsum.x - start.x) * aby - (tsum.y - start.y) * abx) / abLen <= radius
-  ));
-}
-
-function computeCoronationElsaFreezePreview(game, chain, level) {
+function computeCoronationElsaFreezePreview(game, chain, level, plannerSnapshot = null) {
   if (!game || !Array.isArray(chain) || chain.length < 1) {
     return {
       radius: 0,
@@ -10768,52 +10831,48 @@ function computeCoronationElsaFreezePreview(game, chain, level) {
       freezeCounts: new Map()
     };
   }
-  const start = chain[0];
-  const end = chain[chain.length - 1];
-  const radius = skillValue("coronationElsa", "freezeRadius", level);
-  const lineRadius = radius * 0.58;
-  const surroundRadius = radius * 1.0;
-  const lineTargets = collectNodesAlongInfiniteLine(game, start, end, lineRadius);
-  const priorFrozen = game.boardState.getFrozenNodesByKind("coronationElsa");
+  const snapshot = plannerSnapshot || buildCoronationElsaPlannerSnapshot(game, level);
+  const liveById = new Map(game.tsums.map((tsum) => [String(tsum.id), tsum]));
+  const chainIndices = chain.map((tsum) => getCoronationElsaPlannerNodeIndex(snapshot, tsum.id));
+  if (chainIndices.some((index) => index < 0)) {
+    return {
+      radius: snapshot.freezeRadius,
+      lineRadius: snapshot.lineRadius,
+      priorFrozen: [],
+      priorFrozenIds: new Set(),
+      lineTargets: [],
+      surroundTargets: [],
+      targets: [],
+      freezeCounts: new Map()
+    };
+  }
+  const simulation = simulateCoronationElsaFreeze(snapshot, snapshot.initialState, chainIndices);
+  const mapIndicesToLiveTsums = (indices) => indices
+    .map((index) => liveById.get(String(snapshot.nodes[index].id)))
+    .filter(Boolean);
+  const lineTargets = mapIndicesToLiveTsums(simulation.lineTargetIndices);
+  const priorFrozen = mapIndicesToLiveTsums(simulation.priorFrozenIndices);
   const priorFrozenIds = new Set(priorFrozen.map((tsum) => tsum.id));
-  const surroundTargets = [];
-  const surroundSeen = new Set();
-  const combined = new Map();
+  const surroundTargets = mapIndicesToLiveTsums(simulation.surroundTargetIndices);
+  const targets = mapIndicesToLiveTsums(simulation.targetIndices);
   const freezeCounts = new Map();
-  const addFreezeReason = (tsums) => {
-    tsums.forEach((tsum) => {
-      combined.set(tsum.id, tsum);
-      freezeCounts.set(tsum.id, (freezeCounts.get(tsum.id) || 0) + 1);
-    });
-  };
-  addFreezeReason(chain);
-  addFreezeReason(lineTargets);
-  // Prioritize overlap growth: existing frozen nodes themselves gain +1 each chain.
-  addFreezeReason(priorFrozen);
-  for (const center of priorFrozen) {
-    for (const tsum of game.tsums) {
-      if (tsum.dead || tsum.removing || tsum.id === center.id || priorFrozenIds.has(tsum.id)) {
-        continue;
-      }
-      if (distance(center.x, center.y, tsum.x, tsum.y) > surroundRadius) {
-        continue;
-      }
-      if (!surroundSeen.has(tsum.id)) {
-        surroundSeen.add(tsum.id);
-        surroundTargets.push(tsum);
-      }
+  for (let index = 0; index < simulation.reasonCounts.length; index += 1) {
+    const count = simulation.reasonCounts[index];
+    if (count > 0) {
+      freezeCounts.set(snapshot.nodes[index].id, count);
     }
   }
-  addFreezeReason(surroundTargets);
   return {
-    radius,
-    lineRadius,
+    radius: snapshot.freezeRadius,
+    lineRadius: snapshot.lineRadius,
     priorFrozen,
     priorFrozenIds,
     lineTargets,
     surroundTargets,
-    targets: Array.from(combined.values()),
-    freezeCounts
+    targets,
+    freezeCounts,
+    simulation,
+    plannerSnapshot: snapshot
   };
 }
 
@@ -10869,7 +10928,7 @@ function attachSequentialSplashGroups(request, primaryTargets, splashGroups, gam
 }
 
 // --- skill handlers ---
-SkillRegistry.coronationElsa = {
+export const coronationElsaSkillHandler = {
   id: "coronationElsa",
   tables: SKILL_TABLES.coronationElsa,
   onActivate(ctx) {
@@ -10886,6 +10945,7 @@ SkillRegistry.coronationElsa = {
     ctx.game.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
     ctx.game.strongestModeCoronationElsaLastChainStartElapsed = null;
     ctx.game.strongestModeCoronationElsaAnchorSide = null;
+    ctx.game.strongestModeCoronationElsaPlannerProfileKey = null;
     ctx.game.resetStrongestModeCoronationElsaTracePlan();
     const session = ctx.createSession({
       remainingMs: skillValue("coronationElsa", "durationSec", ctx.level) * 1000,
@@ -10947,12 +11007,15 @@ SkillRegistry.coronationElsa = {
       ctx.game.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
       ctx.game.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
       ctx.game.strongestModeCoronationElsaNoTraceDurationSec = 0;
+      ctx.game.strongestModeCoronationElsaPlannerProfileKey = null;
     }
     ctx?.game?.resetStrongestModeCoronationElsaTracePlan();
   },
   cleanupBySession() {
   }
 };
+
+SkillRegistry.coronationElsa = coronationElsaSkillHandler;
 
 SkillRegistry.captainLightyear = {
   id: "captainLightyear",
