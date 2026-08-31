@@ -1,14 +1,42 @@
 import {
+  COIN_CORRECTION_TABLE,
+  DEFAULT_COIN_CORRECTION_TYPE,
+  FIELD_BOTTOM,
+  FIELD_LEFT,
+  FIELD_RIGHT,
   SKILL_TABLES,
   TSUM_RADIUS,
   clamp
 } from "./config.js?v=tsum-images-5";
-import { getTsumClearWeight } from "./bombLogic.js?v=tsum-images-5";
+import {
+  calculateCorrectedClearCoins,
+  calculateEffectiveClearCount,
+  getTsumClearWeight
+} from "./bombLogic.js?v=tsum-images-5";
 
 const CORONATION_ELSA_FREEZE_KIND = "coronationElsa";
 const MIN_TRACE_LENGTH = 3;
 const MAX_TRACE_LENGTH = 6;
+const MAX_TRACE_DEPTH = 15;
+const CORONATION_ELSA_ICE_CONNECT_DISTANCE = 78;
 const LINE_SEGMENT_FALLBACK_DISTANCE_SQ = (TSUM_RADIUS * 0.75) ** 2;
+
+export const CORONATION_ELSA_PLANNER_CONFIG = Object.freeze({
+  softBudgetMs: 6,
+  hardBudgetMs: 10,
+  maxTraceDepth: MAX_TRACE_DEPTH,
+  traceLengths: Object.freeze([3, 4, 5, 6]),
+  beamWidths: Object.freeze([
+    Object.freeze({ minDepth: 1, maxDepth: 6, width: 48 }),
+    Object.freeze({ minDepth: 7, maxDepth: 10, width: 24 }),
+    Object.freeze({ minDepth: 11, maxDepth: 15, width: 8 })
+  ]),
+  rolloutPolicies: Object.freeze([
+    "min-new-frozen",
+    "max-next-three-chain-nodes",
+    "max-existing-ice-concentration"
+  ])
+});
 
 const nowMs = () => (
   typeof performance !== "undefined" && typeof performance.now === "function"
@@ -151,6 +179,7 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
     (game.boardState.getFrozenNodesByKind?.(CORONATION_ELSA_FREEZE_KIND) || [])
       .map((tsum) => String(tsum?.id))
   );
+  let sampledCorrectionType = null;
   const nodes = game.tsums.map((tsum, index) => {
     const dead = !!tsum?.dead;
     const removing = !!tsum?.removing;
@@ -161,6 +190,10 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
     const coronationFreezeLayerCount = typeof game.boardState.getFrozenEntriesByKind === "function"
       ? game.boardState.getFrozenEntriesByKind(tsum, CORONATION_ELSA_FREEZE_KIND).length
       : (fallbackCoronationFrozenIds.has(String(tsum?.id)) ? 1 : 0);
+    if (!sampledCorrectionType && coronationFreezeLayerCount > 0) {
+      const entry = game.boardState.getFrozenEntriesByKind?.(tsum, CORONATION_ELSA_FREEZE_KIND)?.[0];
+      sampledCorrectionType = entry?.correctionType || null;
+    }
     const coronationFrozen = coronationFreezeLayerCount > 0;
     const anyFrozen = typeof game.boardState.isFrozen === "function"
       ? !!game.boardState.isFrozen(tsum)
@@ -195,6 +228,9 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
       baseRadius: Number(tsum?.baseRadius ?? tsum?.radius) || 0,
       isLarge: !!tsum?.isLarge,
       clearWeight: getTsumClearWeight(tsum),
+      isMyTsum: typeof game.isMyTsumTypeId === "function"
+        ? !!game.isMyTsumTypeId(resolvedType?.id)
+        : resolvedType?.id === game.myTsum?.id,
       inPlay,
       dead,
       removing,
@@ -227,6 +263,9 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
     coronationFrozenMask,
     otherFrozenMask,
     baseTraceEligibleMask,
+    coinCorrectionType: sampledCorrectionType || (
+      SKILL_TABLES.coronationElsa?.coinCorrectionType?.[clamp(level, 1, 6) - 1]
+    ) || DEFAULT_COIN_CORRECTION_TYPE,
     initialState
   });
 }
@@ -402,11 +441,21 @@ export function enumerateCoronationElsaPlannerTraces(
     throw new RangeError("Planner trace lengths must contain an integer from 3 through 6");
   }
   const dedupeByNextFrozenMask = options.dedupeByNextFrozenMask !== false;
+  const shouldAbort = typeof options.shouldAbort === "function" ? options.shouldAbort : () => false;
   const blockedMask = snapshot.otherFrozenMask | normalizedState.frozenMask;
   const rawPaths = [];
+  let aborted = false;
 
   for (const targetLength of lengths) {
+    if (shouldAbort()) {
+      aborted = true;
+      break;
+    }
     for (const startNode of snapshot.nodes) {
+      if (shouldAbort()) {
+        aborted = true;
+        break;
+      }
       if (
         !startNode.baseTraceEligible ||
         maskHasIndex(blockedMask, startNode.index)
@@ -421,6 +470,10 @@ export function enumerateCoronationElsaPlannerTraces(
       const path = [startNode.index];
       const used = new Set(path);
       const visit = (currentIndex) => {
+        if (shouldAbort()) {
+          aborted = true;
+          return;
+        }
         if (path.length === targetLength) {
           rawPaths.push(path.slice());
           return;
@@ -435,6 +488,7 @@ export function enumerateCoronationElsaPlannerTraces(
           used.add(candidateIndex);
           path.push(candidateIndex);
           visit(candidateIndex);
+          if (aborted) return;
           path.pop();
           used.delete(candidateIndex);
         }
@@ -488,6 +542,7 @@ export function enumerateCoronationElsaPlannerTraces(
     rawCandidateCount: rawPaths.length,
     pathDedupedCandidateCount: pathCandidates.length,
     frozenMaskDedupedCandidateCount: candidates.length,
+    aborted,
     elapsedMs: nowMs() - startedAt
   });
 }
@@ -543,6 +598,559 @@ export function profileCoronationElsaPlanner(game, options = {}) {
     initialState: snapshot.initialState,
     diagnostics
   });
+}
+
+const popcountMask = (mask) => {
+  let value = mask;
+  let count = 0;
+  while (value) {
+    value &= value - 1n;
+    count += 1;
+  }
+  return count;
+};
+
+const compareNumberTuple = (first, second) => {
+  const length = Math.max(first.length, second.length);
+  for (let index = 0; index < length; index += 1) {
+    const delta = (first[index] || 0) - (second[index] || 0);
+    if (delta !== 0) return delta;
+  }
+  return 0;
+};
+
+const getFrozenComponents = (snapshot, frozenMask) => {
+  const frozenIndices = snapshot.nodes
+    .filter((node) => maskHasIndex(frozenMask, node.index) && !node.dead && !node.removing)
+    .map((node) => node.index);
+  const remaining = new Set(frozenIndices);
+  const components = [];
+  while (remaining.size) {
+    const startIndex = remaining.values().next().value;
+    remaining.delete(startIndex);
+    const queue = [startIndex];
+    const component = [];
+    while (queue.length) {
+      const index = queue.shift();
+      component.push(index);
+      const node = snapshot.nodes[index];
+      for (const candidateIndex of Array.from(remaining)) {
+        const candidate = snapshot.nodes[candidateIndex];
+        const connectedDistance = Math.max(
+          node.effectiveRadius + candidate.effectiveRadius + 3,
+          CORONATION_ELSA_ICE_CONNECT_DISTANCE
+        );
+        if (distanceBetween(node, candidate) <= connectedDistance) {
+          remaining.delete(candidateIndex);
+          queue.push(candidateIndex);
+        }
+      }
+    }
+    component.sort((a, b) => String(snapshot.nodes[a].id).localeCompare(String(snapshot.nodes[b].id)));
+    components.push(component);
+  }
+  components.sort((a, b) => String(snapshot.nodes[a[0]]?.id).localeCompare(String(snapshot.nodes[b[0]]?.id)));
+  return components;
+};
+
+/**
+ * Pure counterpart of BoardStateService.getCoronationFrozenTapInfo().
+ * It is shared by search, diagnostics, and the live tap adapter.
+ */
+export function evaluateCoronationElsaTapComponents(snapshot, state = snapshot.initialState) {
+  const normalizedState = normalizeState(snapshot, state);
+  const layerCounts = normalizedState.freezeLayerCounts || snapshot.initialState.freezeLayerCounts;
+  const components = getFrozenComponents(snapshot, normalizedState.frozenMask);
+  const coinTable = COIN_CORRECTION_TABLE[snapshot.coinCorrectionType]
+    || COIN_CORRECTION_TABLE[DEFAULT_COIN_CORRECTION_TYPE];
+  const evaluated = components.map((componentIndices) => {
+    const componentSet = new Set(componentIndices);
+    const splashIndices = [];
+    for (const node of snapshot.nodes) {
+      if (
+        node.dead ||
+        node.removing ||
+        maskHasIndex(normalizedState.frozenMask, node.index)
+      ) {
+        continue;
+      }
+      let touchingCount = 0;
+      for (const frozenIndex of componentIndices) {
+        const frozenNode = snapshot.nodes[frozenIndex];
+        const splashDistance = frozenNode.effectiveRadius + node.effectiveRadius + TSUM_RADIUS * 0.02;
+        if (distanceBetween(frozenNode, node) <= splashDistance) {
+          touchingCount += 1;
+          if (touchingCount > 1) break;
+        }
+      }
+      if (touchingCount === 1) splashIndices.push(node.index);
+    }
+    const targetIndices = componentIndices.concat(splashIndices);
+    const targets = targetIndices.map((index) => snapshot.nodes[index]);
+    const layerMass = componentIndices.reduce((sum, index) => sum + Math.max(0, layerCounts[index] || 0), 0);
+    const additionalClearCount = Math.max(0, layerMass - componentIndices.length);
+    const effectiveClearCount = calculateEffectiveClearCount({ targets, additionalClearCount });
+    const clampedClearCount = clamp(effectiveClearCount, 0, 317);
+    const rawCoins = calculateCorrectedClearCoins({
+      coinTable,
+      targets,
+      additionalClearCount,
+      effectiveClearCountOverride: clampedClearCount,
+      applyLargeTsumCorrection: true
+    });
+    const physicalMyTsumCount = targetIndices.reduce((sum, index) => (
+      sum + (snapshot.nodes[index].isMyTsum ? 1 : 0)
+    ), 0);
+    const remainingLayerMass = layerCounts.reduce((sum, count, index) => (
+      sum + (componentSet.has(index) ? 0 : Math.max(0, count || 0))
+    ), 0);
+    return Object.freeze({
+      tapNodeIndex: componentIndices[0],
+      tapNodeId: snapshot.nodes[componentIndices[0]]?.id ?? null,
+      componentIndices: freezeArray(componentIndices),
+      splashIndices: freezeArray(splashIndices),
+      targetIndices: freezeArray(targetIndices),
+      connectedFrozenCount: componentIndices.length,
+      splashNormalCount: splashIndices.length,
+      physicalTargetCount: targetIndices.length,
+      physicalMyTsumCount,
+      freezeLayerBonus: additionalClearCount,
+      additionalClearCount,
+      effectiveClearCount,
+      rawCoins,
+      remainingLayerMass,
+      remainingComponentCount: Math.max(0, components.length - 1)
+    });
+  });
+  const tuple = (entry) => [
+    entry.rawCoins,
+    entry.effectiveClearCount,
+    entry.physicalMyTsumCount,
+    entry.physicalTargetCount,
+    -entry.remainingLayerMass,
+    -entry.remainingComponentCount
+  ];
+  evaluated.sort((first, second) => (
+    compareNumberTuple(tuple(second), tuple(first)) ||
+    String(first.tapNodeId).localeCompare(String(second.tapNodeId))
+  ));
+  return Object.freeze({
+    components: freezeArray(evaluated),
+    best: evaluated[0] || null
+  });
+}
+
+const buildWeakNeighborSets = (snapshot, adjacency, frozenMask) => {
+  const blockedMask = snapshot.otherFrozenMask | frozenMask;
+  const neighbors = snapshot.nodes.map(() => new Set());
+  for (const context of adjacency.contexts) {
+    for (let fromIndex = 0; fromIndex < context.neighborsByNode.length; fromIndex += 1) {
+      if (maskHasIndex(blockedMask, fromIndex)) continue;
+      for (const toIndex of context.neighborsByNode[fromIndex]) {
+        if (maskHasIndex(blockedMask, toIndex)) continue;
+        neighbors[fromIndex].add(toIndex);
+        neighbors[toIndex].add(fromIndex);
+      }
+    }
+  }
+  return neighbors;
+};
+
+const getTraceUpperBound = (snapshot, adjacency, frozenMask) => {
+  const blockedMask = snapshot.otherFrozenMask | frozenMask;
+  const available = snapshot.nodes.filter((node) => (
+    node.baseTraceEligible && !maskHasIndex(blockedMask, node.index)
+  ));
+  const countBound = Math.min(MAX_TRACE_DEPTH, Math.floor(available.length / MIN_TRACE_LENGTH));
+  if (countBound <= 0) return 0;
+  const neighbors = buildWeakNeighborSets(snapshot, adjacency, frozenMask);
+  const remaining = new Set(available.map((node) => node.index));
+  let componentBound = 0;
+  while (remaining.size) {
+    const start = remaining.values().next().value;
+    remaining.delete(start);
+    const queue = [start];
+    let size = 0;
+    while (queue.length) {
+      const index = queue.shift();
+      size += 1;
+      for (const candidate of neighbors[index]) {
+        if (remaining.delete(candidate)) queue.push(candidate);
+      }
+    }
+    componentBound += Math.floor(size / MIN_TRACE_LENGTH);
+  }
+  return Math.min(countBound, componentBound);
+};
+
+const getCandidateMetrics = (snapshot, state, candidate) => {
+  const newFrozenCount = popcountMask(candidate.nextFrozenMask & ~state.frozenMask);
+  const start = snapshot.nodes[candidate.chainIndices[0]];
+  const end = snapshot.nodes[candidate.chainIndices[candidate.chainIndices.length - 1]];
+  const dx = Math.abs(end.x - start.x);
+  const dy = Math.abs(end.y - start.y);
+  const parallelScore = Math.max(dx, dy) / Math.max(1, Math.hypot(dx, dy));
+  const edgeDistance = Math.min(
+    Math.abs(start.x - FIELD_LEFT),
+    Math.abs(FIELD_RIGHT - start.x),
+    Math.abs(FIELD_BOTTOM - start.y)
+  );
+  const frozenNodes = snapshot.nodes.filter((node) => maskHasIndex(state.frozenMask, node.index));
+  let iceDistance = Number.POSITIVE_INFINITY;
+  for (const index of candidate.chainIndices) {
+    for (const frozen of frozenNodes) {
+      iceDistance = Math.min(iceDistance, distanceBetween(snapshot.nodes[index], frozen));
+    }
+  }
+  if (!Number.isFinite(iceDistance)) iceDistance = 1e6;
+  return { newFrozenCount, parallelScore, edgeDistance, iceDistance };
+};
+
+const terminalTuple = (terminal) => terminal ? [
+  terminal.rawCoins,
+  terminal.effectiveClearCount,
+  terminal.physicalMyTsumCount,
+  terminal.physicalTargetCount,
+  -terminal.remainingLayerMass,
+  -terminal.remainingComponentCount
+] : [0, 0, 0, 0, 0, 0];
+
+const compareRoutes = (first, second) => {
+  if (!second) return 1;
+  const terminalComparison = compareNumberTuple(terminalTuple(first.terminal), terminalTuple(second.terminal));
+  if (terminalComparison) return terminalComparison;
+  const firstAverage = first.depth ? first.chainLengthSum / first.depth : 3;
+  const secondAverage = second.depth ? second.chainLengthSum / second.depth : 3;
+  const routeComparison = compareNumberTuple([
+    -Math.abs(firstAverage - 3),
+    first.proximityScore,
+    first.parallelScore,
+    first.edgeScore
+  ], [
+    -Math.abs(secondAverage - 3),
+    second.proximityScore,
+    second.parallelScore,
+    second.edgeScore
+  ]);
+  return routeComparison || -first.routeKey.localeCompare(second.routeKey);
+};
+
+const freezePlanResult = (result) => Object.freeze({
+  ...result,
+  chainIds: freezeArray(result.chainIds || []),
+  routeChainIds: freezeArray((result.routeChainIds || []).map(freezeArray)),
+  diagnostics: Object.freeze({ ...result.diagnostics })
+});
+
+export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, options = {}) {
+  const config = { ...CORONATION_ELSA_PLANNER_CONFIG, ...(options.config || {}) };
+  const clock = typeof options.now === "function" ? options.now : nowMs;
+  const startedAt = clock();
+  const deadline = startedAt + Math.max(0, config.hardBudgetMs);
+  let exploredStateCount = 0;
+  let memoHitCount = 0;
+  let branchPruneCount = 0;
+  let rootRawCandidateCount = 0;
+  let rootDedupedCandidateCount = 0;
+  const depthMemo = new Map();
+  const candidateMemo = new Map();
+  const timedOut = () => clock() >= deadline;
+  const assertWithinBudget = () => {
+    if (timedOut()) throw new Error("CORONATION_ELSA_PLANNER_TIMEOUT");
+  };
+  const maskState = (mask) => Object.freeze({ frozenMask: mask, freezeLayerCounts: null });
+  const getMaskCandidates = (frozenMask, exact = true) => {
+    const key = frozenMask.toString(16);
+    if (candidateMemo.has(key)) return candidateMemo.get(key);
+    const enumeration = enumerateCoronationElsaPlannerTraces(
+      snapshot,
+      adjacency,
+      maskState(frozenMask),
+      {
+        lengths: config.traceLengths,
+        dedupeByNextFrozenMask: true,
+        shouldAbort: exact ? timedOut : null
+      }
+    );
+    if (enumeration.aborted) assertWithinBudget();
+    if (frozenMask === snapshot.initialState.frozenMask) {
+      rootRawCandidateCount = enumeration.pathDedupedCandidateCount;
+      rootDedupedCandidateCount = enumeration.frozenMaskDedupedCandidateCount;
+    }
+    candidateMemo.set(key, enumeration.candidates);
+    return enumeration.candidates;
+  };
+  const solveDepth = (frozenMask) => {
+    assertWithinBudget();
+    const key = frozenMask.toString(16);
+    if (depthMemo.has(key)) {
+      memoHitCount += 1;
+      return depthMemo.get(key);
+    }
+    exploredStateCount += 1;
+    const upperBound = getTraceUpperBound(snapshot, adjacency, frozenMask);
+    if (upperBound <= 0) {
+      depthMemo.set(key, 0);
+      return 0;
+    }
+    let best = 0;
+    for (const candidate of getMaskCandidates(frozenMask, true)) {
+      assertWithinBudget();
+      const childUpper = getTraceUpperBound(snapshot, adjacency, candidate.nextFrozenMask);
+      if (1 + childUpper <= best) {
+        branchPruneCount += 1;
+        continue;
+      }
+      best = Math.max(best, 1 + solveDepth(candidate.nextFrozenMask));
+      if (best >= upperBound) break;
+    }
+    depthMemo.set(key, best);
+    return best;
+  };
+  const evaluateTerminal = (state) => evaluateCoronationElsaTapComponents(snapshot, state).best;
+  const phaseBMemo = new Map();
+  const solveBestRoute = (state, remainingDepth) => {
+    assertWithinBudget();
+    const stateKey = `${state.frozenMask.toString(16)}:${state.freezeLayerCounts.join(",")}:${remainingDepth}`;
+    if (phaseBMemo.has(stateKey)) {
+      memoHitCount += 1;
+      return phaseBMemo.get(stateKey);
+    }
+    if (remainingDepth <= 0) {
+      const terminalRoute = {
+        terminal: evaluateTerminal(state),
+        route: [],
+        depth: 0,
+        chainLengthSum: 0,
+        proximityScore: 0,
+        parallelScore: 0,
+        edgeScore: 0,
+        routeKey: ""
+      };
+      phaseBMemo.set(stateKey, terminalRoute);
+      return terminalRoute;
+    }
+    let bestRoute = null;
+    for (const candidate of getMaskCandidates(state.frozenMask, true)) {
+      assertWithinBudget();
+      const childDepth = solveDepth(candidate.nextFrozenMask);
+      if (1 + childDepth !== remainingDepth) continue;
+      const transition = simulateCoronationElsaFreeze(snapshot, state, candidate.chainIndices);
+      const nextState = Object.freeze({
+        frozenMask: transition.nextFrozenMask,
+        freezeLayerCounts: transition.nextFreezeLayerCounts
+      });
+      const suffix = solveBestRoute(nextState, remainingDepth - 1);
+      const metrics = getCandidateMetrics(snapshot, state, candidate);
+      const routeKey = candidate.pathKey + (suffix.routeKey ? `\u001e${suffix.routeKey}` : "");
+      const route = {
+        terminal: suffix.terminal,
+        route: [candidate, ...suffix.route],
+        depth: 1 + suffix.depth,
+        chainLengthSum: candidate.chainIndices.length + suffix.chainLengthSum,
+        proximityScore: -metrics.iceDistance + suffix.proximityScore,
+        parallelScore: metrics.parallelScore + suffix.parallelScore,
+        edgeScore: -metrics.edgeDistance + suffix.edgeScore,
+        routeKey
+      };
+      if (compareRoutes(route, bestRoute) > 0) bestRoute = route;
+    }
+    phaseBMemo.set(stateKey, bestRoute);
+    return bestRoute;
+  };
+
+  const buildResult = (mode, maxDepth, route, extraDiagnostics = {}) => {
+    const firstCandidate = route?.route?.[0] || null;
+    const terminal = route?.terminal || evaluateTerminal(snapshot.initialState);
+    const action = firstCandidate ? "trace" : (terminal ? "tap" : "none");
+    const metrics = firstCandidate
+      ? getCandidateMetrics(snapshot, snapshot.initialState, firstCandidate)
+      : null;
+    const elapsedMs = Math.max(0, clock() - startedAt);
+    return freezePlanResult({
+      mode,
+      action,
+      chainIds: firstCandidate?.chainIds || [],
+      routeChainIds: (route?.route || []).map((candidate) => candidate.chainIds),
+      tapNodeId: action === "tap" ? terminal?.tapNodeId ?? null : null,
+      maxAdditionalTraces: maxDepth,
+      terminal,
+      diagnostics: {
+        plannerMode: mode,
+        searchTimeMs: elapsedMs,
+        softBudgetExceeded: elapsedMs >= config.softBudgetMs,
+        exploredStateCount,
+        memoHitCount,
+        branchPruneCount,
+        rootCandidateCount: rootRawCandidateCount,
+        rootDedupedCandidateCount,
+        calculatedMaxAdditionalTraces: maxDepth,
+        selectedRouteProjectedTotalTraces: maxDepth,
+        selectedFirstChainLength: firstCandidate?.chainIndices.length || 0,
+        selectedNextFrozenCount: metrics?.newFrozenCount || 0,
+        terminalEffectiveClear: terminal?.effectiveClearCount || 0,
+        terminalPredictedRawCoins: terminal?.rawCoins || 0,
+        ...extraDiagnostics
+      }
+    });
+  };
+
+  const beamWidthForDepth = (depth) => (
+    config.beamWidths.find((entry) => depth >= entry.minDepth && depth <= entry.maxDepth)?.width || 8
+  );
+  const countFutureThreeChainNodes = (state) => {
+    const enumeration = enumerateCoronationElsaPlannerTraces(snapshot, adjacency, state, {
+      lengths: [3],
+      dedupeByNextFrozenMask: false
+    });
+    const nodes = new Set();
+    enumeration.candidates.forEach((candidate) => candidate.chainIndices.forEach((index) => nodes.add(index)));
+    return nodes.size;
+  };
+  const layerConcentration = (state) => Math.max(0, ...getFrozenComponents(snapshot, state.frozenMask).map((component) => (
+    component.reduce((sum, index) => sum + Math.max(0, state.freezeLayerCounts[index] || 0), 0)
+  )));
+  const runRollout = (initialState, policy) => {
+    let state = initialState;
+    let depth = 0;
+    while (depth < config.maxTraceDepth) {
+      const enumeration = enumerateCoronationElsaPlannerTraces(snapshot, adjacency, state, {
+        lengths: config.traceLengths,
+        dedupeByNextFrozenMask: true
+      });
+      if (!enumeration.candidates.length) break;
+      const ranked = enumeration.candidates.map((candidate) => {
+        const transition = simulateCoronationElsaFreeze(snapshot, state, candidate.chainIndices);
+        const nextState = Object.freeze({
+          frozenMask: transition.nextFrozenMask,
+          freezeLayerCounts: transition.nextFreezeLayerCounts
+        });
+        const metrics = getCandidateMetrics(snapshot, state, candidate);
+        let policyValue = -metrics.newFrozenCount;
+        if (policy === "max-next-three-chain-nodes") policyValue = countFutureThreeChainNodes(nextState);
+        if (policy === "max-existing-ice-concentration") policyValue = layerConcentration(nextState);
+        return { candidate, nextState, policyValue, metrics };
+      }).sort((first, second) => (
+        second.policyValue - first.policyValue ||
+        first.candidate.chainIndices.length - second.candidate.chainIndices.length ||
+        first.candidate.pathKey.localeCompare(second.candidate.pathKey)
+      ));
+      state = ranked[0].nextState;
+      depth += 1;
+    }
+    return { depth, state, terminal: evaluateTerminal(state) };
+  };
+  const solveBeam = () => {
+    candidateMemo.clear();
+    let frontier = [{
+      state: snapshot.initialState,
+      route: [],
+      chainLengthSum: 0,
+      proximityScore: 0,
+      parallelScore: 0,
+      edgeScore: 0,
+      routeKey: "",
+      depth: 0,
+      lastMetrics: null
+    }];
+    const terminals = [];
+    let beamExpandedStateCount = 0;
+    for (let depth = 1; depth <= config.maxTraceDepth && frontier.length; depth += 1) {
+      const children = [];
+      for (const entry of frontier) {
+        beamExpandedStateCount += 1;
+        const enumeration = enumerateCoronationElsaPlannerTraces(snapshot, adjacency, entry.state, {
+          lengths: config.traceLengths,
+          dedupeByNextFrozenMask: true
+        });
+        if (entry.depth === 0) {
+          rootRawCandidateCount = enumeration.pathDedupedCandidateCount;
+          rootDedupedCandidateCount = enumeration.frozenMaskDedupedCandidateCount;
+        }
+        if (!enumeration.candidates.length) {
+          terminals.push(entry);
+          continue;
+        }
+        for (const candidate of enumeration.candidates) {
+          const transition = simulateCoronationElsaFreeze(snapshot, entry.state, candidate.chainIndices);
+          const state = Object.freeze({
+            frozenMask: transition.nextFrozenMask,
+            freezeLayerCounts: transition.nextFreezeLayerCounts
+          });
+          const metrics = getCandidateMetrics(snapshot, entry.state, candidate);
+          const rollouts = config.rolloutPolicies.map((policy) => runRollout(state, policy));
+          const bestRollout = rollouts.sort((a, b) => (
+            b.depth - a.depth || compareNumberTuple(terminalTuple(b.terminal), terminalTuple(a.terminal))
+          ))[0];
+          const childDepth = entry.depth + 1;
+          children.push({
+            state,
+            route: entry.route.concat(candidate),
+            depth: childDepth,
+            chainLengthSum: entry.chainLengthSum + candidate.chainIndices.length,
+            proximityScore: entry.proximityScore - metrics.iceDistance,
+            parallelScore: entry.parallelScore + metrics.parallelScore,
+            edgeScore: entry.edgeScore - metrics.edgeDistance,
+            routeKey: entry.routeKey ? `${entry.routeKey}\u001e${candidate.pathKey}` : candidate.pathKey,
+            lastMetrics: metrics,
+            beamTuple: [
+              childDepth + bestRollout.depth,
+              childDepth + getTraceUpperBound(snapshot, adjacency, state.frozenMask),
+              bestRollout.terminal?.rawCoins || 0,
+              countFutureThreeChainNodes(state),
+              layerConcentration(state),
+              -metrics.newFrozenCount,
+              -getFrozenComponents(snapshot, state.frozenMask).length,
+              -Math.abs(candidate.chainIndices.length - 3),
+              -metrics.iceDistance,
+              metrics.parallelScore,
+              -metrics.edgeDistance
+            ]
+          });
+        }
+      }
+      if (!children.length) break;
+      children.sort((first, second) => (
+        compareNumberTuple(second.beamTuple, first.beamTuple) || first.routeKey.localeCompare(second.routeKey)
+      ));
+      const deduped = new Map();
+      for (const child of children) {
+        const key = child.state.frozenMask.toString(16);
+        const current = deduped.get(key);
+        if (!current || compareNumberTuple(child.beamTuple, current.beamTuple) > 0 || (
+          compareNumberTuple(child.beamTuple, current.beamTuple) === 0 && child.routeKey < current.routeKey
+        )) deduped.set(key, child);
+      }
+      frontier = Array.from(deduped.values()).slice(0, beamWidthForDepth(depth));
+    }
+    terminals.push(...frontier);
+    let best = null;
+    for (const entry of terminals) {
+      const route = {
+        ...entry,
+        terminal: evaluateTerminal(entry.state)
+      };
+      if (!best || route.depth > best.depth || (route.depth === best.depth && compareRoutes(route, best) > 0)) {
+        best = route;
+      }
+    }
+    return { route: best, expandedStateCount: beamExpandedStateCount };
+  };
+
+  try {
+    const maxDepth = solveDepth(snapshot.initialState.frozenMask);
+    const route = solveBestRoute(snapshot.initialState, maxDepth);
+    return buildResult("exact", maxDepth, route);
+  } catch (error) {
+    if (!(error instanceof Error) || error.message !== "CORONATION_ELSA_PLANNER_TIMEOUT") throw error;
+    const exactElapsedBeforeFallbackMs = Math.max(0, clock() - startedAt);
+    const beam = solveBeam();
+    exploredStateCount += beam.expandedStateCount;
+    return buildResult("beam", beam.route?.depth || 0, beam.route, {
+      exactTimedOut: true,
+      exactElapsedBeforeFallbackMs
+    });
+  }
 }
 
 export function getCoronationElsaPlannerNodeIndex(snapshot, id) {

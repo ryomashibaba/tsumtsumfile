@@ -3,11 +3,14 @@ import test from "node:test";
 
 import { coronationElsaSkillHandler } from "./game.js";
 import {
+  CORONATION_ELSA_PLANNER_CONFIG,
   buildCoronationElsaPlannerAdjacency,
   buildCoronationElsaPlannerSnapshot,
   enumerateCoronationElsaPlannerTraces,
+  evaluateCoronationElsaTapComponents,
   getCoronationElsaPlannerNodeIndex,
   profileCoronationElsaPlanner,
+  solveCoronationElsaStrongestModePlan,
   simulateCoronationElsaFreeze
 } from "./coronationElsaPlanner.js";
 
@@ -79,11 +82,13 @@ const makeGame = (nodes, options = {}) => {
     tsums: nodes,
     boardState,
     selectedSkillLevel: options.level || 6,
+    myTsum: { id: options.myTsumId || "red" },
     elapsed: 12.5,
     strongestModeCoronationElsaNoTraceDurationSec: 0.04,
     coronationElsaDebug: !!options.coronationElsaDebug,
     isTsumInPlayArea: (node) => !!node && !node.dead && !node.removing && node.inPlay !== false,
     getBodyRadius: (node) => boardState.getEffectiveRadius(node),
+    isMyTsumTypeId: (typeId) => typeId === (options.myTsumId || "red"),
     getChainBehaviorForStart(node) {
       if (typeof options.getChainBehaviorForStart === "function") {
         return options.getChainBehaviorForStart(node);
@@ -127,6 +132,16 @@ const captureLiveState = (game) => ({
 const idsForMask = (snapshot, mask) => snapshot.nodes
   .filter((node) => (mask & (1n << BigInt(node.index))) !== 0n)
   .map((node) => node.id);
+
+const popcountForTest = (mask) => {
+  let value = mask;
+  let count = 0;
+  while (value) {
+    value &= value - 1n;
+    count += 1;
+  }
+  return count;
+};
 
 test("planner snapshot, adjacency, simulation, and enumeration never mutate the live board", () => {
   const nodes = [
@@ -342,4 +357,248 @@ test("planner profiling reports counts and only logs under Coronation Elsa debug
     assert.ok(debug.diagnostics[key] >= 0);
   }
   assert.equal(quiet.diagnostics.initialFrozenMaskHex, "0x0");
+});
+
+test("terminal solver traces every reachable isolated triple before tapping ice", () => {
+  const nodes = [];
+  const links = new Set();
+  for (let group = 0; group < 3; group += 1) {
+    const type = `type-${group}`;
+    const x = 55 + group * 150;
+    const groupNodes = [
+      makeNode(`${type}-a`, x, 160, type),
+      makeNode(`${type}-b`, x, 215, type),
+      makeNode(`${type}-c`, x, 270, type)
+    ];
+    nodes.push(...groupNodes);
+    for (let first = 0; first < groupNodes.length; first += 1) {
+      for (let second = 0; second < groupNodes.length; second += 1) {
+        if (first !== second) links.add(`${groupNodes[first].id}:${groupNodes[second].id}`);
+      }
+    }
+  }
+  const game = makeGame(nodes, { links, myTsumId: "type-2" });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  const first = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+  const second = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+
+  assert.equal(first.mode, "exact");
+  assert.equal(first.action, "trace");
+  assert.equal(first.maxAdditionalTraces, 3);
+  assert.equal(first.routeChainIds.length, 3);
+  assert.deepEqual(first.chainIds, second.chainIds);
+  assert.deepEqual(first.routeChainIds, second.routeChainIds);
+});
+
+test("terminal solver immediately taps the best component when no legal trace remains", () => {
+  const nodes = [
+    makeNode("my", 70, 250, "red"),
+    makeNode("other", 340, 250, "blue")
+  ];
+  const game = makeGame(nodes, {
+    coronationLayers: { my: 1, other: 1 },
+    myTsumId: "red"
+  });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+
+  assert.equal(plan.action, "tap");
+  assert.equal(plan.maxAdditionalTraces, 0);
+  assert.equal(plan.tapNodeId, "my");
+  assert.equal(plan.terminal.physicalMyTsumCount, 1);
+});
+
+test("equal-coin terminal components prefer the one with more physical MyTsum", () => {
+  const nodes = [
+    makeNode("other", 70, 250, "blue"),
+    makeNode("my", 340, 250, "red")
+  ];
+  const game = makeGame(nodes, {
+    coronationLayers: { other: 1, my: 1 },
+    myTsumId: "red"
+  });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+
+  assert.equal(plan.terminal.rawCoins, 0);
+  assert.equal(plan.terminal.effectiveClearCount, 1);
+  assert.equal(plan.tapNodeId, "my");
+});
+
+test("terminal tap evaluator includes layered and large-Tsum effective clear units", () => {
+  const nodes = [
+    makeNode("large", 150, 250, "red", { isLarge: true, radius: 43.5 }),
+    makeNode("normal", 220, 250, "blue")
+  ];
+  const game = makeGame(nodes, {
+    coronationLayers: { large: 2, normal: 1 },
+    myTsumId: "red"
+  });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const terminal = evaluateCoronationElsaTapComponents(snapshot, snapshot.initialState).best;
+
+  assert.equal(terminal.connectedFrozenCount, 2);
+  assert.equal(terminal.additionalClearCount, 1);
+  assert.equal(terminal.effectiveClearCount, 7);
+  assert.equal(terminal.physicalTargetCount, 2);
+  assert.equal(terminal.physicalMyTsumCount, 1);
+  assert.ok(terminal.rawCoins >= 0);
+});
+
+test("terminal component evaluation recognizes a frozen bridge", () => {
+  const nodes = [
+    makeNode("left", 100, 260),
+    makeNode("bridge", 175, 260),
+    makeNode("right", 250, 260)
+  ];
+  const game = makeGame(nodes, { coronationLayers: { left: 1, right: 1 } });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  assert.equal(evaluateCoronationElsaTapComponents(snapshot, snapshot.initialState).components.length, 2);
+  const bridgedState = Object.freeze({
+    frozenMask: snapshot.initialState.frozenMask | (1n << BigInt(getCoronationElsaPlannerNodeIndex(snapshot, "bridge"))),
+    freezeLayerCounts: Object.freeze([1, 1, 1])
+  });
+  const bridged = evaluateCoronationElsaTapComponents(snapshot, bridgedState);
+  assert.equal(bridged.components.length, 1);
+  assert.equal(bridged.best.connectedFrozenCount, 3);
+});
+
+test("hard-budget timeout switches to deterministic adaptive beam mode", () => {
+  const nodes = [
+    makeNode("a", 100, 220),
+    makeNode("b", 150, 220),
+    makeNode("c", 200, 220)
+  ];
+  const game = makeGame(nodes);
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  let calls = 0;
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    now: () => (calls++ === 0 ? 0 : 11),
+    config: { hardBudgetMs: 10, softBudgetMs: 6 }
+  });
+
+  assert.equal(plan.mode, "beam");
+  assert.equal(plan.action, "trace");
+  assert.equal(plan.maxAdditionalTraces, 1);
+  assert.equal(plan.diagnostics.exactTimedOut, true);
+});
+
+test("adaptive beam configuration covers depths 1 through 15 and all three rollouts", () => {
+  assert.deepEqual(CORONATION_ELSA_PLANNER_CONFIG.beamWidths, [
+    { minDepth: 1, maxDepth: 6, width: 48 },
+    { minDepth: 7, maxDepth: 10, width: 24 },
+    { minDepth: 11, maxDepth: 15, width: 8 }
+  ]);
+  assert.deepEqual(CORONATION_ELSA_PLANNER_CONFIG.rolloutPolicies, [
+    "min-new-frozen",
+    "max-next-three-chain-nodes",
+    "max-existing-ice-concentration"
+  ]);
+  assert.equal(CORONATION_ELSA_PLANNER_CONFIG.maxTraceDepth, 15);
+});
+
+test("equivalent three- and six-chains keep the deterministic shorter representative", () => {
+  const nodes = Array.from({ length: 6 }, (_, index) => (
+    makeNode(`line-${index}`, 50 + index * 55, 230)
+  ));
+  const game = makeGame(nodes);
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+
+  assert.equal(plan.maxAdditionalTraces, 1);
+  assert.equal(plan.chainIds.length, 3);
+  assert.equal(plan.diagnostics.selectedNextFrozenCount, 6);
+});
+
+test("Phase A chooses a six-trace future over an edge-aligned four-trace freeze", () => {
+  const nodes = [
+    makeNode("bad-a", 5, 100, "bad"),
+    makeNode("bad-b", 55, 100, "bad"),
+    makeNode("bad-c", 105, 100, "bad")
+  ];
+  const links = new Set([
+    "bad-a:bad-b", "bad-b:bad-a", "bad-b:bad-c", "bad-c:bad-b"
+  ]);
+  const xs = [70, 125, 180, 235, 290, 345];
+  for (let group = 0; group < 6; group += 1) {
+    const type = `safe-${group}`;
+    const damagedByBadLine = group < 3;
+    const y = damagedByBadLine ? 130 : 210;
+    const groupNodes = [
+      makeNode(`${type}-a`, xs[group], y, type),
+      makeNode(`${type}-b`, xs[group], y + 55, type),
+      makeNode(`${type}-c`, xs[group], y + 110, type)
+    ];
+    nodes.push(...groupNodes);
+    for (let first = 0; first < groupNodes.length; first += 1) {
+      for (let second = 0; second < groupNodes.length; second += 1) {
+        if (first !== second) links.add(`${groupNodes[first].id}:${groupNodes[second].id}`);
+      }
+    }
+  }
+  const game = makeGame(nodes, { links, myTsumId: "safe-5" });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+  const badCandidate = enumerateCoronationElsaPlannerTraces(snapshot, adjacency, snapshot.initialState, {
+    lengths: [3], dedupeByNextFrozenMask: false
+  }).candidates.find((candidate) => candidate.chainIds.every((id) => String(id).startsWith("bad-")));
+  const badTransition = simulateCoronationElsaFreeze(snapshot, snapshot.initialState, badCandidate.chainIndices);
+  const afterBadSnapshot = Object.freeze({
+    ...snapshot,
+    initialState: Object.freeze({
+      frozenMask: badTransition.nextFrozenMask,
+      freezeLayerCounts: badTransition.nextFreezeLayerCounts
+    })
+  });
+  const afterBad = solveCoronationElsaStrongestModePlan(afterBadSnapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+
+  assert.equal(1 + afterBad.maxAdditionalTraces, 4);
+  assert.equal(plan.maxAdditionalTraces, 6);
+  assert.equal(plan.chainIds.some((id) => String(id).startsWith("bad-")), false);
+  assert.ok(plan.diagnostics.selectedNextFrozenCount < popcountForTest(badTransition.nextFrozenMask));
+});
+
+test("Phase B permits a four-chain when depth is equal and its real terminal coin is higher", () => {
+  const nodes = [
+    makeNode("a", 72, 100),
+    makeNode("b", 150, 100),
+    makeNode("c", 200, 100),
+    makeNode("d", 200, 178)
+  ];
+  const links = new Set(["a:b", "b:c", "c:d"]);
+  const game = makeGame(nodes, {
+    links,
+    canConnectWithChainRule: (_rule, from, candidate) => links.has(`${from.id}:${candidate.id}`)
+  });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+
+  assert.equal(plan.maxAdditionalTraces, 1);
+  assert.deepEqual(plan.chainIds, ["a", "b", "c", "d"]);
+  assert.equal(plan.diagnostics.selectedFirstChainLength, 4);
+  assert.equal(plan.terminal.effectiveClearCount, 4);
+  assert.equal(plan.terminal.rawCoins, 1);
 });

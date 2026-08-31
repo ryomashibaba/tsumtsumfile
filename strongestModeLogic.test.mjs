@@ -73,7 +73,7 @@ test("Coronation Elsa any-trace fallback keeps no position, direction, or stabil
   assert.equal(selected.strongestModeCoronationElsaSource, "anyTraceFallback");
 });
 
-test("Coronation Elsa chain selection falls back to any legal board trace", () => {
+test("Coronation Elsa chain selection uses the terminal planner result", () => {
   const chain = [
     { id: "central-1" },
     { id: "central-2" },
@@ -81,20 +81,11 @@ test("Coronation Elsa chain selection falls back to any legal board trace", () =
   ];
   const harness = {
     myTsum: { id: "coronationElsa" },
-    strongestModeCoronationElsaSuppressRelaxedFallback: false,
-    strongestModeCoronationElsaAfterChainTimer: 0,
     strongestModeCoronationElsaNoFreezeTargetWaitFrames: 4,
     strongestModeCoronationElsaEarlyFreezeTapWaitFrames: 4,
     getActiveSkillSession: () => ({}),
-    getStrongestModeCoronationElsaSafePlayableY: () => 220,
-    boardState: { getFrozenNodesByKind: () => [] },
-    resetStrongestModeCoronationElsaTracePlan: () => {},
-    recordStrongestModeCoronationElsaStrategyPick: () => {},
-    findStrongestModeCoronationElsaBestPreviewChain: () => [],
-    isStrongestModeCoronationElsaPracticalStableTsum: () => false,
-    isStrongestModeCoronationElsaStableTsum: () => false,
-    findStrongestModeCoronationElsaAnyTraceChain: () => {
-      chain.strongestModeCoronationElsaSource = "anyTraceFallback";
+    findStrongestModeCoronationElsaPlannerChain: () => {
+      chain.strongestModeCoronationElsaSource = "planner";
       return chain;
     }
   };
@@ -102,7 +93,7 @@ test("Coronation Elsa chain selection falls back to any legal board trace", () =
   const selected = Game.prototype.findStrongestModeChain.call(harness);
 
   assert.equal(selected, chain);
-  assert.equal(selected.strongestModeCoronationElsaSource, "anyTraceFallback");
+  assert.equal(selected.strongestModeCoronationElsaSource, "planner");
   assert.equal(harness.strongestModeCoronationElsaNoFreezeTargetWaitFrames, 0);
   assert.equal(harness.strongestModeCoronationElsaEarlyFreezeTapWaitFrames, 0);
 });
@@ -226,14 +217,18 @@ const makeCoronationElsaStepHarness = () => ({
   shouldWaitForStrongestModeCoronationElsaNoFreezeTarget: () => false
 });
 
-test("Coronation Elsa pending extra-ice route traces before attempting the remaining ice", () => {
+test("Coronation Elsa planner always traces before attempting remaining ice", () => {
   const chain = [{ id: 1 }, { id: 2 }, { id: 3 }];
   let performedChain = null;
   let iceGuardCalled = false;
   const harness = {
     ...makeCoronationElsaStepHarness(),
-    strongestModeCoronationElsaPendingExtraFreezeTap: true,
-    findStrongestModeChain: () => chain,
+    planStrongestModeCoronationElsaAction: () => ({
+      plan: { action: "trace" },
+      chain,
+      tapTarget: null
+    }),
+    isStrongestModeCoronationElsaPlannedChainValid: () => true,
     performStrongestModeChains(selected) {
       performedChain = selected;
       return true;
@@ -248,17 +243,22 @@ test("Coronation Elsa pending extra-ice route traces before attempting the remai
   assert.equal(Game.prototype.performStrongestModeStep.call(harness), true);
   assert.equal(performedChain, chain);
   assert.equal(iceGuardCalled, false);
-  assert.equal(harness.strongestModeCoronationElsaPendingExtraFreezeTap, true);
 });
 
-test("Coronation Elsa delayed freeze route uses the common final trace guard", () => {
-  const target = { type: "freeze", x: 20, y: 30 };
+test("Coronation Elsa planner immediately taps only after a second no-trace confirmation", () => {
+  const target = { id: "ice", x: 20, y: 30 };
   let guardedTarget = null;
+  let planCalls = 0;
   const harness = {
     ...makeCoronationElsaStepHarness(),
-    findStrongestModeChain: () => [],
-    tryTapStrongestModeCoronationElsaCompletedIce: () => false,
-    findStrongestSpecialTapTarget: () => target,
+    planStrongestModeCoronationElsaAction: () => {
+      planCalls += 1;
+      return {
+        plan: { action: "tap", terminal: { effectiveClearCount: 8, rawCoins: 2 } },
+        chain: [],
+        tapTarget: target
+      };
+    },
     tryTapStrongestModeCoronationElsaFreezeTarget(selected) {
       guardedTarget = selected;
       return true;
@@ -266,7 +266,72 @@ test("Coronation Elsa delayed freeze route uses the common final trace guard", (
   };
 
   assert.equal(Game.prototype.performStrongestModeStep.call(harness), true);
-  assert.equal(guardedTarget, target);
+  assert.equal(planCalls, 2);
+  assert.deepEqual(guardedTarget, {
+    type: "freeze",
+    x: 20,
+    y: 30,
+    target,
+    effectCount: 8
+  });
+});
+
+test("Coronation Elsa discards an invalid planned route and replans once from the live board", () => {
+  const staleChain = [{ id: "stale-1" }, { id: "stale-2" }, { id: "stale-3" }];
+  const freshChain = [{ id: "fresh-1" }, { id: "fresh-2" }, { id: "fresh-3" }];
+  let planCalls = 0;
+  let performedChain = null;
+  const harness = {
+    ...makeCoronationElsaStepHarness(),
+    planStrongestModeCoronationElsaAction() {
+      planCalls += 1;
+      return {
+        plan: { action: "trace" },
+        chain: planCalls === 1 ? staleChain : freshChain,
+        tapTarget: null
+      };
+    },
+    isStrongestModeCoronationElsaPlannedChainValid: (chain) => chain === freshChain,
+    performStrongestModeChains(chain) {
+      performedChain = chain;
+      return true;
+    }
+  };
+
+  assert.equal(Game.prototype.performStrongestModeStep.call(harness), true);
+  assert.equal(planCalls, 2);
+  assert.equal(performedChain, freshChain);
+});
+
+test("Coronation Elsa replans the second trace in the same step and stops after two", () => {
+  const firstChain = [{ id: "first-1" }, { id: "first-2" }, { id: "first-3" }];
+  const secondChain = [{ id: "second-1" }, { id: "second-2" }, { id: "second-3" }];
+  firstChain.strongestModeCoronationElsaSource = "planner";
+  secondChain.strongestModeCoronationElsaSource = "planner";
+  const performed = [];
+  let replans = 0;
+  const harness = {
+    myTsum: { id: "coronationElsa" },
+    strongestModeMaxChainsPerStep: 2,
+    strongestModeCoronationElsaAfterChainDelay: 0.1,
+    isStrongestModeBusy: () => false,
+    canQueueChainDuringActiveClear: () => false,
+    getActiveSkillSession: () => ({}),
+    getStrongestModeCoronationElsaSkillSummary: () => null,
+    performStrongestModeChain(chain, options) {
+      performed.push(chain);
+      options.result.committedLength = chain.length;
+      return true;
+    },
+    findStrongestModeChain() {
+      replans += 1;
+      return secondChain;
+    }
+  };
+
+  assert.equal(Game.prototype.performStrongestModeChains.call(harness, firstChain), true);
+  assert.deepEqual(performed, [firstChain, secondChain]);
+  assert.equal(replans, 1);
 });
 
 const makeCoronationElsaNode = (id, x, y) => ({

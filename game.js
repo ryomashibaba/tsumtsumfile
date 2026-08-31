@@ -85,8 +85,10 @@ import {
 import {
   buildCoronationElsaPlannerAdjacency,
   buildCoronationElsaPlannerSnapshot,
+  evaluateCoronationElsaTapComponents,
   getCoronationElsaPlannerNodeIndex,
   profileCoronationElsaPlanner,
+  solveCoronationElsaStrongestModePlan,
   simulateCoronationElsaFreeze
 } from './coronationElsaPlanner.js?v=coronation-elsa-planner-1';
 import {
@@ -1022,37 +1024,26 @@ class BoardStateService {
   }
 
   getCoronationFrozenTapInfo(startNode) {
-    const frozenNodes = this.getFrozenNodesByKind("coronationElsa");
-    const frozenById = new Map(frozenNodes.map((node) => [node.id, node]));
-    const targets = [];
-    const seenNodeIds = new Set();
-    const queue = startNode && frozenById.has(startNode.id) ? [startNode] : [];
+    if (!startNode || !this.hasFreezeKind(startNode, "coronationElsa")) {
+      return null;
+    }
+    const snapshot = buildCoronationElsaPlannerSnapshot(this.game, this.game.selectedSkillLevel);
+    const startIndex = getCoronationElsaPlannerNodeIndex(snapshot, startNode.id);
+    const evaluation = evaluateCoronationElsaTapComponents(snapshot, snapshot.initialState);
+    const component = evaluation.components.find((entry) => entry.componentIndices.includes(startIndex));
+    if (!component) {
+      return null;
+    }
+    const liveById = new Map(this.game.tsums.map((node) => [String(node.id), node]));
+    const targets = component.targetIndices
+      .map((index) => liveById.get(String(snapshot.nodes[index].id)))
+      .filter(Boolean);
     let correctionType = null;
     let chargeMultiplier = null;
-
-    while (queue.length) {
-      const node = queue.shift();
-      if (!node || seenNodeIds.has(node.id)) {
-        continue;
-      }
-      seenNodeIds.add(node.id);
-      targets.push(node);
-
-      for (const candidate of frozenNodes) {
-        if (seenNodeIds.has(candidate.id) || candidate.id === node.id) {
-          continue;
-        }
-        const connectedDistance = Math.max(
-          this.getEffectiveRadius(node) + this.getEffectiveRadius(candidate) + 3,
-          CORONATION_ELSA_ICE_CONNECT_DISTANCE
-        );
-        if (distance(node.x, node.y, candidate.x, candidate.y) <= connectedDistance) {
-          queue.push(candidate);
-        }
-      }
-    }
-
-    for (const node of targets) {
+    const componentNodes = component.componentIndices
+      .map((index) => liveById.get(String(snapshot.nodes[index].id)))
+      .filter(Boolean);
+    for (const node of componentNodes) {
       const entries = this.getFrozenEntriesByKind(node, "coronationElsa");
       for (const freezeEntry of entries) {
         correctionType = correctionType || freezeEntry.correctionType;
@@ -1062,51 +1053,18 @@ class BoardStateService {
       }
     }
 
-    // Calculate total clear count based on overlap: each tsum counts by number of times it was frozen
-    let totalClearCount = 0;
-    for (const node of targets) {
-      const entries = this.getFrozenEntriesByKind(node, "coronationElsa");
-      totalClearCount += entries.length;
-    }
-
-    const splashTargets = [];
-    const splashPadding = TSUM_RADIUS * 0.02;
-    for (const tsum of this.game.tsums) {
-      if (tsum.dead || tsum.removing || frozenById.has(tsum.id)) {
-        continue;
-      }
-      let touchingFrozenCount = 0;
-      for (const frozenNode of targets) {
-        const splashDistance = this.getEffectiveRadius(frozenNode) + this.getEffectiveRadius(tsum) + splashPadding;
-        if (distance(frozenNode.x, frozenNode.y, tsum.x, tsum.y) <= splashDistance) {
-          touchingFrozenCount += 1;
-          if (touchingFrozenCount > 1) {
-            break;
-          }
-        }
-      }
-      if (touchingFrozenCount === 1) {
-        splashTargets.push(tsum);
-      }
-    }
-    const clearTargets = targets.concat(splashTargets);
-    const connectedFrozenCount = targets.length;
-    const splashNormalCount = splashTargets.length;
-    const targetsCount = clearTargets.length;
-    const overlapBonusRaw = Math.max(0, totalClearCount - connectedFrozenCount);
-    const freezeLayerBonus = overlapBonusRaw;
-    const freezeLayerHistogramOfTappedGroup = buildCoronationElsaFreezeLayerHistogram(this, targets);
+    const freezeLayerHistogramOfTappedGroup = buildCoronationElsaFreezeLayerHistogram(this, componentNodes);
 
     return {
-      targets: clearTargets,
+      targets,
       correctionType,
       chargeMultiplier,
-      additionalClearCount: freezeLayerBonus,
-      type: clearTargets[0] ? this.getResolvedType(clearTargets[0]) : null,
-      connectedFrozenCount,
-      splashNormalCount,
-      freezeLayerBonus,
-      targetsCount,
+      additionalClearCount: component.additionalClearCount,
+      type: targets[0] ? this.getResolvedType(targets[0]) : null,
+      connectedFrozenCount: component.connectedFrozenCount,
+      splashNormalCount: component.splashNormalCount,
+      freezeLayerBonus: component.freezeLayerBonus,
+      targetsCount: component.physicalTargetCount,
       freezeLayerHistogramOfTappedGroup
     };
   }
@@ -2068,6 +2026,7 @@ class ClearPipeline {
     this.game.feverSystem.addClears(resolvedClearCount);
 
     let score = 0;
+    let awardedRawCoins = 0;
     if (info.source === "chain") {
       const baseType = info.type || this.board.getResolvedType(info.targets[0]);
       score = this.game.calculateChainScore(baseType.score, resolvedClearCount);
@@ -2082,6 +2041,7 @@ class ClearPipeline {
         info
       );
       this.game.coinBonus += chainCoins;
+      awardedRawCoins = chainCoins;
     } else {
       score = this.game.calculateMixedClearScore(resolvedClearCount, info.targets);
       if (info.skillBonus) {
@@ -2098,6 +2058,15 @@ class ClearPipeline {
         info
       );
       this.game.coinBonus += skillCoins;
+      awardedRawCoins = skillCoins;
+    }
+    if (info.coronationElsaIceTapDebug) {
+      this.game.recordStrongestModeCoronationElsaIceTapActual?.({
+        effectiveClearCount: resolvedClearCount,
+        rawCoins: awardedRawCoins,
+        prediction: info.coronationElsaPlannerPrediction || null
+      });
+      this.game.emitStrongestModeCoronationElsaSkillSummary("iceTap");
     }
     this.game.recordCoingainClear(info, resolvedClearCount);
     const bombType = this.game.resolveGeneratedBombType(resolvedClearCount, info);
@@ -2219,6 +2188,8 @@ class InputRouter {
         return false;
       }
       if (isCoronationElsaFrozenTap) {
+        frozenInfo.coronationElsaPlannerPrediction = this.game.strongestModeCoronationElsaPendingTapPrediction || null;
+        this.game.strongestModeCoronationElsaPendingTapPrediction = null;
         const coronationElsaIceTapLog = {
           coronationFrozenCountBeforeTap,
           collectedFrozenCount: frozenInfo.connectedFrozenCount ?? 0,
@@ -2262,11 +2233,9 @@ class InputRouter {
         scoreMultiplier: frozenInfo.scoreMultiplier,
         effectiveClearCountOverride: frozenInfo.effectiveClearCountOverride,
         additionalClearCount: frozenInfo.additionalClearCount,
+        coronationElsaPlannerPrediction: frozenInfo.coronationElsaPlannerPrediction || null,
         coronationElsaIceTapDebug: isCoronationElsaFrozenTap
       });
-      if (handled && isCoronationElsaFrozenTap) {
-        this.game.emitStrongestModeCoronationElsaSkillSummary("iceTap");
-      }
       return handled;
     }
 
@@ -2308,25 +2277,7 @@ const strongestSkillStrategies = {
     if (!game.getActiveSkillSession("coronationElsa")) {
       return null;
     }
-    const track = options.track !== false;
-    if (track) {
-      game.maybeProfileStrongestModeCoronationElsaPlanner?.();
-    }
-    const safePlayableY = game.getStrongestModeCoronationElsaSafePlayableY();
-    const frozenCount = game.boardState.getFrozenNodesByKind("coronationElsa").length;
-    if (frozenCount === 0) {
-      game.strongestModeCoronationElsaAnchorSide = null;
-      game.resetStrongestModeCoronationElsaTracePlan();
-    }
-    if (track) {
-      game.recordStrongestModeCoronationElsaStrategyPick("preview");
-    }
-    return game.findStrongestModeCoronationElsaBestPreviewChain({
-      maxLength: 6,
-      minLength: 3,
-      minY: safePlayableY,
-      filterNode: (tsum) => game.isStrongestModeCoronationElsaPracticalStableTsum(tsum)
-    });
+    return game.findStrongestModeCoronationElsaPlannerChain();
   },
   jamilViper(game) {
     if (!game.getActiveSkillSession("jamilViper")) {
@@ -2462,6 +2413,7 @@ class Game {
     this.strongestModeCoronationElsaLastTierSearchDiagnostics = null;
     this.strongestModeCoronationElsaLastSearchDiagnostics = null;
     this.strongestModeCoronationElsaPlannerProfileKey = null;
+    this.strongestModeCoronationElsaPendingTapPrediction = null;
     this.aiAutoPlay = false;
     this.aiTrainingMode = false;
     this.aiLearningMode = false;
@@ -5457,6 +5409,54 @@ class Game {
     });
   }
 
+  planStrongestModeCoronationElsaAction(options = {}) {
+    const context = this.buildCoronationElsaPlannerContext();
+    const plan = solveCoronationElsaStrongestModePlan(
+      context.snapshot,
+      context.adjacency,
+      options.plannerOptions || {}
+    );
+    this.recordStrongestModeCoronationElsaPlannerRun(plan);
+    if (this.coronationElsaDebug) {
+      this.logCodexCoronationPayload("[CODEXLOG CORONATION TERMINAL PLANNER]", plan.diagnostics);
+    }
+    const liveById = new Map(this.tsums.map((tsum) => [String(tsum.id), tsum]));
+    const chain = plan.action === "trace"
+      ? plan.chainIds.map((id) => liveById.get(String(id))).filter(Boolean)
+      : [];
+    if (chain.length === plan.chainIds.length && chain.length >= 3) {
+      Object.defineProperty(chain, "strongestModeCoronationElsaSource", {
+        value: "planner",
+        configurable: true
+      });
+      Object.defineProperty(chain, "strongestModeCoronationElsaPlan", {
+        value: plan,
+        configurable: true
+      });
+    }
+    const tapTarget = plan.action === "tap"
+      ? liveById.get(String(plan.tapNodeId)) || null
+      : null;
+    return Object.freeze({ plan, chain, tapTarget });
+  }
+
+  findStrongestModeCoronationElsaPlannerChain() {
+    const decision = this.planStrongestModeCoronationElsaAction();
+    return decision.plan.action === "trace" ? decision.chain : [];
+  }
+
+  isStrongestModeCoronationElsaPlannedChainValid(chain) {
+    if (!Array.isArray(chain) || chain.length < 3) return false;
+    const liveNodes = new Set(this.getStrongestModeChainNodes());
+    if (!chain.every((node) => liveNodes.has(node))) return false;
+    const rule = this.getChainBehaviorForStart(chain[0]);
+    if (!rule?.allowedTypeIds?.size) return false;
+    for (let index = 1; index < chain.length; index += 1) {
+      if (!this.canConnectWithChainRule(rule, chain[index - 1], chain[index])) return false;
+    }
+    return true;
+  }
+
   maybeProfileStrongestModeCoronationElsaPlanner() {
     if (!this.coronationElsaDebug) {
       return null;
@@ -5790,129 +5790,36 @@ class Game {
       return true;
     }
     if (isCoronationElsaSkillActive) {
-      if (this.strongestModeCoronationElsaPendingExtraFreezeTap) {
-        this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
-        this.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
-        const pendingIceChain = this.findStrongestModeChain();
-        const hasPendingIceTraceCandidate = (
-          Array.isArray(pendingIceChain) &&
-          pendingIceChain.length >= 3
-        );
-        if (hasPendingIceTraceCandidate) {
-          const chained = this.performStrongestModeChains(pendingIceChain);
-          if (chained) {
-            this.strongestModeCoronationElsaNoChainFrames = 0;
-            this.strongestModeCoronationElsaNoTraceDurationSec = 0;
-            this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
-            this.strongestModeCoronationElsaStopLogged = false;
+      const executeDecision = (decision, allowReplan) => {
+        if (decision.plan.action === "trace") {
+          if (!this.isStrongestModeCoronationElsaPlannedChainValid(decision.chain)) {
+            if (allowReplan) return executeDecision(this.planStrongestModeCoronationElsaAction(), false);
+            return false;
+          }
+          const chained = this.performStrongestModeChains(decision.chain);
+          if (!chained && allowReplan && !this.isStrongestModeBusy()) {
+            return executeDecision(this.planStrongestModeCoronationElsaAction(), false);
           }
           return chained;
         }
-        const specialTarget = this.findStrongestSpecialTapTarget();
-        if (!specialTarget || specialTarget.type !== "freeze") {
-          this.strongestModeCoronationElsaPendingExtraFreezeTap = false;
-          return false;
+        if (decision.plan.action !== "tap" || !decision.tapTarget) return false;
+
+        // Absolute final guard: a fresh snapshot must still have no legal trace.
+        const confirmed = this.planStrongestModeCoronationElsaAction();
+        if (confirmed.plan.action === "trace") {
+          return executeDecision(confirmed, false);
         }
-        const tapped = this.tryTapStrongestModeCoronationElsaFreezeTarget(specialTarget);
-        if (!tapped) {
-          return false;
-        }
-        this.strongestModeCoronationElsaPendingExtraFreezeTap = false;
-        this.strongestModeCoronationElsaSuppressRelaxedFallback = false;
-        this.strongestModeCoronationElsaSuppressSpecialTapFrames = 0;
-        this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
-        this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
-        this.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
-        return true;
-      }
-      if (this.strongestModeCoronationElsaAfterChainTimer > 0) {
-        return false;
-      }
-      if (this.shouldWaitForCoronationElsaRecentSpawnsToSettle()) {
-        return false;
-      }
-      const chain = this.findStrongestModeChain();
-      const hasTraceCandidate = Array.isArray(chain) && chain.length >= 3;
-      if (hasTraceCandidate) {
-        this.strongestModeCoronationElsaNoTraceDurationSec = 0;
-      } else {
-        this.strongestModeCoronationElsaNoTraceDurationSec += Math.max(0, dt || 0);
-      }
-      const chained = this.performStrongestModeChains(chain);
-      if (chained) {
-        this.strongestModeCoronationElsaNoChainFrames = 0;
-        this.strongestModeCoronationElsaNoTraceDurationSec = 0;
-        this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
-        this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
-        this.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
-        this.strongestModeCoronationElsaStopLogged = false;
-        return true;
-      }
-      if (hasTraceCandidate) {
-        this.strongestModeCoronationElsaNoChainFrames = 0;
-        logCoronationElsaStop("trace-candidate-execution-failed");
-        return false;
-      }
-      if (this.isStrongestModeBusy()) {
-        this.recordStrongestModeCoronationElsaBusyAfterChain();
-        logCoronationElsaStop("busy-after-chain");
-        return false;
-      }
-      this.strongestModeCoronationElsaNoChainFrames += 1;
-      const committedTraceCount = this.getStrongestModeCoronationElsaSkillSummary()?.chainCount || 0;
-      const minimumTraceCount = this.strongestModeCoronationElsaMinimumTraceCount || 4;
-      if (committedTraceCount < minimumTraceCount) {
-        logCoronationElsaStop("ice-tap-suppressed-before-minimum-traces");
-        return false;
-      }
-      if (this.tryTapStrongestModeCoronationElsaCompletedIce(hasTraceCandidate)) {
-        return true;
-      }
-      if (this.strongestModeCoronationElsaNoChainFrames < this.strongestModeCoronationElsaFreezeTapDelayFrames) {
-        return false;
-      }
-      const playableCount = this.countStrongestModePlayableNodesBelowCeiling();
-      const frozenCount = this.boardState.getFrozenNodesByKind("coronationElsa").length;
-      if (frozenCount > 0) {
-        this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
-      }
-      if (frozenCount >= 35) {
-        this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
-      }
-      if (
-        playableCount < this.strongestModeCoronationElsaMinPlayableNodesBeforeFreezeTap &&
-        frozenCount < this.strongestModeCoronationElsaMinFrozenBeforeLowPlayableTap
-      ) {
-        this.recordStrongestModeCoronationElsaPlayableLowWait();
-        logCoronationElsaStop("playable-count-low");
-        return false;
-      }
-      if (this.strongestModeCoronationElsaSuppressSpecialTapFrames > 0) {
-        this.strongestModeCoronationElsaSuppressSpecialTapFrames -= 1;
-        return false;
-      }
-      this.recordStrongestModeCoronationElsaNoChainCandidate();
-      if (this.shouldWaitForStrongestModeCoronationElsaEarlyFreezeTap(playableCount, frozenCount)) {
-        return false;
-      }
-      const specialTarget = this.findStrongestSpecialTapTarget();
-      if (this.shouldWaitForStrongestModeCoronationElsaUnsafeFreezeTap(frozenCount, specialTarget)) {
-        return false;
-      }
-      if (specialTarget && specialTarget.type === "freeze") {
-        const tapped = this.tryTapStrongestModeCoronationElsaFreezeTarget(specialTarget);
-        if (tapped) {
-          return true;
-        }
-        logCoronationElsaStop("freeze-handle-tap-false", specialTarget);
-        return false;
-      }
-      const noChainDiagnostics = this.getStrongestModeCoronationElsaNoChainDiagnostics();
-      if (this.shouldWaitForStrongestModeCoronationElsaNoFreezeTarget(playableCount, frozenCount, noChainDiagnostics)) {
-        return false;
-      }
-      logCoronationElsaStop("no-freeze-special-target", specialTarget);
-      return false;
+        if (confirmed.plan.action !== "tap" || !confirmed.tapTarget) return false;
+        this.strongestModeCoronationElsaPendingTapPrediction = confirmed.plan.terminal;
+        return this.tryTapStrongestModeCoronationElsaFreezeTarget({
+          type: "freeze",
+          x: confirmed.tapTarget.x,
+          y: confirmed.tapTarget.y,
+          target: confirmed.tapTarget,
+          effectCount: confirmed.plan.terminal?.effectiveClearCount || 0
+        }, { planValidated: true });
+      };
+      return executeDecision(this.planStrongestModeCoronationElsaAction(), true);
     }
     const isJudyNickNickSkillActive = (
       this.myTsum?.id === "judyNick" &&
@@ -6254,86 +6161,14 @@ class Game {
       if (isCoronationElsaSkillActive) {
         this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
         this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
-        strategyChain.strongestModeCoronationElsaSource = "strategy";
+        if (!strategyChain.strongestModeCoronationElsaSource) {
+          strategyChain.strongestModeCoronationElsaSource = "planner";
+        }
       }
       return strategyChain;
     }
     if (isCoronationElsaSkillActive) {
-      const safePlayableY = this.getStrongestModeCoronationElsaSafePlayableY();
-      const stableFallback = this.findStrongestModeCoronationElsaBestPreviewChain({
-        minLength: 3,
-        maxLength: 6,
-        minY: safePlayableY,
-        filterNode: (tsum) => this.isStrongestModeCoronationElsaPracticalStableTsum(tsum)
-      });
-      if (Array.isArray(stableFallback) && stableFallback.length >= 3) {
-        this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
-        this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
-        stableFallback.strongestModeCoronationElsaSource = "stableFallback";
-        return stableFallback;
-      }
-      if (this.strongestModeCoronationElsaSuppressRelaxedFallback) {
-        const anyTraceFallback = this.findStrongestModeCoronationElsaAnyTraceChain();
-        if (Array.isArray(anyTraceFallback) && anyTraceFallback.length >= 3) {
-          this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
-          this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
-          return anyTraceFallback;
-        }
-        return stableFallback;
-      }
-      const relaxedFallback = this.findStrongestModeCoronationElsaBestPreviewChain({
-        minLength: 3,
-        maxLength: 6,
-        minY: safePlayableY,
-        filterNode: (tsum) => this.isStrongestModeCoronationElsaPracticalStableTsum(tsum)
-      });
-      const frozenCount = this.boardState.getFrozenNodesByKind("coronationElsa").length;
-      const relaxedFallbackStableNodeCount = Array.isArray(relaxedFallback)
-        ? relaxedFallback.filter((tsum) => this.isStrongestModeCoronationElsaStableTsum(tsum)).length
-        : 0;
-      const relaxedFallbackUnstableNodeCount = Math.max(
-        0,
-        (Array.isArray(relaxedFallback) ? relaxedFallback.length : 0) - relaxedFallbackStableNodeCount
-      );
-      const relaxedFallbackMaxAbsVy = Array.isArray(relaxedFallback)
-        ? relaxedFallback.reduce((maxAbsVy, tsum) => Math.max(maxAbsVy, Math.abs(tsum?.vy || 0)), 0)
-        : 0;
-      const relaxedFallbackStartsStable = (
-        Array.isArray(relaxedFallback) &&
-        relaxedFallback
-          .slice(0, 2)
-          .every((tsum) => this.isStrongestModeCoronationElsaStableTsum(tsum))
-      );
-      const relaxedFallbackHasStableNode = !(
-        relaxedFallbackStableNodeCount === 0 &&
-        relaxedFallbackUnstableNodeCount > 0
-      );
-      const relaxedFallbackVelocitySafe = (
-        relaxedFallbackMaxAbsVy <= this.strongestModeCoronationElsaRelaxedFallbackMaxAbsVy
-      );
-      const canUseRelaxedFallback = (
-        Array.isArray(relaxedFallback) &&
-        relaxedFallback.length >= 3 &&
-        relaxedFallbackHasStableNode &&
-        relaxedFallbackVelocitySafe &&
-        this.strongestModeCoronationElsaAfterChainTimer <= 0 &&
-        this.countStrongestModePlayableNodesBelowCeiling() >= 30 &&
-        (
-          frozenCount === 0 ||
-          (relaxedFallbackStartsStable && relaxedFallbackStableNodeCount === relaxedFallback.length)
-        )
-      );
-      if (canUseRelaxedFallback) {
-        relaxedFallback.strongestModeCoronationElsaSource = "relaxedFallback";
-        return relaxedFallback;
-      }
-      const anyTraceFallback = this.findStrongestModeCoronationElsaAnyTraceChain();
-      if (Array.isArray(anyTraceFallback) && anyTraceFallback.length >= 3) {
-        this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
-        this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
-        return anyTraceFallback;
-      }
-      return stableFallback;
+      return [];
     }
     return this.findStrongestModeBestChain({ minLength: 3 });
   }
@@ -7369,16 +7204,23 @@ class Game {
     return true;
   }
 
-  tryTapStrongestModeCoronationElsaFreezeTarget(specialTarget) {
-    const anyTraceChain = this.findStrongestModeCoronationElsaAnyTraceChain();
-    if (Array.isArray(anyTraceChain) && anyTraceChain.length >= 3) {
-      return false;
+  tryTapStrongestModeCoronationElsaFreezeTarget(specialTarget, options = {}) {
+    if (!options.planValidated) {
+      const decision = this.planStrongestModeCoronationElsaAction?.();
+      if (decision?.plan?.action === "trace") return false;
+      if (!decision) {
+        const anyTraceChain = this.findStrongestModeCoronationElsaAnyTraceChain();
+        if (Array.isArray(anyTraceChain) && anyTraceChain.length >= 3) return false;
+      }
     }
     if (!specialTarget || specialTarget.type !== "freeze") {
       return false;
     }
     const tapped = this.inputRouter.handleTap({ x: specialTarget.x, y: specialTarget.y });
     if (!tapped) {
+      if (options.planValidated) {
+        this.strongestModeCoronationElsaPendingTapPrediction = null;
+      }
       return false;
     }
     this.strongestModeCoronationElsaNoChainFrames = 0;
@@ -7590,6 +7432,25 @@ class Game {
       minSecondsBetweenChainStarts: null,
       minFirstTsumAgeAtChainStart: null,
       minNewestSpawnAgeAtChainStart: null,
+      plannerRunCount: 0,
+      plannerExactRunCount: 0,
+      plannerBeamRunCount: 0,
+      plannerTotalSearchMs: 0,
+      plannerMaxSearchMs: 0,
+      plannerExploredStateCount: 0,
+      plannerMemoHitCount: 0,
+      plannerRootCandidateCount: 0,
+      plannerRootDedupedCandidateCount: 0,
+      plannerCalculatedMaxAdditionalTraces: 0,
+      plannerSelectedRouteProjectedTotalTraces: 0,
+      plannerSelectedFirstChainLength: 0,
+      plannerSelectedNextFrozenCount: 0,
+      plannerTerminalEffectiveClear: 0,
+      plannerTerminalPredictedRawCoins: 0,
+      actualIceTapEffectiveClear: 0,
+      actualIceTapRawCoins: 0,
+      plannerEffectiveClearDifference: 0,
+      plannerRawCoinsDifference: 0,
       endedBy: null
     };
   }
@@ -7617,6 +7478,37 @@ class Game {
     summary.totalFreezeTargets += Math.max(0, freezeTargetCount || 0);
     summary.totalNewFrozenCount += Math.max(0, newFrozenCount || 0);
     summary.maxFrozenCountDuringSkill = Math.max(summary.maxFrozenCountDuringSkill, totalFrozenCount || 0);
+  }
+
+  recordStrongestModeCoronationElsaPlannerRun(plan) {
+    const summary = this.getStrongestModeCoronationElsaSkillSummary();
+    if (!summary || !plan?.diagnostics) return;
+    const diagnostics = plan.diagnostics;
+    summary.plannerRunCount += 1;
+    if (plan.mode === "exact") summary.plannerExactRunCount += 1;
+    if (plan.mode === "beam") summary.plannerBeamRunCount += 1;
+    summary.plannerTotalSearchMs += Math.max(0, diagnostics.searchTimeMs || 0);
+    summary.plannerMaxSearchMs = Math.max(summary.plannerMaxSearchMs, diagnostics.searchTimeMs || 0);
+    summary.plannerExploredStateCount += Math.max(0, diagnostics.exploredStateCount || 0);
+    summary.plannerMemoHitCount += Math.max(0, diagnostics.memoHitCount || 0);
+    summary.plannerRootCandidateCount = diagnostics.rootCandidateCount || 0;
+    summary.plannerRootDedupedCandidateCount = diagnostics.rootDedupedCandidateCount || 0;
+    summary.plannerCalculatedMaxAdditionalTraces = diagnostics.calculatedMaxAdditionalTraces || 0;
+    summary.plannerSelectedRouteProjectedTotalTraces = diagnostics.selectedRouteProjectedTotalTraces || 0;
+    summary.plannerSelectedFirstChainLength = diagnostics.selectedFirstChainLength || 0;
+    summary.plannerSelectedNextFrozenCount = diagnostics.selectedNextFrozenCount || 0;
+    summary.plannerTerminalEffectiveClear = diagnostics.terminalEffectiveClear || 0;
+    summary.plannerTerminalPredictedRawCoins = diagnostics.terminalPredictedRawCoins || 0;
+  }
+
+  recordStrongestModeCoronationElsaIceTapActual(stats = {}) {
+    const summary = this.getStrongestModeCoronationElsaSkillSummary();
+    if (!summary) return;
+    const prediction = stats.prediction || {};
+    summary.actualIceTapEffectiveClear = Math.max(0, stats.effectiveClearCount || 0);
+    summary.actualIceTapRawCoins = Math.max(0, stats.rawCoins || 0);
+    summary.plannerEffectiveClearDifference = summary.actualIceTapEffectiveClear - Math.max(0, prediction.effectiveClearCount || 0);
+    summary.plannerRawCoinsDifference = summary.actualIceTapRawCoins - Math.max(0, prediction.rawCoins || 0);
   }
 
   recordStrongestModeCoronationElsaStrategyPick(type) {
@@ -7671,23 +7563,6 @@ class Game {
     }
     const chainCount = summary.chainCount || 0;
     const averageChainLength = chainCount > 0 ? Number((summary.totalChainLength / chainCount).toFixed(3)) : 0;
-    const savedAnchorSide = this.strongestModeCoronationElsaAnchorSide;
-    const strategyChain = strongestSkillStrategies.coronationElsa(this, { track: false }) || [];
-    this.strongestModeCoronationElsaAnchorSide = savedAnchorSide;
-    const stableFallbackChain = this.findStrongestModeCoronationElsaBestPreviewChain({
-      minLength: 3,
-      maxLength: 6,
-      minY: this.getStrongestModeCoronationElsaSafePlayableY(),
-      filterNode: (tsum) => this.isStrongestModeCoronationElsaPracticalStableTsum(tsum)
-    }) || [];
-    const relaxedFallbackChain = this.findStrongestModeCoronationElsaBestPreviewChain({
-      minLength: 3,
-      maxLength: 6,
-      minY: this.getStrongestModeCoronationElsaSafePlayableY()
-    }) || [];
-    const relaxedFallbackStableNodeCount = relaxedFallbackChain.filter((tsum) => (
-      this.isStrongestModeCoronationElsaStableTsum(tsum)
-    )).length;
     summary.endedBy = endedBy || summary.endedBy || "unknown";
     const summaryPayload = {
       chainCount: summary.chainCount,
@@ -7728,6 +7603,29 @@ class Game {
       minSecondsBetweenChainStarts: summary.minSecondsBetweenChainStarts,
       minFirstTsumAgeAtChainStart: summary.minFirstTsumAgeAtChainStart,
       minNewestSpawnAgeAtChainStart: summary.minNewestSpawnAgeAtChainStart,
+      plannerMode: summary.plannerBeamRunCount > 0 ? "beam" : "exact",
+      plannerRunCount: summary.plannerRunCount,
+      plannerExactRunCount: summary.plannerExactRunCount,
+      plannerBeamRunCount: summary.plannerBeamRunCount,
+      plannerAverageSearchMs: summary.plannerRunCount > 0
+        ? Number((summary.plannerTotalSearchMs / summary.plannerRunCount).toFixed(3))
+        : 0,
+      plannerMaxSearchMs: Number(summary.plannerMaxSearchMs.toFixed(3)),
+      plannerExploredStateCount: summary.plannerExploredStateCount,
+      plannerMemoHitCount: summary.plannerMemoHitCount,
+      plannerRootCandidateCount: summary.plannerRootCandidateCount,
+      plannerRootDedupedCandidateCount: summary.plannerRootDedupedCandidateCount,
+      plannerCalculatedMaxAdditionalTraces: summary.plannerCalculatedMaxAdditionalTraces,
+      plannerSelectedRouteProjectedTotalTraces: summary.plannerSelectedRouteProjectedTotalTraces,
+      plannerSelectedFirstChainLength: summary.plannerSelectedFirstChainLength,
+      plannerSelectedNextFrozenCount: summary.plannerSelectedNextFrozenCount,
+      plannerTerminalEffectiveClear: summary.plannerTerminalEffectiveClear,
+      plannerTerminalPredictedRawCoins: summary.plannerTerminalPredictedRawCoins,
+      actualTraceCount: summary.chainCount,
+      actualIceTapEffectiveClear: summary.actualIceTapEffectiveClear,
+      actualIceTapRawCoins: summary.actualIceTapRawCoins,
+      plannerEffectiveClearDifference: summary.plannerEffectiveClearDifference,
+      plannerRawCoinsDifference: summary.plannerRawCoinsDifference,
       afterChainDelay: this.strongestModeCoronationElsaAfterChainDelay,
       recentSpawnLookbackSec: this.strongestModeCoronationElsaRecentSpawnLookbackSec,
       noRecentSpawnMinWaitSec: this.strongestModeCoronationElsaNoRecentSpawnMinWaitSec,
@@ -7735,12 +7633,6 @@ class Game {
       suppressSpecialTapFrames: this.strongestModeCoronationElsaSuppressSpecialTapFrames,
       stableMinSpawnAgeSec: this.strongestModeCoronationElsaStableMinSpawnAgeSec,
       stableVelocityThreshold: this.strongestModeCoronationElsaStableVelocityThreshold,
-      strategyChainLength: strategyChain.length,
-      stableFallbackChainLength: stableFallbackChain.length,
-      relaxedFallbackChainLength: relaxedFallbackChain.length,
-      relaxedFallbackStableNodeCount,
-      relaxedFallbackUnstableNodeCount: Math.max(0, relaxedFallbackChain.length - relaxedFallbackStableNodeCount),
-      fallbackChainLength: relaxedFallbackChain.length,
       endedBy: summary.endedBy
     };
     console.log("[CORONATION ELSA STRONGEST SUMMARY]", summaryPayload);
@@ -7997,8 +7889,7 @@ class Game {
     );
     const maxChainsThisStep = isCoronationElsaSkillActive ? Math.min(maxChains, 2) : maxChains;
     const canContinueCoronationElsaChainSource = (source) => (
-      source === "strategy" ||
-      source === "stableFallback"
+      source === "planner"
     );
     const coronationElsaSummary = isCoronationElsaSkillActive
       ? this.getStrongestModeCoronationElsaSkillSummary()
@@ -8074,6 +7965,12 @@ class Game {
       (allowChainQueueDuringActiveClear && this.canQueueChainDuringActiveClear())
     );
     if (!Array.isArray(chain) || chain.length < 3 || !canAttemptChain) {
+      return false;
+    }
+    if (
+      chain.strongestModeCoronationElsaSource === "planner" &&
+      !this.isStrongestModeCoronationElsaPlannedChainValid(chain)
+    ) {
       return false;
     }
     const coronationElsaPlan = chain.strongestModeCoronationElsaPlan || null;
@@ -10946,6 +10843,7 @@ export const coronationElsaSkillHandler = {
     ctx.game.strongestModeCoronationElsaLastChainStartElapsed = null;
     ctx.game.strongestModeCoronationElsaAnchorSide = null;
     ctx.game.strongestModeCoronationElsaPlannerProfileKey = null;
+    ctx.game.strongestModeCoronationElsaPendingTapPrediction = null;
     ctx.game.resetStrongestModeCoronationElsaTracePlan();
     const session = ctx.createSession({
       remainingMs: skillValue("coronationElsa", "durationSec", ctx.level) * 1000,
@@ -11008,6 +10906,7 @@ export const coronationElsaSkillHandler = {
       ctx.game.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
       ctx.game.strongestModeCoronationElsaNoTraceDurationSec = 0;
       ctx.game.strongestModeCoronationElsaPlannerProfileKey = null;
+      ctx.game.strongestModeCoronationElsaPendingTapPrediction = null;
     }
     ctx?.game?.resetStrongestModeCoronationElsaTracePlan();
   },
