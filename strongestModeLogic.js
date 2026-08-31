@@ -28,8 +28,17 @@ export function shouldUseStrongestModeFeverBombCancel({
 
 export function shouldTapStrongestModeCoronationElsaCompletedIce({
   frozenCount,
-  noTraceDurationSec
+  noTraceDurationSec,
+  hasTraceCandidate,
+  committedTraceCount,
+  minimumTraceCount = 4
 } = {}) {
+  if (
+    hasTraceCandidate ||
+    Math.max(0, committedTraceCount || 0) < Math.max(0, minimumTraceCount || 0)
+  ) {
+    return false;
+  }
   return (
     Math.max(0, frozenCount || 0) >= 38 ||
     Math.max(0, noTraceDurationSec || 0) >= STRONGEST_MODE_CORONATION_ELSA_NO_TRACE_TAP_DELAY_SEC

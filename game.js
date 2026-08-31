@@ -2316,7 +2316,7 @@ const strongestSkillStrategies = {
       maxLength: 6,
       minLength: 3,
       minY: safePlayableY,
-      filterNode: (tsum) => game.isStrongestModeCoronationElsaSemiStableTsum(tsum)
+      filterNode: (tsum) => game.isStrongestModeCoronationElsaPracticalStableTsum(tsum)
     });
   },
   jamilViper(game) {
@@ -2425,6 +2425,7 @@ class Game {
     this.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
     this.strongestModeCoronationElsaUnsafeFreezeTapMaxWaitFrames = 8;
     this.strongestModeCoronationElsaMinPlayableNodesBeforeFreezeTap = 35;
+    this.strongestModeCoronationElsaMinimumTraceCount = 4;
     this.strongestModeCoronationElsaMinFrozenBeforeLowPlayableTap = 25;
     this.strongestModeCoronationElsaSafePlayableYOffset = 80;
     this.strongestModeCoronationElsaStopLogged = false;
@@ -2439,6 +2440,8 @@ class Game {
     this.strongestModeCoronationElsaStableMinSpawnAgeSec = 0.18;
     this.strongestModeCoronationElsaStableVelocityThreshold = 0.1;
     this.strongestModeCoronationElsaSemiStableVelocityThreshold = 1.5;
+    this.strongestModeCoronationElsaPracticalStableMinSpawnAgeSec = 0.3;
+    this.strongestModeCoronationElsaPracticalStableVelocityThreshold = 1;
     this.strongestModeCoronationElsaRelaxedFallbackMaxAbsVy = 2.5;
     this.strongestModeCoronationElsaPendingExtraFreezeTap = false;
     this.strongestModeCoronationElsaSuppressRelaxedFallback = false;
@@ -2447,6 +2450,8 @@ class Game {
     this.strongestModeCoronationElsaLastChainStartElapsed = null;
     this.strongestModeCoronationElsaWaitStartElapsed = null;
     this.strongestModeCoronationElsaSkillSummary = null;
+    this.strongestModeCoronationElsaLastTierSearchDiagnostics = null;
+    this.strongestModeCoronationElsaLastSearchDiagnostics = null;
     this.aiAutoPlay = false;
     this.aiTrainingMode = false;
     this.aiLearningMode = false;
@@ -5617,7 +5622,7 @@ class Game {
         minLength: 3,
         maxLength: 6,
         minY: this.getStrongestModeCoronationElsaSafePlayableY(),
-        filterNode: (tsum) => this.isStrongestModeCoronationElsaStableTsum(tsum)
+        filterNode: (tsum) => this.isStrongestModeCoronationElsaPracticalStableTsum(tsum)
       }) || [];
       const relaxedFallbackChain = this.findStrongestModeCoronationElsaBestPreviewChain({
         minLength: 3,
@@ -5645,6 +5650,7 @@ class Game {
         relaxedFallbackStableNodeCount,
         relaxedFallbackUnstableNodeCount: Math.max(0, relaxedFallbackChain.length - relaxedFallbackStableNodeCount),
         fallbackChainLength: relaxedFallbackChain.length,
+        searchDiagnostics: this.strongestModeCoronationElsaLastSearchDiagnostics || null,
         specialTargetType: specialTarget?.type || null,
         specialTargetEffect: specialTarget?.effectCount || 0
       };
@@ -5703,6 +5709,8 @@ class Game {
       this.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
       this.strongestModeCoronationElsaLastChainStartElapsed = null;
       this.strongestModeCoronationElsaWaitStartElapsed = null;
+      this.strongestModeCoronationElsaLastTierSearchDiagnostics = null;
+      this.strongestModeCoronationElsaLastSearchDiagnostics = null;
       this.resetStrongestModeCoronationElsaTracePlan();
     }
     if (this.tryTapStrongestModeJudyNickJudyBubble()) {
@@ -5725,14 +5733,28 @@ class Game {
       if (this.strongestModeCoronationElsaPendingExtraFreezeTap) {
         this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
         this.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
+        const pendingIceChain = this.findStrongestModeChain();
+        const hasPendingIceTraceCandidate = (
+          Array.isArray(pendingIceChain) &&
+          pendingIceChain.length >= 3
+        );
+        if (hasPendingIceTraceCandidate) {
+          const chained = this.performStrongestModeChains(pendingIceChain);
+          if (chained) {
+            this.strongestModeCoronationElsaNoChainFrames = 0;
+            this.strongestModeCoronationElsaNoTraceDurationSec = 0;
+            this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
+            this.strongestModeCoronationElsaStopLogged = false;
+          }
+          return chained;
+        }
         const specialTarget = this.findStrongestSpecialTapTarget();
         if (!specialTarget || specialTarget.type !== "freeze") {
           this.strongestModeCoronationElsaPendingExtraFreezeTap = false;
           return false;
         }
-        const tapped = this.inputRouter.handleTap({ x: specialTarget.x, y: specialTarget.y });
+        const tapped = this.tryTapStrongestModeCoronationElsaFreezeTarget(specialTarget);
         if (!tapped) {
-          this.strongestModeCoronationElsaPendingExtraFreezeTap = false;
           return false;
         }
         this.strongestModeCoronationElsaPendingExtraFreezeTap = false;
@@ -5743,9 +5765,6 @@ class Game {
         this.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
         return true;
       }
-      if (this.tryTapStrongestModeCoronationElsaCompletedIce()) {
-        return true;
-      }
       if (this.strongestModeCoronationElsaAfterChainTimer > 0) {
         return false;
       }
@@ -5753,7 +5772,8 @@ class Game {
         return false;
       }
       const chain = this.findStrongestModeChain();
-      if (Array.isArray(chain) && chain.length >= 3) {
+      const hasTraceCandidate = Array.isArray(chain) && chain.length >= 3;
+      if (hasTraceCandidate) {
         this.strongestModeCoronationElsaNoTraceDurationSec = 0;
       } else {
         this.strongestModeCoronationElsaNoTraceDurationSec += Math.max(0, dt || 0);
@@ -5768,13 +5788,24 @@ class Game {
         this.strongestModeCoronationElsaStopLogged = false;
         return true;
       }
+      if (hasTraceCandidate) {
+        this.strongestModeCoronationElsaNoChainFrames = 0;
+        logCoronationElsaStop("trace-candidate-execution-failed");
+        return false;
+      }
       if (this.isStrongestModeBusy()) {
         this.recordStrongestModeCoronationElsaBusyAfterChain();
         logCoronationElsaStop("busy-after-chain");
         return false;
       }
       this.strongestModeCoronationElsaNoChainFrames += 1;
-      if (this.tryTapStrongestModeCoronationElsaCompletedIce()) {
+      const committedTraceCount = this.getStrongestModeCoronationElsaSkillSummary()?.chainCount || 0;
+      const minimumTraceCount = this.strongestModeCoronationElsaMinimumTraceCount || 4;
+      if (committedTraceCount < minimumTraceCount) {
+        logCoronationElsaStop("ice-tap-suppressed-before-minimum-traces");
+        return false;
+      }
+      if (this.tryTapStrongestModeCoronationElsaCompletedIce(hasTraceCandidate)) {
         return true;
       }
       if (this.strongestModeCoronationElsaNoChainFrames < this.strongestModeCoronationElsaFreezeTapDelayFrames) {
@@ -5809,16 +5840,8 @@ class Game {
         return false;
       }
       if (specialTarget && specialTarget.type === "freeze") {
-        const tapped = this.inputRouter.handleTap({ x: specialTarget.x, y: specialTarget.y });
+        const tapped = this.tryTapStrongestModeCoronationElsaFreezeTarget(specialTarget);
         if (tapped) {
-          this.strongestModeCoronationElsaNoChainFrames = 0;
-          this.strongestModeCoronationElsaStopLogged = false;
-          this.strongestModeCoronationElsaPendingExtraFreezeTap = false;
-          this.strongestModeCoronationElsaSuppressRelaxedFallback = false;
-          this.strongestModeCoronationElsaSuppressSpecialTapFrames = 0;
-          this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
-          this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
-          this.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
           return true;
         }
         logCoronationElsaStop("freeze-handle-tap-false", specialTarget);
@@ -6181,7 +6204,7 @@ class Game {
         minLength: 3,
         maxLength: 6,
         minY: safePlayableY,
-        filterNode: (tsum) => this.isStrongestModeCoronationElsaSemiStableTsum(tsum)
+        filterNode: (tsum) => this.isStrongestModeCoronationElsaPracticalStableTsum(tsum)
       });
       if (Array.isArray(stableFallback) && stableFallback.length >= 3) {
         this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
@@ -6190,12 +6213,19 @@ class Game {
         return stableFallback;
       }
       if (this.strongestModeCoronationElsaSuppressRelaxedFallback) {
+        const anyTraceFallback = this.findStrongestModeCoronationElsaAnyTraceChain();
+        if (Array.isArray(anyTraceFallback) && anyTraceFallback.length >= 3) {
+          this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
+          this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
+          return anyTraceFallback;
+        }
         return stableFallback;
       }
       const relaxedFallback = this.findStrongestModeCoronationElsaBestPreviewChain({
         minLength: 3,
         maxLength: 6,
-        minY: safePlayableY
+        minY: safePlayableY,
+        filterNode: (tsum) => this.isStrongestModeCoronationElsaPracticalStableTsum(tsum)
       });
       const frozenCount = this.boardState.getFrozenNodesByKind("coronationElsa").length;
       const relaxedFallbackStableNodeCount = Array.isArray(relaxedFallback)
@@ -6237,9 +6267,27 @@ class Game {
         relaxedFallback.strongestModeCoronationElsaSource = "relaxedFallback";
         return relaxedFallback;
       }
+      const anyTraceFallback = this.findStrongestModeCoronationElsaAnyTraceChain();
+      if (Array.isArray(anyTraceFallback) && anyTraceFallback.length >= 3) {
+        this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
+        this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
+        return anyTraceFallback;
+      }
       return stableFallback;
     }
     return this.findStrongestModeBestChain({ minLength: 3 });
+  }
+
+  findStrongestModeCoronationElsaAnyTraceChain() {
+    const chain = this.findStrongestModeBestChain({
+      minLength: 3,
+      maxLength: 6
+    });
+    if (Array.isArray(chain) && chain.length >= 3) {
+      chain.strongestModeCoronationElsaSource = "anyTraceFallback";
+      return chain;
+    }
+    return [];
   }
 
   findStrongestModeBestChain(options = {}) {
@@ -6280,11 +6328,10 @@ class Game {
     return best;
   }
 
-  isStrongestModeCoronationElsaEdgeStart(tsum) {
+  isStrongestModeCoronationElsaEdgeStart(tsum, edgeBand = TSUM_RADIUS * 2) {
     if (!tsum || !Number.isFinite(tsum.x) || !Number.isFinite(tsum.y)) {
       return false;
     }
-    const edgeBand = TSUM_RADIUS * 2;
     return (
       Math.abs(tsum.x - FIELD_LEFT) <= edgeBand ||
       Math.abs(FIELD_RIGHT - tsum.x) <= edgeBand ||
@@ -6292,96 +6339,181 @@ class Game {
     );
   }
 
-  getStrongestModeCoronationElsaStartDirections(tsum) {
-    if (!this.isStrongestModeCoronationElsaEdgeStart(tsum)) {
+  getStrongestModeCoronationElsaStartDirections(tsum, edgeBand = TSUM_RADIUS * 2) {
+    if (!this.isStrongestModeCoronationElsaEdgeStart(tsum, edgeBand)) {
       return [];
     }
-    const edgeBand = TSUM_RADIUS * 2;
     const directions = [];
     if (Math.abs(FIELD_BOTTOM - tsum.y) <= edgeBand) {
-      directions.push("vertical");
+      directions.push("horizontal");
     }
     if (
       Math.abs(tsum.x - FIELD_LEFT) <= edgeBand ||
       Math.abs(FIELD_RIGHT - tsum.x) <= edgeBand
     ) {
-      directions.push("horizontal");
+      directions.push("vertical");
     }
     return directions;
   }
 
-  getStrongestModeCoronationElsaDirectionalGeometry(chain, direction) {
+  getStrongestModeCoronationElsaDirectionalGeometry(chain, direction, options = {}) {
     if (!Array.isArray(chain) || chain.length < 2) {
       return null;
     }
     const start = chain[0];
     const end = chain[chain.length - 1];
-    const startsAtLeft = Math.abs(start.x - FIELD_LEFT) <= TSUM_RADIUS * 2;
-    const startsAtRight = Math.abs(FIELD_RIGHT - start.x) <= TSUM_RADIUS * 2;
+    const endpointEdgeBand = Number.isFinite(options.endpointEdgeBand)
+      ? options.endpointEdgeBand
+      : TSUM_RADIUS * 2;
+    const intermediateEdgeBand = Number.isFinite(options.intermediateEdgeBand)
+      ? options.intermediateEdgeBand
+      : TSUM_RADIUS * 4;
+    const fullBoard = !!options.fullBoard;
+    const startsAtLeft = Math.abs(start.x - FIELD_LEFT) <= endpointEdgeBand;
+    const startsAtRight = Math.abs(FIELD_RIGHT - start.x) <= endpointEdgeBand;
+    const startsAtBottom = Math.abs(FIELD_BOTTOM - start.y) <= endpointEdgeBand;
     let primarySpan = 0;
     let perpendicularSpan = 0;
+    let maxPerpendicularSpan = 0;
     let lane = 0;
-    if (direction === "vertical") {
-      primarySpan = start.y - end.y;
+    let edge = null;
+    let staysInEdgeLane = false;
+    if (fullBoard && direction === "vertical") {
+      primarySpan = Math.abs(end.y - start.y);
       perpendicularSpan = Math.abs(end.x - start.x);
+      maxPerpendicularSpan = chain.reduce(
+        (maximum, node) => Math.max(maximum, Math.abs(node.x - start.x)),
+        0
+      );
       lane = (start.x + end.x) * 0.5;
-    } else if (direction === "horizontal" && (startsAtLeft || startsAtRight)) {
-      primarySpan = startsAtLeft ? end.x - start.x : start.x - end.x;
+      staysInEdgeLane = true;
+    } else if (fullBoard && direction === "horizontal") {
+      primarySpan = Math.abs(end.x - start.x);
       perpendicularSpan = Math.abs(end.y - start.y);
+      maxPerpendicularSpan = chain.reduce(
+        (maximum, node) => Math.max(maximum, Math.abs(node.y - start.y)),
+        0
+      );
       lane = (start.y + end.y) * 0.5;
+      staysInEdgeLane = true;
+    } else if (direction === "vertical" && (startsAtLeft || startsAtRight)) {
+      edge = startsAtLeft && startsAtRight
+        ? (Math.abs(start.x - FIELD_LEFT) <= Math.abs(FIELD_RIGHT - start.x) ? "left" : "right")
+        : (startsAtLeft ? "left" : "right");
+      primarySpan = Math.abs(end.y - start.y);
+      perpendicularSpan = Math.abs(end.x - start.x);
+      maxPerpendicularSpan = chain.reduce(
+        (maximum, node) => Math.max(maximum, Math.abs(node.x - start.x)),
+        0
+      );
+      lane = (start.x + end.x) * 0.5;
+      const endInEdgeLane = Math.abs(
+        edge === "left" ? end.x - FIELD_LEFT : FIELD_RIGHT - end.x
+      ) <= endpointEdgeBand;
+      staysInEdgeLane = chain.every((node) => (
+        Math.abs((edge === "left" ? node.x - FIELD_LEFT : FIELD_RIGHT - node.x)) <= intermediateEdgeBand
+      )) && endInEdgeLane;
+    } else if (direction === "horizontal" && startsAtBottom) {
+      edge = "bottom";
+      primarySpan = Math.abs(end.x - start.x);
+      perpendicularSpan = Math.abs(end.y - start.y);
+      maxPerpendicularSpan = chain.reduce(
+        (maximum, node) => Math.max(maximum, Math.abs(node.y - start.y)),
+        0
+      );
+      lane = (start.y + end.y) * 0.5;
+      const endInEdgeLane = Math.abs(FIELD_BOTTOM - end.y) <= endpointEdgeBand;
+      staysInEdgeLane = chain.every((node) => (
+        Math.abs(FIELD_BOTTOM - node.y) <= intermediateEdgeBand
+      )) && endInEdgeLane;
     } else {
       return null;
     }
     const alignmentRatio = primarySpan > 0 ? perpendicularSpan / primarySpan : Infinity;
     return {
       direction,
+      edge,
       primarySpan,
       perpendicularSpan,
+      maxPerpendicularSpan,
       alignmentRatio,
       lane,
-      valid: primarySpan >= TSUM_RADIUS * 2 && alignmentRatio <= 0.35
+      endpointEdgeBand,
+      intermediateEdgeBand,
+      fullBoard,
+      staysInEdgeLane,
+      valid: (
+        staysInEdgeLane &&
+        primarySpan >= TSUM_RADIUS * 2 &&
+        alignmentRatio <= 0.35 &&
+        (!fullBoard || maxPerpendicularSpan / primarySpan <= 0.35)
+      )
     };
   }
 
-  findStrongestModeCoronationElsaDirectionalChains(start, nodes, rule, maxLength, direction) {
+  findStrongestModeCoronationElsaDirectionalChains(
+    start,
+    nodes,
+    rule,
+    maxLength,
+    direction,
+    adjacency = null,
+    geometryOptions = {}
+  ) {
     if (!start || !Array.isArray(nodes) || !rule || maxLength < 3) {
       return [];
     }
-    const beamWidth = 8;
-    const resultLimit = 4;
-    let beam = [{ chain: [start], used: new Set([start.id]), searchScore: 0 }];
-    const results = [];
-    for (let depth = 1; depth < maxLength; depth += 1) {
-      const expanded = [];
-      for (const state of beam) {
-        const current = state.chain[state.chain.length - 1];
-        for (const candidate of nodes) {
-          if (state.used.has(candidate.id) || !this.canConnectWithChainRule(rule, current, candidate)) {
-            continue;
-          }
-          const chain = [...state.chain, candidate];
-          const used = new Set(state.used);
-          used.add(candidate.id);
-          const geometry = this.getStrongestModeCoronationElsaDirectionalGeometry(chain, direction);
-          const onward = this.countStrongestModeOnwardConnections(candidate, nodes, rule, used);
-          const primarySpan = geometry?.primarySpan ?? 0;
-          const perpendicularSpan = geometry?.perpendicularSpan ?? Infinity;
-          const searchScore = primarySpan * 2.2 - perpendicularSpan * 3.2 + onward * 18 + chain.length * 4;
-          const nextState = { chain, used, searchScore };
-          expanded.push(nextState);
-          if (chain.length >= 3 && geometry?.valid) {
-            results.push({ chain, geometry, searchScore });
-          }
-        }
+    const stateLimit = 256;
+    const resultLimit = 8;
+    const getNeighbors = (node) => {
+      if (adjacency?.has(node.id)) {
+        return adjacency.get(node.id);
       }
-      if (!expanded.length) {
-        break;
-      }
-      expanded.sort((a, b) => (
-        b.searchScore - a.searchScore ||
-        String(a.chain.map((tsum) => tsum.id).join("|")).localeCompare(String(b.chain.map((tsum) => tsum.id).join("|")))
+      return nodes.filter((candidate) => (
+        candidate.id !== node.id && this.canConnectWithChainRule(rule, node, candidate)
       ));
-      beam = expanded.slice(0, beamWidth);
+    };
+    const stack = [{ chain: [start], used: new Set([start.id]) }];
+    const results = [];
+    let exploredStateCount = 0;
+    while (stack.length && exploredStateCount < stateLimit) {
+      const state = stack.pop();
+      exploredStateCount += 1;
+      const current = state.chain[state.chain.length - 1];
+      const geometry = this.getStrongestModeCoronationElsaDirectionalGeometry(
+        state.chain,
+        direction,
+        geometryOptions
+      );
+      if (state.chain.length >= 3 && geometry?.valid) {
+        const onward = getNeighbors(current).filter((candidate) => !state.used.has(candidate.id)).length;
+        const searchScore = geometry.primarySpan * 2.2
+          - geometry.maxPerpendicularSpan * 3.2
+          + onward * 18
+          + state.chain.length * 4;
+        results.push({ chain: state.chain, geometry, searchScore });
+      }
+      if (state.chain.length >= maxLength) {
+        continue;
+      }
+      const neighbors = getNeighbors(current)
+        .filter((candidate) => !state.used.has(candidate.id))
+        .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+      for (let index = neighbors.length - 1; index >= 0; index -= 1) {
+        const candidate = neighbors[index];
+        const chain = [...state.chain, candidate];
+        const candidateGeometry = this.getStrongestModeCoronationElsaDirectionalGeometry(
+          chain,
+          direction,
+          geometryOptions
+        );
+        if (!candidateGeometry?.staysInEdgeLane) {
+          continue;
+        }
+        const used = new Set(state.used);
+        used.add(candidate.id);
+        stack.push({ chain, used });
+      }
     }
     results.sort((a, b) => (
       b.searchScore - a.searchScore ||
@@ -6391,33 +6523,127 @@ class Game {
   }
 
   findStrongestModeCoronationElsaBestPreviewChain(options = {}) {
+    if (!options.searchTier) {
+      const committedTraceCount = this.getStrongestModeCoronationElsaSkillSummary?.()?.chainCount || 0;
+      const minimumTraceCount = this.strongestModeCoronationElsaMinimumTraceCount || 4;
+      const needsMinimumTraces = committedTraceCount < minimumTraceCount;
+      const tiers = [
+        { searchTier: "primary58", endpointEdgeBand: TSUM_RADIUS * 2, intermediateEdgeBand: TSUM_RADIUS * 4 },
+        { searchTier: "secondary116", endpointEdgeBand: TSUM_RADIUS * 4, intermediateEdgeBand: TSUM_RADIUS * 4 }
+      ];
+      if (needsMinimumTraces) {
+        tiers.push(
+          { searchTier: "tertiary174", endpointEdgeBand: TSUM_RADIUS * 6, intermediateEdgeBand: TSUM_RADIUS * 6 },
+          { searchTier: "fullBoard", fullBoard: true }
+        );
+      }
+      const diagnostics = {};
+      let selected = [];
+      let selectedTier = null;
+      for (const tier of tiers) {
+        const candidate = this.findStrongestModeCoronationElsaBestPreviewChain({
+          ...options,
+          ...tier,
+          committedTraceCount
+        });
+        diagnostics[tier.searchTier] = this.strongestModeCoronationElsaLastTierSearchDiagnostics || null;
+        if (Array.isArray(candidate) && candidate.length >= (options.minLength || 3)) {
+          selected = candidate;
+          selectedTier = tier.searchTier;
+          break;
+        }
+      }
+      this.strongestModeCoronationElsaLastSearchDiagnostics = {
+        selectedTier,
+        committedTraceCount,
+        needsMinimumTraces,
+        primary: diagnostics.primary58 || null,
+        secondary: diagnostics.secondary116 || null,
+        tertiary: diagnostics.tertiary174 || null,
+        fullBoard: diagnostics.fullBoard || null
+      };
+      return selected;
+    }
+    const searchStartedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const searchTier = options.searchTier;
+    const endpointEdgeBand = Number.isFinite(options.endpointEdgeBand)
+      ? options.endpointEdgeBand
+      : TSUM_RADIUS * 2;
+    const intermediateEdgeBand = Number.isFinite(options.intermediateEdgeBand)
+      ? options.intermediateEdgeBand
+      : TSUM_RADIUS * 4;
+    const fullBoard = !!options.fullBoard;
+    const geometryOptions = { endpointEdgeBand, intermediateEdgeBand, fullBoard };
+    const committedTraceCount = Number.isFinite(options.committedTraceCount)
+      ? options.committedTraceCount
+      : (this.getStrongestModeCoronationElsaSkillSummary?.()?.chainCount || 0);
+    const minimumTraceCount = this.strongestModeCoronationElsaMinimumTraceCount || 4;
+    const prioritizeNextCandidate = committedTraceCount + 1 < minimumTraceCount;
     const minLength = options.minLength || 3;
     const maxLength = Number.isFinite(options.maxLength) ? options.maxLength : Infinity;
     const minY = Number.isFinite(options.minY) ? options.minY : -Infinity;
     const filterNode = typeof options.filterNode === "function" ? options.filterNode : null;
-    const liveNodes = this.getStrongestModeChainNodes().filter((tsum) => (
+    const potentialSourceNodes = this.getStrongestModeChainNodes().filter((tsum) => tsum.y >= minY);
+    const liveNodes = potentialSourceNodes.filter((tsum) => (
       tsum.y >= minY &&
       (!filterNode || filterNode(tsum))
     ));
+    const searchContextByRuleKey = new Map();
+    const getSearchContext = (rule, sourceNodes = liveNodes) => {
+      const allowedTypeKey = Array.from(rule.allowedTypeIds || []).sort().join(",");
+      const ruleKey = `${rule.mode || "normal"}:${allowedTypeKey}:${rule.subtypeId || ""}:${rule.unlimitedDistance ? 1 : 0}`;
+      const canReuse = sourceNodes === liveNodes;
+      if (canReuse && searchContextByRuleKey.has(ruleKey)) {
+        return searchContextByRuleKey.get(ruleKey);
+      }
+      const nodes = sourceNodes.filter((tsum) => rule.allowedTypeIds.has(this.boardState.getResolvedType(tsum).id));
+      const adjacency = new Map(nodes.map((node) => [node.id, []]));
+      for (let firstIndex = 0; firstIndex < nodes.length; firstIndex += 1) {
+        for (let secondIndex = firstIndex + 1; secondIndex < nodes.length; secondIndex += 1) {
+          const first = nodes[firstIndex];
+          const second = nodes[secondIndex];
+          if (this.canConnectWithChainRule(rule, first, second)) {
+            adjacency.get(first.id).push(second);
+          }
+          if (this.canConnectWithChainRule(rule, second, first)) {
+            adjacency.get(second.id).push(first);
+          }
+        }
+      }
+      for (const neighbors of adjacency.values()) {
+        neighbors.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+      }
+      const context = { nodes, adjacency };
+      if (canReuse) {
+        searchContextByRuleKey.set(ruleKey, context);
+      }
+      return context;
+    };
     const candidateKeys = new Set();
     const directionalCandidates = [];
+    let edgeStartCount = 0;
     for (const start of liveNodes) {
-      const directions = this.getStrongestModeCoronationElsaStartDirections(start);
+      const directions = fullBoard
+        ? ["vertical", "horizontal"]
+        : this.getStrongestModeCoronationElsaStartDirections(start, endpointEdgeBand);
       if (!directions.length) {
         continue;
       }
+      edgeStartCount += 1;
       const rule = this.getChainBehaviorForStart(start);
       if (!rule || !rule.allowedTypeIds?.size) {
         continue;
       }
-      const nodes = liveNodes.filter((tsum) => rule.allowedTypeIds.has(this.boardState.getResolvedType(tsum).id));
+      const searchContext = getSearchContext(rule);
       for (const direction of directions) {
         const directionalChains = this.findStrongestModeCoronationElsaDirectionalChains(
           start,
-          nodes,
+          searchContext.nodes,
           rule,
           maxLength,
-          direction
+          direction,
+          searchContext.adjacency,
+          geometryOptions
         );
         for (const directionalChain of directionalChains) {
           const chain = directionalChain.chain;
@@ -6434,6 +6660,17 @@ class Game {
       }
     }
     if (!directionalCandidates.length) {
+      const searchEndedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+      this.strongestModeCoronationElsaLastTierSearchDiagnostics = {
+        searchTier,
+        filtered: !!filterNode,
+        liveNodeCount: liveNodes.length,
+        edgeStartCount,
+        directionalCandidateCount: 0,
+        previewCandidateCount: 0,
+        frozenCount: this.boardState.getFrozenNodesByKind("coronationElsa").length,
+        elapsedMs: searchEndedAt - searchStartedAt
+      };
       return [];
     }
     directionalCandidates.sort((a, b) => b.searchScore - a.searchScore || a.pathKey.localeCompare(b.pathKey));
@@ -6444,7 +6681,52 @@ class Game {
         .slice(0, previewCandidateLimitPerDirection)
     ));
     const lineRadius = skillValue("coronationElsa", "freezeRadius", this.selectedSkillLevel) * 0.58;
+    const existingFrozenNodes = this.boardState.getFrozenNodesByKind("coronationElsa");
+    const rankByIceProximity = searchTier !== "primary58" && existingFrozenNodes.length > 0;
+    const getEndpointIceDistance = (chain) => {
+      if (!rankByIceProximity || !chain.length) {
+        return null;
+      }
+      const start = chain[0];
+      const end = chain[chain.length - 1];
+      const nearestDistance = (node) => existingFrozenNodes.reduce(
+        (nearest, frozen) => Math.min(nearest, distance(node.x, node.y, frozen.x, frozen.y)),
+        Infinity
+      );
+      return Math.round(nearestDistance(start) + nearestDistance(end));
+    };
+    const isBetterWithoutNextPotential = (candidate, current) => {
+      if (!current) {
+        return true;
+      }
+      if (
+        rankByIceProximity &&
+        candidate.iceProximityDistancePx !== current.iceProximityDistancePx
+      ) {
+        return candidate.iceProximityDistancePx < current.iceProximityDistancePx;
+      }
+      return (
+        candidate.predictedClearCount > current.predictedClearCount ||
+        (
+          candidate.predictedClearCount === current.predictedClearCount &&
+          (
+            candidate.lineTargetCount > current.lineTargetCount ||
+            (
+              candidate.lineTargetCount === current.lineTargetCount &&
+              (
+                candidate.newFrozenCount > current.newFrozenCount ||
+                (
+                  candidate.newFrozenCount === current.newFrozenCount &&
+                  candidate.pathKey < current.pathKey
+                )
+              )
+            )
+          )
+        )
+      );
+    };
     const laneCandidates = new Map();
+    const evaluatedPreviewCandidates = [];
     for (const candidate of previewCandidates) {
       const preview = computeCoronationElsaFreezePreview(this, candidate.chain, this.selectedSkillLevel);
       const newFrozenCount = preview.targets.reduce((count, tsum) => (
@@ -6456,66 +6738,62 @@ class Game {
         predictedClearCount: preview.targets.length,
         lineTargetCount: preview.lineTargets.length,
         newFrozenCount,
+        iceProximityDistancePx: getEndpointIceDistance(candidate.chain),
         nextChainPotential: null
       };
+      evaluatedPreviewCandidates.push(evaluated);
       const laneKey = `${candidate.direction}:${Math.round(candidate.geometry.lane / Math.max(1, lineRadius))}`;
       const current = laneCandidates.get(laneKey);
-      if (
-        !current ||
-        evaluated.predictedClearCount > current.predictedClearCount ||
-        (
-          evaluated.predictedClearCount === current.predictedClearCount &&
-          (
-            evaluated.lineTargetCount > current.lineTargetCount ||
-            (
-              evaluated.lineTargetCount === current.lineTargetCount &&
-              (
-                evaluated.newFrozenCount > current.newFrozenCount ||
-                (
-                  evaluated.newFrozenCount === current.newFrozenCount &&
-                  evaluated.pathKey < current.pathKey
-                )
-              )
-            )
-          )
-        )
-      ) {
+      if (isBetterWithoutNextPotential(evaluated, current)) {
         laneCandidates.set(laneKey, evaluated);
       }
     }
-    const candidates = Array.from(laneCandidates.values());
+    const candidates = prioritizeNextCandidate
+      ? evaluatedPreviewCandidates
+      : Array.from(laneCandidates.values());
     const getNextChainPotential = (candidate) => {
       if (candidate.nextChainPotential != null) {
         return candidate.nextChainPotential;
       }
       const frozenIds = new Set(candidate.preview.targets.map((tsum) => tsum.id));
-      const remainingNodes = liveNodes.filter((tsum) => !frozenIds.has(tsum.id));
+      // Stability controls when a trace may start, not whether a route will remain
+      // after this freeze. Include currently moving Tsums in this read-only lookahead.
+      const remainingNodes = potentialSourceNodes.filter((tsum) => !frozenIds.has(tsum.id));
+      const remainingContexts = new Map();
+      const getRemainingContext = (rule) => {
+        const ruleKey = `${rule.mode || "normal"}:${Array.from(rule.allowedTypeIds || []).sort().join(",")}:${rule.subtypeId || ""}:${rule.unlimitedDistance ? 1 : 0}`;
+        if (!remainingContexts.has(ruleKey)) {
+          remainingContexts.set(ruleKey, getSearchContext(rule, remainingNodes));
+        }
+        return remainingContexts.get(ruleKey);
+      };
       let potential = 0;
-      for (const start of remainingNodes) {
-        const directions = this.getStrongestModeCoronationElsaStartDirections(start);
-        if (!directions.length) {
-          continue;
-        }
-        const rule = this.getChainBehaviorForStart(start);
-        if (!rule || !rule.allowedTypeIds?.size) {
-          continue;
-        }
-        const nodes = remainingNodes.filter((tsum) => rule.allowedTypeIds.has(this.boardState.getResolvedType(tsum).id));
-        for (const direction of directions) {
-          const nextChains = this.findStrongestModeCoronationElsaDirectionalChains(
-            start,
-            nodes,
-            rule,
-            maxLength,
-            direction
-          );
-          for (const nextChain of nextChains) {
-            potential = Math.max(potential, nextChain.chain.length);
+      const nextTiers = prioritizeNextCandidate ? [
+        { endpointEdgeBand: TSUM_RADIUS * 2, intermediateEdgeBand: TSUM_RADIUS * 4, fullBoard: false },
+        { endpointEdgeBand: TSUM_RADIUS * 4, intermediateEdgeBand: TSUM_RADIUS * 4, fullBoard: false },
+        { endpointEdgeBand: TSUM_RADIUS * 6, intermediateEdgeBand: TSUM_RADIUS * 6, fullBoard: false },
+        { endpointEdgeBand, intermediateEdgeBand, fullBoard: true }
+      ] : [geometryOptions];
+      for (const nextTier of nextTiers) {
+        for (const start of remainingNodes) {
+          const directions = nextTier.fullBoard
+            ? ["vertical", "horizontal"]
+            : this.getStrongestModeCoronationElsaStartDirections(start, nextTier.endpointEdgeBand);
+          if (!directions.length) continue;
+          const rule = this.getChainBehaviorForStart(start);
+          if (!rule || !rule.allowedTypeIds?.size) continue;
+          const searchContext = getRemainingContext(rule);
+          for (const direction of directions) {
+            const nextChains = this.findStrongestModeCoronationElsaDirectionalChains(
+              start, searchContext.nodes, rule, maxLength, direction, searchContext.adjacency, nextTier
+            );
+            for (const nextChain of nextChains) {
+              potential = Math.max(potential, nextChain.chain.length);
+            }
           }
+          if (potential >= maxLength) break;
         }
-        if (potential >= maxLength) {
-          break;
-        }
+        if (potential >= 3) break;
       }
       candidate.nextChainPotential = potential;
       return potential;
@@ -6523,6 +6801,23 @@ class Game {
     let best = candidates[0];
     for (let index = 1; index < candidates.length; index += 1) {
       const candidate = candidates[index];
+      if (prioritizeNextCandidate) {
+        const candidatePreservesNext = getNextChainPotential(candidate) >= 3;
+        const bestPreservesNext = getNextChainPotential(best) >= 3;
+        if (candidatePreservesNext !== bestPreservesNext) {
+          if (candidatePreservesNext) best = candidate;
+          continue;
+        }
+      }
+      if (
+        rankByIceProximity &&
+        candidate.iceProximityDistancePx !== best.iceProximityDistancePx
+      ) {
+        if (candidate.iceProximityDistancePx < best.iceProximityDistancePx) {
+          best = candidate;
+        }
+        continue;
+      }
       if (candidate.predictedClearCount !== best.predictedClearCount) {
         if (candidate.predictedClearCount > best.predictedClearCount) {
           best = candidate;
@@ -6541,18 +6836,55 @@ class Game {
         }
         continue;
       }
-      const candidatePotential = getNextChainPotential(candidate);
-      const bestPotential = getNextChainPotential(best);
-      if (candidatePotential !== bestPotential) {
-        if (candidatePotential > bestPotential) {
-          best = candidate;
+      if (prioritizeNextCandidate) {
+        const candidatePotential = getNextChainPotential(candidate);
+        const bestPotential = getNextChainPotential(best);
+        if (candidatePotential !== bestPotential) {
+          if (candidatePotential > bestPotential) best = candidate;
+          continue;
         }
-        continue;
       }
       if (candidate.pathKey < best.pathKey) {
         best = candidate;
       }
     }
+    const searchEndedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const searchElapsedMs = searchEndedAt - searchStartedAt;
+    Object.defineProperty(best.chain, "strongestModeCoronationElsaPlan", {
+      configurable: true,
+      value: {
+        searchTier,
+        direction: best.direction,
+        edge: best.geometry.edge,
+        lane: best.geometry.lane,
+        endpointEdgeBand,
+        intermediateEdgeBand,
+        iceProximityDistancePx: best.iceProximityDistancePx,
+        directionalCandidateCount: directionalCandidates.length,
+        previewCandidateCount: previewCandidates.length,
+        searchElapsedMs,
+        predictedClearCount: best.predictedClearCount,
+        lineTargetCount: best.lineTargetCount,
+        newFrozenCount: best.newFrozenCount,
+        nextChainPotential: prioritizeNextCandidate ? getNextChainPotential(best) : null,
+        preservesNextTrace: prioritizeNextCandidate ? getNextChainPotential(best) >= 3 : null,
+        committedTraceCountBefore: committedTraceCount
+      }
+    });
+    this.strongestModeCoronationElsaLastTierSearchDiagnostics = {
+      searchTier,
+      filtered: !!filterNode,
+      liveNodeCount: liveNodes.length,
+      edgeStartCount,
+      directionalCandidateCount: directionalCandidates.length,
+      previewCandidateCount: previewCandidates.length,
+      frozenCount: existingFrozenNodes.length,
+      rankByIceProximity,
+      prioritizeNextCandidate,
+      selectedNextChainPotential: prioritizeNextCandidate ? getNextChainPotential(best) : null,
+      selectedIceProximityDistancePx: best.iceProximityDistancePx,
+      elapsedMs: searchElapsedMs
+    };
     return best.chain;
   }
 
@@ -6571,7 +6903,7 @@ class Game {
     }
     const liveNodes = this.getStrongestModeChainNodes().filter((tsum) => (
       tsum.y >= minY &&
-      this.isStrongestModeCoronationElsaSemiStableTsum(tsum)
+      this.isStrongestModeCoronationElsaPracticalStableTsum(tsum)
     ));
     let best = [];
     let bestScore = -Infinity;
@@ -6691,7 +7023,7 @@ class Game {
     return this.findStrongestModeBestChain({
       ...options,
       minY: safeLowerY,
-      filterNode: (tsum) => this.isStrongestModeCoronationElsaSemiStableTsum(tsum)
+      filterNode: (tsum) => this.isStrongestModeCoronationElsaPracticalStableTsum(tsum)
     });
   }
 
@@ -6705,7 +7037,7 @@ class Game {
     const tracePlan = this.strongestModeCoronationElsaTracePlan;
     const liveNodes = this.getStrongestModeChainNodes().filter((tsum) => (
       tsum.y >= minY &&
-      this.isStrongestModeCoronationElsaSemiStableTsum(tsum)
+      this.isStrongestModeCoronationElsaPracticalStableTsum(tsum)
     ));
     let best = [];
     let bestScore = -Infinity;
@@ -6779,6 +7111,29 @@ class Game {
       return tsum.isSettled();
     }
     return this.isBodySettled(tsum);
+  }
+
+  isStrongestModeCoronationElsaPracticalStableTsum(tsum) {
+    if (!tsum || tsum.dead || tsum.removing || tsum.clearOccupying || tsum.inChain) {
+      return false;
+    }
+    if (this.boardState.isFrozen(tsum) || this.boardState.hasBubble(tsum)) {
+      return false;
+    }
+    if (!this.isTsumInPlayArea(tsum)) {
+      return false;
+    }
+    if (tsum.y < this.getStrongestModeCoronationElsaSafePlayableY()) {
+      return false;
+    }
+    if (
+      Number.isFinite(tsum.spawnedAtElapsed) &&
+      this.elapsed - tsum.spawnedAtElapsed < this.strongestModeCoronationElsaPracticalStableMinSpawnAgeSec
+    ) {
+      return false;
+    }
+    const velocityThreshold = this.strongestModeCoronationElsaPracticalStableVelocityThreshold;
+    return Math.abs(tsum.vx || 0) <= velocityThreshold && Math.abs(tsum.vy || 0) <= velocityThreshold;
   }
 
   isStrongestModeCoronationElsaSemiStableTsum(tsum) {
@@ -6869,7 +7224,7 @@ class Game {
       minLength: 3,
       maxLength: 6,
       minY: this.getStrongestModeCoronationElsaSafePlayableY(),
-      filterNode: (tsum) => this.isStrongestModeCoronationElsaStableTsum(tsum)
+      filterNode: (tsum) => this.isStrongestModeCoronationElsaPracticalStableTsum(tsum)
     }) || [];
     const relaxedFallbackChain = this.findStrongestModeCoronationElsaBestPreviewChain({
       minLength: 3,
@@ -6934,18 +7289,11 @@ class Game {
     return true;
   }
 
-  tryTapStrongestModeCoronationElsaCompletedIce() {
-    if (this.strongestModeCoronationElsaPendingExtraFreezeTap) {
+  tryTapStrongestModeCoronationElsaFreezeTarget(specialTarget) {
+    const anyTraceChain = this.findStrongestModeCoronationElsaAnyTraceChain();
+    if (Array.isArray(anyTraceChain) && anyTraceChain.length >= 3) {
       return false;
     }
-    const frozenCount = this.boardState.getFrozenNodesByKind("coronationElsa").length;
-    if (!shouldTapStrongestModeCoronationElsaCompletedIce({
-      frozenCount,
-      noTraceDurationSec: this.strongestModeCoronationElsaNoTraceDurationSec
-    })) {
-      return false;
-    }
-    const specialTarget = this.findStrongestSpecialTapTarget();
     if (!specialTarget || specialTarget.type !== "freeze") {
       return false;
     }
@@ -6956,12 +7304,40 @@ class Game {
     this.strongestModeCoronationElsaNoChainFrames = 0;
     this.strongestModeCoronationElsaNoTraceDurationSec = 0;
     this.strongestModeCoronationElsaStopLogged = false;
+    this.strongestModeCoronationElsaPendingExtraFreezeTap = false;
     this.strongestModeCoronationElsaSuppressRelaxedFallback = false;
     this.strongestModeCoronationElsaSuppressSpecialTapFrames = 0;
     this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
     this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
     this.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
     return true;
+  }
+
+  tryTapStrongestModeCoronationElsaCompletedIce(hasTraceCandidate = false) {
+    if (this.strongestModeCoronationElsaPendingExtraFreezeTap) {
+      return false;
+    }
+    const frozenCount = this.boardState.getFrozenNodesByKind("coronationElsa").length;
+    const committedTraceCount = this.getStrongestModeCoronationElsaSkillSummary()?.chainCount || 0;
+    const anyTraceChain = this.findStrongestModeCoronationElsaAnyTraceChain();
+    const hasAnyTraceCandidate = (
+      hasTraceCandidate ||
+      (Array.isArray(anyTraceChain) && anyTraceChain.length >= 3)
+    );
+    if (!shouldTapStrongestModeCoronationElsaCompletedIce({
+      frozenCount,
+      noTraceDurationSec: this.strongestModeCoronationElsaNoTraceDurationSec,
+      hasTraceCandidate: hasAnyTraceCandidate,
+      committedTraceCount,
+      minimumTraceCount: this.strongestModeCoronationElsaMinimumTraceCount || 4
+    })) {
+      return false;
+    }
+    const specialTarget = this.findStrongestSpecialTapTarget();
+    if (!specialTarget || specialTarget.type !== "freeze") {
+      return false;
+    }
+    return this.tryTapStrongestModeCoronationElsaFreezeTarget(specialTarget);
   }
 
   shouldWaitForStrongestModeCoronationElsaUnsafeFreezeTap(frozenCount, specialTarget) {
@@ -6995,7 +7371,7 @@ class Game {
       minLength: 3,
       maxLength: 6,
       minY: this.getStrongestModeCoronationElsaSafePlayableY(),
-      filterNode: (tsum) => this.isStrongestModeCoronationElsaSemiStableTsum(tsum)
+      filterNode: (tsum) => this.isStrongestModeCoronationElsaPracticalStableTsum(tsum)
     }) || [];
   }
 
@@ -7222,7 +7598,7 @@ class Game {
       minLength: 3,
       maxLength: 6,
       minY: this.getStrongestModeCoronationElsaSafePlayableY(),
-      filterNode: (tsum) => this.isStrongestModeCoronationElsaStableTsum(tsum)
+      filterNode: (tsum) => this.isStrongestModeCoronationElsaPracticalStableTsum(tsum)
     }) || [];
     const relaxedFallbackChain = this.findStrongestModeCoronationElsaBestPreviewChain({
       minLength: 3,
@@ -7233,7 +7609,7 @@ class Game {
       this.isStrongestModeCoronationElsaStableTsum(tsum)
     )).length;
     summary.endedBy = endedBy || summary.endedBy || "unknown";
-    console.log("[CORONATION ELSA STRONGEST SUMMARY]", {
+    const summaryPayload = {
       chainCount: summary.chainCount,
       averageChainLength,
       maxChainLength: summary.maxChainLength,
@@ -7286,7 +7662,9 @@ class Game {
       relaxedFallbackUnstableNodeCount: Math.max(0, relaxedFallbackChain.length - relaxedFallbackStableNodeCount),
       fallbackChainLength: relaxedFallbackChain.length,
       endedBy: summary.endedBy
-    });
+    };
+    console.log("[CORONATION ELSA STRONGEST SUMMARY]", summaryPayload);
+    this.logCodexCoronationPayload("[CODEXLOG CORONATION SKILL SUMMARY]", summaryPayload);
     this.strongestModeCoronationElsaSkillSummary = null;
   }
 
@@ -7402,13 +7780,13 @@ class Game {
       this.logCodexCoronationPayload("[CODEXLOG CORONATION WAIT RELEASE]", coronationElsaWaitReleaseLog);
       console.log("[CORONATION ELSA WAIT RELEASE]", coronationElsaWaitReleaseLog);
     };
+    const waitDuration = Number.isFinite(this.strongestModeCoronationElsaWaitStartElapsed)
+      ? this.elapsed - this.strongestModeCoronationElsaWaitStartElapsed
+      : 0;
     if (recentTsums.length === 0) {
       if (this.countStrongestModePlayableNodesBelowCeiling() < this.strongestModeCoronationElsaMinPlayableNodesBeforeFreezeTap) {
         return true;
       }
-      const waitDuration = Number.isFinite(this.strongestModeCoronationElsaWaitStartElapsed)
-        ? this.elapsed - this.strongestModeCoronationElsaWaitStartElapsed
-        : 0;
       if (waitDuration < this.strongestModeCoronationElsaNoRecentSpawnMinWaitSec) {
         return true;
       }
@@ -7416,7 +7794,7 @@ class Game {
         minLength: 3,
         maxLength: 6,
         minY: this.getStrongestModeCoronationElsaSafePlayableY(),
-        filterNode: (tsum) => this.isStrongestModeCoronationElsaStableTsum(tsum)
+        filterNode: (tsum) => this.isStrongestModeCoronationElsaPracticalStableTsum(tsum)
       });
       if (!Array.isArray(stableFallbackChain) || stableFallbackChain.length < 3) {
         if (waitDuration < this.strongestModeCoronationElsaNoRecentSpawnMaxWaitSec) {
@@ -7431,6 +7809,14 @@ class Game {
         return true;
       }
       logWaitRelease("no-recent-spawns", 0, 0);
+      this.strongestModeCoronationElsaWaitRecentSpawnSettle = false;
+      this.strongestModeCoronationElsaSuppressRelaxedFallback = false;
+      this.strongestModeCoronationElsaSuppressSpecialTapFrames = 0;
+      this.strongestModeCoronationElsaWaitStartElapsed = null;
+      return false;
+    }
+    if (waitDuration >= this.strongestModeCoronationElsaNoRecentSpawnMaxWaitSec) {
+      logWaitRelease("recent-spawns-max-wait", 0, Math.min(3, recentTsums.length));
       this.strongestModeCoronationElsaWaitRecentSpawnSettle = false;
       this.strongestModeCoronationElsaSuppressRelaxedFallback = false;
       this.strongestModeCoronationElsaSuppressSpecialTapFrames = 0;
@@ -7610,6 +7996,14 @@ class Game {
     if (!Array.isArray(chain) || chain.length < 3 || !canAttemptChain) {
       return false;
     }
+    const coronationElsaPlan = chain.strongestModeCoronationElsaPlan || null;
+    const shouldLogCoronationElsaCommit = !!(
+      this.strongestModeEnabled &&
+      this.coronationElsaDebug &&
+      this.myTsum?.id === "coronationElsa" &&
+      this.getActiveSkillSession("coronationElsa")
+    );
+    const committedTraceCountBefore = this.getStrongestModeCoronationElsaSkillSummary()?.chainCount || 0;
     const first = chain[0];
     if (
       this.strongestModeEnabled &&
@@ -7702,6 +8096,7 @@ class Game {
       const coronationElsaChainStartLog = {
         chainSource,
         chainLength: chain.length,
+        plan: chain.strongestModeCoronationElsaPlan || null,
         firstTsumId: first?.id || null,
         vx: first?.vx ?? null,
         vy: first?.vy ?? null,
@@ -7736,6 +8131,23 @@ class Game {
       coronationElsaSummary.chainCommittedCount += 1;
     }
     this.finishChain();
+    if (shouldLogCoronationElsaCommit) {
+      const commitLog = {
+        plannedLength: chain.length,
+        committedLength,
+        committed: committedLength >= 3,
+        shortened: committedLength !== chain.length,
+        candidateTier: coronationElsaPlan?.searchTier || null,
+        committedTraceCountBefore,
+        committedTraceCountAfter: this.getStrongestModeCoronationElsaSkillSummary()?.chainCount || committedTraceCountBefore,
+        nextChainPotential: coronationElsaPlan?.nextChainPotential ?? null,
+        preservesNextTrace: coronationElsaPlan?.preservesNextTrace ?? null,
+        iceProximityDistancePx: coronationElsaPlan?.iceProximityDistancePx ?? null
+      };
+      this.pushCodexDebugLog("[CORONATION ELSA CHAIN COMMIT]", commitLog);
+      this.logCodexCoronationPayload("[CODEXLOG CORONATION CHAIN COMMIT]", commitLog);
+      console.log("[CORONATION ELSA CHAIN COMMIT]", commitLog);
+    }
     return committedLength >= 3;
   }
 
