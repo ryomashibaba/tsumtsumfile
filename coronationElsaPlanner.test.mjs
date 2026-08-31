@@ -7,6 +7,7 @@ import {
   buildCoronationElsaPlannerAdjacency,
   buildCoronationElsaPlannerSnapshot,
   enumerateCoronationElsaPlannerTraces,
+  evaluateCoronationElsaFreezeTransitionSafety,
   evaluateCoronationElsaTapComponents,
   getCoronationElsaPlannerNodeIndex,
   profileCoronationElsaPlanner,
@@ -78,17 +79,34 @@ const makeBoard = (nodes, options = {}) => {
 const makeGame = (nodes, options = {}) => {
   const boardState = makeBoard(nodes, options);
   const links = options.links || null;
+  const flowStates = options.flowStates || {};
   const game = {
     tsums: nodes,
     boardState,
     selectedSkillLevel: options.level || 6,
     myTsum: { id: options.myTsumId || "red" },
-    elapsed: 12.5,
+    elapsed: options.elapsed ?? 12.5,
     strongestModeCoronationElsaNoTraceDurationSec: 0.04,
     coronationElsaDebug: !!options.coronationElsaDebug,
     isTsumInPlayArea: (node) => !!node && !node.dead && !node.removing && node.inPlay !== false,
     getBodyRadius: (node) => boardState.getEffectiveRadius(node),
     isMyTsumTypeId: (typeId) => typeId === (options.myTsumId || "red"),
+    getStrongestModeCoronationElsaFlowSafetyContext: () => Object.freeze({
+      safePlayableY: options.safePlayableY ?? 220,
+      lowerPlayableNodeCount: options.lowerPlayableNodeCount ?? 45,
+      lowerBoardFilled: (options.lowerPlayableNodeCount ?? 45) >= 35
+    }),
+    getStrongestModeCoronationElsaFlowSafetyState(node) {
+      return Object.freeze({
+        spawnAgeSec: 10,
+        settled: true,
+        recentSpawn: false,
+        upperInflow: false,
+        activeInflow: false,
+        inflowUnsafe: false,
+        ...(flowStates[node.id] || {})
+      });
+    },
     getChainBehaviorForStart(node) {
       if (typeof options.getChainBehaviorForStart === "function") {
         return options.getChainBehaviorForStart(node);
@@ -357,6 +375,181 @@ test("planner profiling reports counts and only logs under Coronation Elsa debug
     assert.ok(debug.diagnostics[key] >= 0);
   }
   assert.equal(quiet.diagnostics.initialFrozenMaskHex, "0x0");
+});
+
+test("recent fast-falling upper chain is legal but rejected as freeze-flow unsafe", () => {
+  const nodes = [
+    makeNode("fall-a", 100, 170, "red", { vy: 8 }),
+    makeNode("fall-b", 155, 170, "red", { vy: 8 }),
+    makeNode("fall-c", 210, 170, "red", { vy: 8 }),
+    makeNode("ice", 350, 500, "blue")
+  ];
+  const unsafe = { spawnAgeSec: 0.05, settled: false, recentSpawn: true, upperInflow: true, activeInflow: true, inflowUnsafe: true };
+  const game = makeGame(nodes, {
+    coronationLayers: { ice: 1 },
+    lowerPlayableNodeCount: 20,
+    flowStates: { "fall-a": unsafe, "fall-b": unsafe, "fall-c": unsafe }
+  });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  const all = enumerateCoronationElsaPlannerTraces(snapshot, adjacency, snapshot.initialState, {
+    lengths: [3],
+    dedupeByNextFrozenMask: true
+  });
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+
+  assert.ok(all.unsafeTraceCandidateCount > 0);
+  assert.equal(plan.action, "wait");
+  assert.equal(plan.waitReason, "WAIT_FOR_INFLOW");
+  assert.equal(plan.diagnostics.safeTraceCandidateCount, 0);
+  assert.ok(plan.diagnostics.unsafeTraceCandidateCount > 0);
+});
+
+test("stable lower chain is rejected when its line preview freezes an upper inflow node", () => {
+  const nodes = [
+    makeNode("lower-a", 150, 300, "red"),
+    makeNode("lower-b", 150, 355, "red"),
+    makeNode("lower-c", 150, 410, "red"),
+    makeNode("upper-flow", 150, 165, "blue", { vy: 7 }),
+    makeNode("ice", 350, 500, "blue")
+  ];
+  const game = makeGame(nodes, {
+    coronationLayers: { ice: 1 },
+    lowerPlayableNodeCount: 20,
+    flowStates: {
+      "upper-flow": { spawnAgeSec: 0.04, settled: false, recentSpawn: true, upperInflow: true, activeInflow: true, inflowUnsafe: true }
+    }
+  });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  const enumeration = enumerateCoronationElsaPlannerTraces(snapshot, adjacency, snapshot.initialState, {
+    lengths: [3],
+    dedupeByNextFrozenMask: false
+  });
+  const candidate = enumeration.candidates.find((entry) => entry.chainIds.every((id) => String(id).startsWith("lower-")));
+  const safety = evaluateCoronationElsaFreezeTransitionSafety(
+    snapshot,
+    snapshot.initialState,
+    candidate.chainIndices
+  );
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+
+  assert.equal(candidate.chainIndices.some((index) => snapshot.nodes[index].inflowUnsafe), false);
+  assert.equal(safety.freezeFlowSafe, false);
+  assert.equal(safety.unsafeNewlyFrozenCount, 1);
+  assert.equal(plan.action, "wait");
+});
+
+test("a fresh snapshot rejects a stale route after movement brings inflow into its freeze line", () => {
+  const lower = [
+    makeNode("lower-a", 150, 300, "red"),
+    makeNode("lower-b", 150, 355, "red"),
+    makeNode("lower-c", 150, 410, "red")
+  ];
+  const upper = makeNode("upper-flow", 300, 165, "blue", { vy: 7 });
+  const flowStates = {
+    "upper-flow": { spawnAgeSec: 0.04, settled: false, recentSpawn: true, upperInflow: true, activeInflow: true, inflowUnsafe: true }
+  };
+  const game = makeGame([...lower, upper], { lowerPlayableNodeCount: 20, flowStates });
+  const before = buildCoronationElsaPlannerSnapshot(game, 6);
+  const beforeIndices = lower.map((node) => getCoronationElsaPlannerNodeIndex(before, node.id));
+  const beforeSafety = evaluateCoronationElsaFreezeTransitionSafety(before, before.initialState, beforeIndices);
+
+  upper.x = 150;
+  const after = buildCoronationElsaPlannerSnapshot(game, 6);
+  const afterIndices = lower.map((node) => getCoronationElsaPlannerNodeIndex(after, node.id));
+  const afterSafety = evaluateCoronationElsaFreezeTransitionSafety(after, after.initialState, afterIndices);
+
+  assert.equal(beforeSafety.freezeFlowSafe, true);
+  assert.equal(afterSafety.freezeFlowSafe, false);
+  assert.equal(afterSafety.unsafeNewlyFrozenCount, 1);
+});
+
+test("safe lower trace remains selectable while unrelated upper inflow is falling", () => {
+  const nodes = [
+    makeNode("safe-a", 80, 410, "red"),
+    makeNode("safe-b", 135, 410, "red"),
+    makeNode("safe-c", 190, 410, "red"),
+    makeNode("upper-flow", 340, 165, "blue", { vy: 7 })
+  ];
+  const game = makeGame(nodes, {
+    lowerPlayableNodeCount: 20,
+    flowStates: {
+      "upper-flow": { spawnAgeSec: 0.04, settled: false, recentSpawn: true, upperInflow: true, activeInflow: true, inflowUnsafe: true }
+    }
+  });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+
+  assert.equal(plan.action, "trace");
+  assert.deepEqual(new Set(plan.chainIds), new Set(["safe-a", "safe-b", "safe-c"]));
+  assert.equal(plan.diagnostics.selectedUnsafeNewlyFrozenCount, 0);
+});
+
+test("condition-based wait releases immediately when the same upper chain becomes safe", () => {
+  const nodes = [
+    makeNode("flow-a", 100, 170),
+    makeNode("flow-b", 155, 170),
+    makeNode("flow-c", 210, 170),
+    makeNode("ice", 350, 500, "blue")
+  ];
+  const falling = { spawnAgeSec: 0.05, settled: false, recentSpawn: true, upperInflow: true, activeInflow: true, inflowUnsafe: true };
+  const flowStates = { "flow-a": falling, "flow-b": falling, "flow-c": falling };
+  const game = makeGame(nodes, { coronationLayers: { ice: 1 }, lowerPlayableNodeCount: 20, flowStates });
+  const firstSnapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const firstAdjacency = buildCoronationElsaPlannerAdjacency(game, firstSnapshot);
+  const first = solveCoronationElsaStrongestModePlan(firstSnapshot, firstAdjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+  for (const id of ["flow-a", "flow-b", "flow-c"]) {
+    flowStates[id] = { spawnAgeSec: 0.4, settled: true, recentSpawn: false, upperInflow: false, activeInflow: false, inflowUnsafe: false };
+  }
+  const secondSnapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const secondAdjacency = buildCoronationElsaPlannerAdjacency(game, secondSnapshot);
+  const second = solveCoronationElsaStrongestModePlan(secondSnapshot, secondAdjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+
+  assert.equal(first.action, "wait");
+  assert.equal(second.action, "trace");
+});
+
+test("settled upper chain remains usable when the lower board is filled", () => {
+  const nodes = [
+    makeNode("upper-a", 100, 170),
+    makeNode("upper-b", 155, 170),
+    makeNode("upper-c", 210, 170)
+  ];
+  const game = makeGame(nodes, { lowerPlayableNodeCount: 35 });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+
+  assert.equal(plan.action, "trace");
+  assert.equal(plan.chainIds.length, 3);
+});
+
+test("existing upper Coronation ice without active inflow taps instead of waiting", () => {
+  const nodes = [makeNode("upper-ice", 150, 165)];
+  const game = makeGame(nodes, { coronationLayers: { "upper-ice": 1 }, lowerPlayableNodeCount: 10 });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+
+  assert.equal(snapshot.flowDiagnostics.activeInflowNodeCount, 0);
+  assert.equal(plan.action, "tap");
+  assert.equal(plan.tapNodeId, "upper-ice");
 });
 
 test("terminal solver traces every reachable isolated triple before tapping ice", () => {

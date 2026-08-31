@@ -245,6 +245,37 @@ test("Coronation Elsa planner always traces before attempting remaining ice", ()
   assert.equal(iceGuardCalled, false);
 });
 
+test("Coronation Elsa WAIT performs no trace or ice tap and retries on the next frame", () => {
+  let planCalls = 0;
+  let chainCalls = 0;
+  let tapCalls = 0;
+  const harness = {
+    ...makeCoronationElsaStepHarness(),
+    planStrongestModeCoronationElsaAction() {
+      planCalls += 1;
+      return {
+        plan: { action: "wait", waitReason: "WAIT_FOR_INFLOW" },
+        chain: [],
+        tapTarget: { id: "ice", x: 20, y: 30 }
+      };
+    },
+    performStrongestModeChains() {
+      chainCalls += 1;
+      return true;
+    },
+    tryTapStrongestModeCoronationElsaFreezeTarget() {
+      tapCalls += 1;
+      return true;
+    }
+  };
+
+  assert.equal(Game.prototype.performStrongestModeStep.call(harness), false);
+  assert.equal(Game.prototype.performStrongestModeStep.call(harness), false);
+  assert.equal(planCalls, 2);
+  assert.equal(chainCalls, 0);
+  assert.equal(tapCalls, 0);
+});
+
 test("Coronation Elsa planner immediately taps only after a second no-trace confirmation", () => {
   const target = { id: "ice", x: 20, y: 30 };
   let guardedTarget = null;
@@ -301,6 +332,49 @@ test("Coronation Elsa discards an invalid planned route and replans once from th
   assert.equal(Game.prototype.performStrongestModeStep.call(harness), true);
   assert.equal(planCalls, 2);
   assert.equal(performedChain, freshChain);
+});
+
+test("Coronation Elsa records one WAIT episode and releases it to a safe trace", () => {
+  const summary = {
+    waitForInflowCount: 0,
+    waitForInflowTotalDurationSec: 0,
+    waitForInflowMinDurationSec: null,
+    waitForInflowMaxDurationSec: 0,
+    waitForInflowToSafeTraceCount: 0
+  };
+  const logs = [];
+  const harness = {
+    elapsed: 4,
+    strongestModeCoronationElsaInflowWaitStartedAt: null,
+    getStrongestModeCoronationElsaSkillSummary: () => summary,
+    logCodexCoronationPayload(prefix, payload) {
+      logs.push({ prefix, payload });
+    }
+  };
+
+  Game.prototype.recordStrongestModeCoronationElsaPlannerDecision.call(harness, {
+    action: "wait",
+    diagnostics: { activeInflowNodeCount: 3 }
+  });
+  harness.elapsed = 4.1;
+  Game.prototype.recordStrongestModeCoronationElsaPlannerDecision.call(harness, {
+    action: "wait",
+    diagnostics: { activeInflowNodeCount: 2 }
+  });
+  harness.elapsed = 4.25;
+  Game.prototype.recordStrongestModeCoronationElsaPlannerDecision.call(harness, {
+    action: "trace",
+    diagnostics: { safeTraceCandidateCount: 1 }
+  });
+
+  assert.equal(summary.waitForInflowCount, 1);
+  assert.equal(summary.waitForInflowTotalDurationSec, 0.25);
+  assert.equal(summary.waitForInflowMinDurationSec, 0.25);
+  assert.equal(summary.waitForInflowMaxDurationSec, 0.25);
+  assert.equal(summary.waitForInflowToSafeTraceCount, 1);
+  assert.equal(harness.strongestModeCoronationElsaInflowWaitStartedAt, null);
+  assert.deepEqual(logs.map((entry) => entry.payload.event), ["start", "release"]);
+  assert.equal(logs[1].payload.releasedTo, "trace");
 });
 
 test("Coronation Elsa replans the second trace in the same step and stops after two", () => {
@@ -434,6 +508,41 @@ test("Coronation Elsa practical stability accepts non-contact Tsums at 1 velocit
     }),
     false
   );
+});
+
+test("Coronation Elsa active inflow excludes a moving Tsum already supported from below", () => {
+  const moving = { id: "moving", x: 150, y: 400, vx: 2, vy: 2, radius: 29, spawnedAtElapsed: 0 };
+  const support = { id: "support", x: 150, y: 458, vx: 0, vy: 0, radius: 29, spawnedAtElapsed: 0 };
+  const harness = {
+    elapsed: 1,
+    strongestModeCoronationElsaPracticalStableMinSpawnAgeSec: 0.3,
+    strongestModeCoronationElsaPracticalStableVelocityThreshold: 1,
+    strongestModeCoronationElsaMinPlayableNodesBeforeFreezeTap: 35,
+    isTsumInPlayArea: () => true,
+    boardState: { isFrozen: () => false, hasBubble: () => false },
+    getBodyRadius: (body) => body.radius,
+    getBodyCollisionX: (body) => body.x,
+    getBodyCollisionY: (body) => body.y,
+    getFieldFloorY: () => FIELD_BOTTOM,
+    getPhysicsBodies: () => [moving, support],
+    isBodySettled: () => false
+  };
+  const context = {
+    safePlayableY: 220,
+    lowerPlayableNodeCount: 45,
+    lowerBoardFilled: true,
+    physicsBodies: [moving, support]
+  };
+  const supported = Game.prototype.getStrongestModeCoronationElsaFlowSafetyState.call(harness, moving, context);
+
+  context.physicsBodies = [moving];
+  const falling = Game.prototype.getStrongestModeCoronationElsaFlowSafetyState.call(harness, moving, context);
+
+  assert.equal(supported.inflowUnsafe, true);
+  assert.equal(supported.naturalFallSpace, false);
+  assert.equal(supported.activeInflow, false);
+  assert.equal(falling.naturalFallSpace, true);
+  assert.equal(falling.activeInflow, true);
 });
 
 test("Coronation Elsa preview rejects a chain containing a practically unstable Tsum", () => {
