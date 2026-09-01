@@ -577,8 +577,8 @@ test("Phase A keeps temporary unsafe nodes as future structural trace potential"
 
   let clockCalls = 0;
   const beamPlan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
-    now: () => (clockCalls++ === 0 ? 0 : 11),
-    config: { hardBudgetMs: 10, softBudgetMs: 6 }
+    now: () => (clockCalls++ === 0 ? 0 : 5),
+    config: { hardBudgetMs: 10, exactBudgetMs: 4, softBudgetMs: 4 }
   });
   assert.equal(beamPlan.mode, "beam");
   assert.equal(beamPlan.action, "trace");
@@ -863,8 +863,8 @@ test("hard-budget timeout switches to deterministic adaptive beam mode", () => {
   const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
   let calls = 0;
   const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
-    now: () => (calls++ === 0 ? 0 : 11),
-    config: { hardBudgetMs: 10, softBudgetMs: 6 }
+    now: () => (calls++ === 0 ? 0 : 5),
+    config: { hardBudgetMs: 10, exactBudgetMs: 4, softBudgetMs: 4 }
   });
 
   assert.equal(plan.mode, "beam");
@@ -873,8 +873,62 @@ test("hard-budget timeout switches to deterministic adaptive beam mode", () => {
   assert.equal(plan.diagnostics.exactTimedOut, true);
 });
 
+test("outer deadline returns WAIT instead of tapping when no safe candidate was confirmed", () => {
+  const frozen = makeNode("ice", 180, 300);
+  const game = makeGame([frozen], { coronationLayers: { ice: 1 } });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  let calls = 0;
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    now: () => (calls++ === 0 ? 0 : 9),
+    config: { hardBudgetMs: 8, exactBudgetMs: 4, softBudgetMs: 4 }
+  });
+
+  assert.equal(plan.action, "wait");
+  assert.equal(plan.waitReason, "WAIT_FOR_PLANNER_BUDGET");
+  assert.equal(plan.diagnostics.budgetTimedOut, true);
+  assert.equal(plan.tapNodeId, null);
+});
+
+test("outer deadline returns the best confirmed safe trace instead of tapping", () => {
+  const nodes = [
+    makeNode("a", 100, 220),
+    makeNode("b", 150, 220),
+    makeNode("c", 200, 220)
+  ];
+  const game = makeGame(nodes);
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  let expired = false;
+  let firstClockCall = true;
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    now: () => {
+      if (firstClockCall) {
+        firstClockCall = false;
+        return 0;
+      }
+      return expired ? 9 : 1;
+    },
+    onBestSafeCandidate: () => {
+      expired = true;
+    },
+    config: { hardBudgetMs: 8, exactBudgetMs: 4, softBudgetMs: 4 }
+  });
+
+  assert.equal(plan.action, "trace");
+  assert.deepEqual(new Set(plan.chainIds), new Set(nodes.map((node) => node.id)));
+  assert.equal(plan.diagnostics.budgetTimedOut, true);
+  assert.equal(plan.diagnostics.bestSoFarUsed, true);
+  assert.equal(plan.tapNodeId, null);
+});
+
 test("adaptive beam configuration covers depths 1 through 15 and all three rollouts", () => {
   assert.equal(CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs, 1000 / 15);
+  assert.equal(CORONATION_ELSA_PLANNER_CONFIG.hardBudgetMs, 8);
+  assert.equal(CORONATION_ELSA_PLANNER_CONFIG.exactBudgetMs, 4);
+  assert.equal(CORONATION_ELSA_PLANNER_CONFIG.targetBudgetMs, 4.5);
+  assert.equal(CORONATION_ELSA_PLANNER_CONFIG.finalizationReserveMs, 1.25);
+  assert.equal(CORONATION_ELSA_PLANNER_CONFIG.rolloutTopChildren, 4);
   assert.deepEqual(CORONATION_ELSA_PLANNER_CONFIG.beamWidths, [
     { minDepth: 1, maxDepth: 6, width: 48 },
     { minDepth: 7, maxDepth: 10, width: 24 },

@@ -516,6 +516,97 @@ test("Coronation Elsa discards an invalid planned route and replans once from th
   assert.equal(performedChain, freshChain);
 });
 
+test("Coronation Elsa planner cache separates freeze support from chain geometry", () => {
+  const frozenIds = new Set();
+  const tsums = [
+    { id: "a", x: 100, y: 300, vx: 0, vy: 0, radius: 26, type: { id: "elsa" } },
+    { id: "b", x: 150, y: 300, vx: 0, vy: 0, radius: 26, type: { id: "elsa" } },
+    { id: "c", x: 200, y: 300, vx: 0, vy: 0, radius: 26, type: { id: "elsa" } }
+  ];
+  const harness = {
+    tsums,
+    strongestModeCoronationElsaPlannerFrameRevision: 1,
+    strongestModeCoronationElsaFreezeRevision: 0,
+    boardState: {
+      getResolvedType: (node) => node.type,
+      hasBubble: () => false,
+      isFrozen: (node) => frozenIds.has(node.id)
+    },
+    getBodyRadius: (node) => node.radius,
+    isTsumInPlayArea: () => true,
+    getChainBehaviorForStart: () => ({ allowedTypeIds: new Set(["elsa"]), unlimitedDistance: false }),
+    isBodyMotionLocked: () => false,
+    isBodySettled: () => true
+  };
+
+  const initial = Game.prototype.getCoronationElsaPlannerCacheKeys.call(harness);
+  frozenIds.add("a");
+  harness.strongestModeCoronationElsaFreezeRevision += 1;
+  const freezeOnly = Game.prototype.getCoronationElsaPlannerCacheKeys.call(harness);
+  assert.equal(freezeOnly.geometryKey, initial.geometryKey);
+  assert.notEqual(freezeOnly.supportKey, initial.supportKey);
+
+  tsums[0].x += 1;
+  const moved = Game.prototype.getCoronationElsaPlannerCacheKeys.call(harness);
+  assert.notEqual(moved.geometryKey, freezeOnly.geometryKey);
+  assert.notEqual(moved.supportKey, freezeOnly.supportKey);
+});
+
+test("Coronation Elsa validation token reuses context only while its revision is current", () => {
+  const chain = [
+    { id: "a", x: 100, y: 300 },
+    { id: "b", x: 150, y: 300 },
+    { id: "c", x: 200, y: 300 }
+  ];
+  const cachedValidation = Object.freeze({ valid: true, reason: null, unsafeNewlyFrozenCount: 0 });
+  const snapshotNodes = chain.map((node, index) => ({
+    ...node,
+    index,
+    dead: false,
+    removing: false,
+    inPlay: true
+  }));
+  const context = Object.freeze({
+    snapshot: Object.freeze({
+      nodes: Object.freeze(snapshotNodes),
+      indexById: Object.freeze({ a: 0, b: 1, c: 2 }),
+      lineRadius: 1,
+      surroundRadius: 1,
+      inflowUnsafeMask: 0n,
+      activeInflowMask: 0n,
+      otherFrozenMask: 0n,
+      initialState: Object.freeze({ frozenMask: 0n, freezeLayerCounts: Object.freeze([0, 0, 0]) })
+    }),
+    initialState: Object.freeze({ frozenMask: 0n, freezeLayerCounts: Object.freeze([0, 0, 0]) }),
+    revision: Object.freeze({ frameRevision: 1, freezeRevision: 0 })
+  });
+  Object.defineProperty(chain, "strongestModeCoronationElsaValidationToken", {
+    value: Object.freeze({ context, revision: context.revision, validation: cachedValidation })
+  });
+  let contextBuilds = 0;
+  const harness = {
+    strongestModeCoronationElsaPlannerFrameRevision: 1,
+    strongestModeCoronationElsaFreezeRevision: 0,
+    getStrongestModeChainNodes: () => chain,
+    getChainBehaviorForStart: () => ({ allowedTypeIds: new Set(["elsa"]) }),
+    canConnectWithChainRule: () => true,
+    isCoronationElsaPlannerRevisionCurrent: Game.prototype.isCoronationElsaPlannerRevisionCurrent,
+    buildCoronationElsaPlannerContext: () => {
+      contextBuilds += 1;
+      return context;
+    }
+  };
+
+  assert.equal(Game.prototype.validateStrongestModeCoronationElsaPlannedChain.call(harness, chain), cachedValidation);
+  assert.equal(Game.prototype.validateStrongestModeCoronationElsaPlannedChain.call(harness, chain), cachedValidation);
+  assert.equal(contextBuilds, 0);
+
+  harness.strongestModeCoronationElsaPlannerFrameRevision = 2;
+  const refreshed = Game.prototype.validateStrongestModeCoronationElsaPlannedChain.call(harness, chain);
+  assert.equal(refreshed.valid, true);
+  assert.equal(contextBuilds, 1);
+});
+
 test("Coronation Elsa records one WAIT episode and releases it to a safe trace", () => {
   const summary = {
     waitForInflowCount: 0,

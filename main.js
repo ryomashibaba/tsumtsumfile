@@ -83,10 +83,10 @@ async function bootGame() {
   const largeTsumSpawnChance = Number.isFinite(requestedLargeTsumChance)
     ? Math.max(0, Math.min(1, requestedLargeTsumChance))
     : undefined;
-  const debugImport = params.get("coronationElsaDebug") === "1" || params.get("liliaDebug") === "1";
+  const debugImport = params.get("coronationElsaDebug") === "1" || params.get("coronationElsaPerf") === "1" || params.get("liliaDebug") === "1";
   const gameModuleUrl = debugImport
     ? `./game.js?t=${encodeURIComponent(params.get("t") || Date.now())}`
-    : "./game.js?v=coronation-elsa-planner-1";
+    : "./game.js?v=coronation-elsa-planner-perf-1";
   const { Game } = await import(gameModuleUrl);
   const { BattleController } = await import("./battle.js?v=tsum-images-5");
   const game = new Game(canvas, {

@@ -23,8 +23,15 @@ const CORONATION_ELSA_ICE_CONNECT_DISTANCE = 78;
 const LINE_SEGMENT_FALLBACK_DISTANCE_SQ = (TSUM_RADIUS * 0.75) ** 2;
 
 export const CORONATION_ELSA_PLANNER_CONFIG = Object.freeze({
-  softBudgetMs: 6,
-  hardBudgetMs: 10,
+  softBudgetMs: 4,
+  exactBudgetMs: 4,
+  hardBudgetMs: 8,
+  targetBudgetMs: 4.5,
+  finalizationReserveMs: 1.25,
+  rolloutTopChildren: 4,
+  rolloutFourMinRemainingMs: 4,
+  rolloutTwoMinRemainingMs: 2,
+  rolloutOneMinRemainingMs: 1,
   opportunityWaitMaxMs: 1000 / 15,
   maxTraceDepth: MAX_TRACE_DEPTH,
   traceLengths: Object.freeze([3, 4, 5, 6]),
@@ -169,7 +176,7 @@ const isPreferredRepresentative = (candidate, current) => (
   )
 );
 
-export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedSkillLevel || 1) {
+export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedSkillLevel || 1, options = {}) {
   if (!game || !Array.isArray(game.tsums) || !game.boardState) {
     throw new TypeError("A live Game with tsums and boardState is required");
   }
@@ -190,13 +197,13 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
       .map((tsum) => String(tsum?.id))
   );
   let sampledCorrectionType = null;
-  const flowContext = typeof game.getStrongestModeCoronationElsaFlowSafetyContext === "function"
+  const flowContext = options.flowContext || (typeof game.getStrongestModeCoronationElsaFlowSafetyContext === "function"
     ? game.getStrongestModeCoronationElsaFlowSafetyContext()
     : Object.freeze({
       safePlayableY: Number.NEGATIVE_INFINITY,
       lowerPlayableNodeCount: Number.POSITIVE_INFINITY,
       lowerBoardFilled: true
-    });
+    }));
   const nodes = game.tsums.map((tsum, index) => {
     const dead = !!tsum?.dead;
     const removing = !!tsum?.removing;
@@ -357,14 +364,20 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
   });
 }
 
-export function buildCoronationElsaPlannerAdjacency(game, snapshot) {
+export function buildCoronationElsaPlannerAdjacency(game, snapshot, options = {}) {
   if (!game || typeof game.getChainBehaviorForStart !== "function" || typeof game.canConnectWithChainRule !== "function") {
     throw new TypeError("Game chain rule adapters are required to build planner adjacency");
   }
   const liveById = new Map((game.tsums || []).map((tsum) => [String(tsum?.id), tsum]));
+  const shouldAbort = typeof options.shouldAbort === "function" ? options.shouldAbort : () => false;
+  let aborted = false;
   const contextByKey = new Map();
   const startContextIndexByNode = Array(snapshot.nodes.length).fill(-1);
   for (const startNode of snapshot.nodes) {
+    if (shouldAbort()) {
+      aborted = true;
+      break;
+    }
     if (!startNode.baseTraceEligible) {
       continue;
     }
@@ -381,12 +394,24 @@ export function buildCoronationElsaPlannerAdjacency(game, snapshot) {
   }
   const contexts = [];
   for (const pendingContext of contextByKey.values()) {
+    if (shouldAbort()) {
+      aborted = true;
+      break;
+    }
     const neighborsByNode = snapshot.nodes.map(() => []);
     for (const fromNode of snapshot.nodes) {
+      if (shouldAbort()) {
+        aborted = true;
+        break;
+      }
       if (!fromNode.baseTraceEligible) continue;
       const liveFrom = liveById.get(String(fromNode.id));
       if (!liveFrom) continue;
       for (const candidateNode of snapshot.nodes) {
+        if (shouldAbort()) {
+          aborted = true;
+          break;
+        }
         if (
           !candidateNode.baseTraceEligible ||
           candidateNode.index === fromNode.index
@@ -416,6 +441,7 @@ export function buildCoronationElsaPlannerAdjacency(game, snapshot) {
     }));
   }
   return Object.freeze({
+    aborted,
     nodeCount: snapshot.nodes.length,
     startContextIndexByNode: freezeArray(startContextIndexByNode),
     contexts: freezeArray(contexts)
@@ -553,6 +579,9 @@ export function enumerateCoronationElsaPlannerTraces(
   const dedupeByNextFrozenMask = options.dedupeByNextFrozenMask !== false;
   const excludeUnsafeTransitions = options.excludeUnsafeTransitions === true;
   const shouldAbort = typeof options.shouldAbort === "function" ? options.shouldAbort : () => false;
+  const onSafeCandidate = typeof options.onSafeCandidate === "function"
+    ? options.onSafeCandidate
+    : null;
   const blockedMask = snapshot.otherFrozenMask | normalizedState.frozenMask;
   const rawPaths = [];
   let aborted = false;
@@ -610,6 +639,10 @@ export function enumerateCoronationElsaPlannerTraces(
 
   const pathCandidatesByKey = new Map();
   for (const path of rawPaths) {
+    if (shouldAbort()) {
+      aborted = true;
+      break;
+    }
     const canonicalPathKey = getCanonicalPathKey(snapshot, adjacency, path);
     if (pathCandidatesByKey.has(canonicalPathKey)) {
       continue;
@@ -622,7 +655,7 @@ export function enumerateCoronationElsaPlannerTraces(
       simulation
     );
     const chainIds = freezeArray(path.map((index) => snapshot.nodes[index].id));
-    pathCandidatesByKey.set(canonicalPathKey, Object.freeze({
+    const builtCandidate = Object.freeze({
       chainIndices: freezeArray(path),
       chainIds,
       pathKey: getPathKey(snapshot, path),
@@ -639,7 +672,9 @@ export function enumerateCoronationElsaPlannerTraces(
       nextFrozenMask: simulation.nextFrozenMask,
       nextFreezeLayerCounts: simulation.nextFreezeLayerCounts,
       simulation
-    }));
+    });
+    pathCandidatesByKey.set(canonicalPathKey, builtCandidate);
+    if (builtCandidate.freezeFlowSafe) onSafeCandidate?.(builtCandidate);
   }
   const pathCandidates = Array.from(pathCandidatesByKey.values()).sort((first, second) => (
     first.chainIndices.length - second.chainIndices.length ||
@@ -1010,7 +1045,27 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
   const config = { ...CORONATION_ELSA_PLANNER_CONFIG, ...(options.config || {}) };
   const clock = typeof options.now === "function" ? options.now : nowMs;
   const startedAt = clock();
-  const deadline = startedAt + Math.max(0, config.hardBudgetMs);
+  const outerDeadline = Number.isFinite(options.deadlineMs)
+    ? options.deadlineMs
+    : startedAt + Math.max(0, config.hardBudgetMs);
+  const configuredExactBudgetMs = Object.prototype.hasOwnProperty.call(options.config || {}, "exactBudgetMs")
+    ? config.exactBudgetMs
+    : (Object.prototype.hasOwnProperty.call(options.config || {}, "softBudgetMs")
+      ? config.softBudgetMs
+      : config.exactBudgetMs);
+  const exactDeadline = Math.min(
+    outerDeadline,
+    Number.isFinite(options.exactDeadlineMs)
+      ? options.exactDeadlineMs
+      : startedAt + Math.max(0, configuredExactBudgetMs)
+  );
+  const qualityDeadline = Math.min(
+    outerDeadline,
+    Number.isFinite(options.targetDeadlineMs) ? options.targetDeadlineMs : outerDeadline
+  );
+  let activeDeadline = exactDeadline;
+  let timeoutStage = null;
+  let bestSafeRootRoute = null;
   let exploredStateCount = 0;
   let memoHitCount = 0;
   let branchPruneCount = 0;
@@ -1023,11 +1078,45 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
   let futureTemporarilyUnsafeCandidateCount = 0;
   const depthMemo = new Map();
   const candidateMemo = new Map();
-  const timedOut = () => clock() >= deadline;
-  const assertWithinBudget = () => {
-    if (timedOut()) throw new Error("CORONATION_ELSA_PLANNER_TIMEOUT");
+  const timedOut = () => clock() >= activeDeadline;
+  const outerTimedOut = () => clock() >= outerDeadline;
+  const beamShouldStop = () => (
+    outerTimedOut() || (!!bestSafeRootRoute && clock() >= qualityDeadline)
+  );
+  const remainingMs = () => Math.max(0, outerDeadline - clock());
+  const assertWithinBudget = (stage = "exact") => {
+    if (timedOut()) {
+      timeoutStage = stage;
+      throw new Error("CORONATION_ELSA_PLANNER_TIMEOUT");
+    }
   };
   const maskState = (mask) => Object.freeze({ frozenMask: mask, freezeLayerCounts: null });
+  const rememberSafeRootCandidate = (candidate) => {
+    const transition = candidate.simulation || simulateCoronationElsaFreeze(
+      snapshot,
+      snapshot.initialState,
+      candidate.chainIndices
+    );
+    const metrics = getCandidateMetrics(snapshot, snapshot.initialState, candidate);
+    const route = {
+      terminal: null,
+      route: [candidate],
+      depth: 1,
+      chainLengthSum: candidate.chainIndices.length,
+      proximityScore: -metrics.iceDistance,
+      parallelScore: metrics.parallelScore,
+      edgeScore: -metrics.edgeDistance,
+      routeKey: candidate.pathKey,
+      state: Object.freeze({
+        frozenMask: transition.nextFrozenMask,
+        freezeLayerCounts: transition.nextFreezeLayerCounts
+      })
+    };
+    if (!bestSafeRootRoute || compareRoutes(route, bestSafeRootRoute) > 0) {
+      bestSafeRootRoute = route;
+      options.onBestSafeCandidate?.(candidate);
+    }
+  };
   const getMaskCandidates = (frozenMask, exact = true) => {
     const isRoot = frozenMask === snapshot.initialState.frozenMask;
     const key = `${frozenMask.toString(16)}:${isRoot ? "root-safe" : "future-structural"}`;
@@ -1040,10 +1129,11 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
         lengths: config.traceLengths,
         dedupeByNextFrozenMask: true,
         excludeUnsafeTransitions: isRoot,
-        shouldAbort: exact ? timedOut : null
+        shouldAbort: timedOut,
+        onSafeCandidate: isRoot ? rememberSafeRootCandidate : null
       }
     );
-    if (enumeration.aborted) assertWithinBudget();
+    if (enumeration.aborted && exact) assertWithinBudget("exact-enumeration");
     if (isRoot) {
       rootRawCandidateCount = enumeration.pathDedupedCandidateCount;
       rootDedupedCandidateCount = enumeration.frozenMaskDedupedCandidateCount;
@@ -1139,7 +1229,8 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
 
   const buildResult = (mode, maxDepth, route, extraDiagnostics = {}) => {
     const firstCandidate = route?.route?.[0] || null;
-    const terminal = route?.terminal || evaluateTerminal(snapshot.initialState);
+    const budgetTimedOut = extraDiagnostics.budgetTimedOut === true;
+    const terminal = route?.terminal || (budgetTimedOut ? null : evaluateTerminal(snapshot.initialState));
     const hasActiveInflow = (snapshot.activeInflowMask || 0n) !== 0n;
     const hasWaitableRootReject = (
       rootSafeTraceCandidateCount === 0 &&
@@ -1148,11 +1239,15 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
     );
     const action = firstCandidate
       ? "trace"
-      : (hasWaitableRootReject
+      : (budgetTimedOut
         ? "wait"
-        : (terminal ? "tap" : (hasActiveInflow ? "wait" : "none")));
+        : (hasWaitableRootReject
+        ? "wait"
+        : (terminal ? "tap" : (hasActiveInflow ? "wait" : "none"))));
     const waitReason = action === "wait"
-      ? (hasWaitableRootReject ? "WAIT_FOR_INFLOW" : "WAIT_FOR_BOARD_REFILL")
+      ? (budgetTimedOut
+        ? "WAIT_FOR_PLANNER_BUDGET"
+        : (hasWaitableRootReject ? "WAIT_FOR_INFLOW" : "WAIT_FOR_BOARD_REFILL"))
       : null;
     const metrics = firstCandidate
       ? getCandidateMetrics(snapshot, snapshot.initialState, firstCandidate)
@@ -1216,6 +1311,7 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
         terminalEffectiveClear: terminal?.effectiveClearCount || 0,
         terminalPredictedRawCoins: terminal?.rawCoins || 0,
         waitReason,
+        timeoutStage,
         ...extraDiagnostics
       }
     });
@@ -1225,9 +1321,11 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
     config.beamWidths.find((entry) => depth >= entry.minDepth && depth <= entry.maxDepth)?.width || 8
   );
   const countFutureThreeChainNodes = (state) => {
+    if (beamShouldStop()) return 0;
     const enumeration = enumerateCoronationElsaPlannerTraces(snapshot, adjacency, state, {
       lengths: [3],
-      dedupeByNextFrozenMask: false
+      dedupeByNextFrozenMask: false,
+      shouldAbort: beamShouldStop
     });
     const nodes = new Set();
     enumeration.candidates.forEach((candidate) => candidate.chainIndices.forEach((index) => nodes.add(index)));
@@ -1240,12 +1338,22 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
     let state = initialState;
     let depth = 0;
     while (depth < config.maxTraceDepth) {
+      if (beamShouldStop()) {
+        timeoutStage = "beam-rollout-depth";
+        break;
+      }
       const enumeration = enumerateCoronationElsaPlannerTraces(snapshot, adjacency, state, {
         lengths: config.traceLengths,
-        dedupeByNextFrozenMask: true
+        dedupeByNextFrozenMask: true,
+        shouldAbort: beamShouldStop
       });
       if (!enumeration.candidates.length) break;
-      const ranked = enumeration.candidates.map((candidate) => {
+      const ranked = [];
+      for (const candidate of enumeration.candidates) {
+        if (beamShouldStop()) {
+          timeoutStage = "beam-rollout-candidate";
+          break;
+        }
         const transition = simulateCoronationElsaFreeze(snapshot, state, candidate.chainIndices);
         const nextState = Object.freeze({
           frozenMask: transition.nextFrozenMask,
@@ -1255,16 +1363,25 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
         let policyValue = -metrics.newFrozenCount;
         if (policy === "max-next-three-chain-nodes") policyValue = countFutureThreeChainNodes(nextState);
         if (policy === "max-existing-ice-concentration") policyValue = layerConcentration(nextState);
-        return { candidate, nextState, policyValue, metrics };
-      }).sort((first, second) => (
+        ranked.push({ candidate, nextState, policyValue, metrics });
+      }
+      ranked.sort((first, second) => (
         second.policyValue - first.policyValue ||
         first.candidate.chainIndices.length - second.candidate.chainIndices.length ||
         first.candidate.pathKey.localeCompare(second.candidate.pathKey)
       ));
+      if (!ranked.length) break;
       state = ranked[0].nextState;
       depth += 1;
     }
-    return { depth, state, terminal: evaluateTerminal(state) };
+    return { depth, state, terminal: beamShouldStop() ? null : evaluateTerminal(state) };
+  };
+  const rolloutChildLimit = () => {
+    const remaining = remainingMs();
+    if (remaining >= config.rolloutFourMinRemainingMs) return config.rolloutTopChildren;
+    if (remaining >= config.rolloutTwoMinRemainingMs) return Math.min(2, config.rolloutTopChildren);
+    if (remaining >= config.rolloutOneMinRemainingMs) return 1;
+    return 0;
   };
   const solveBeam = () => {
     candidateMemo.clear();
@@ -1281,14 +1398,28 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
     }];
     const terminals = [];
     let beamExpandedStateCount = 0;
+    let beamRolloutCount = 0;
+    let beamTimedOut = false;
     for (let depth = 1; depth <= config.maxTraceDepth && frontier.length; depth += 1) {
+      if (beamShouldStop()) {
+        timeoutStage = "beam-depth";
+        beamTimedOut = true;
+        break;
+      }
       const children = [];
       for (const entry of frontier) {
+        if (beamShouldStop()) {
+          timeoutStage = "beam-frontier";
+          beamTimedOut = true;
+          break;
+        }
         beamExpandedStateCount += 1;
         const enumeration = enumerateCoronationElsaPlannerTraces(snapshot, adjacency, entry.state, {
           lengths: config.traceLengths,
           dedupeByNextFrozenMask: true,
-          excludeUnsafeTransitions: entry.depth === 0
+          excludeUnsafeTransitions: entry.depth === 0,
+          shouldAbort: beamShouldStop,
+          onSafeCandidate: entry.depth === 0 ? rememberSafeRootCandidate : null
         });
         if (entry.depth === 0) {
           rootRawCandidateCount = enumeration.pathDedupedCandidateCount;
@@ -1304,19 +1435,21 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
           terminals.push(entry);
           continue;
         }
+        const pendingChildren = [];
         for (const candidate of enumeration.candidates) {
+          if (beamShouldStop()) {
+            timeoutStage = "beam-candidate-expansion";
+            beamTimedOut = true;
+            break;
+          }
           const transition = simulateCoronationElsaFreeze(snapshot, entry.state, candidate.chainIndices);
           const state = Object.freeze({
             frozenMask: transition.nextFrozenMask,
             freezeLayerCounts: transition.nextFreezeLayerCounts
           });
           const metrics = getCandidateMetrics(snapshot, entry.state, candidate);
-          const rollouts = config.rolloutPolicies.map((policy) => runRollout(state, policy));
-          const bestRollout = rollouts.sort((a, b) => (
-            b.depth - a.depth || compareNumberTuple(terminalTuple(b.terminal), terminalTuple(a.terminal))
-          ))[0];
           const childDepth = entry.depth + 1;
-          children.push({
+          pendingChildren.push({
             state,
             route: entry.route.concat(candidate),
             depth: childDepth,
@@ -1326,18 +1459,51 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
             edgeScore: entry.edgeScore - metrics.edgeDistance,
             routeKey: entry.routeKey ? `${entry.routeKey}\u001e${candidate.pathKey}` : candidate.pathKey,
             lastMetrics: metrics,
-            beamTuple: [
-              childDepth + bestRollout.depth,
+            cheapTuple: [
               childDepth + getTraceUpperBound(snapshot, adjacency, state.frozenMask),
-              bestRollout.terminal?.rawCoins || 0,
-              countFutureThreeChainNodes(state),
-              layerConcentration(state),
               -metrics.newFrozenCount,
-              -getFrozenComponents(snapshot, state.frozenMask).length,
               -Math.abs(candidate.chainIndices.length - 3),
               -metrics.iceDistance,
               metrics.parallelScore,
               -metrics.edgeDistance
+            ]
+          });
+        }
+        pendingChildren.sort((first, second) => (
+          compareNumberTuple(second.cheapTuple, first.cheapTuple) || first.routeKey.localeCompare(second.routeKey)
+        ));
+        const rolloutLimit = Math.min(rolloutChildLimit(), pendingChildren.length);
+        for (let childIndex = 0; childIndex < pendingChildren.length; childIndex += 1) {
+          if (beamShouldStop()) {
+            timeoutStage = "beam-child-score";
+            beamTimedOut = true;
+            break;
+          }
+          const child = pendingChildren[childIndex];
+          let bestRollout = { depth: 0, terminal: null };
+          if (childIndex < rolloutLimit && !beamShouldStop()) {
+            const rollouts = [];
+            for (const policy of config.rolloutPolicies) {
+              if (beamShouldStop()) {
+                timeoutStage = "beam-rollout-start";
+                beamTimedOut = true;
+                break;
+              }
+              rollouts.push(runRollout(child.state, policy));
+              beamRolloutCount += 1;
+            }
+            rollouts.sort((a, b) => (
+              b.depth - a.depth || compareNumberTuple(terminalTuple(b.terminal), terminalTuple(a.terminal))
+            ));
+            bestRollout = rollouts[0] || bestRollout;
+          }
+          children.push({
+            ...child,
+            beamTuple: [
+              child.depth + bestRollout.depth,
+              ...child.cheapTuple,
+              bestRollout.terminal?.rawCoins || 0,
+              layerConcentration(child.state)
             ]
           });
         }
@@ -1357,17 +1523,24 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
       frontier = Array.from(deduped.values()).slice(0, beamWidthForDepth(depth));
     }
     terminals.push(...frontier);
-    let best = null;
+    let best = bestSafeRootRoute;
     for (const entry of terminals) {
+      if (beamShouldStop() && best) break;
       const route = {
         ...entry,
-        terminal: evaluateTerminal(entry.state)
+        terminal: beamShouldStop() ? null : evaluateTerminal(entry.state)
       };
       if (!best || route.depth > best.depth || (route.depth === best.depth && compareRoutes(route, best) > 0)) {
         best = route;
       }
     }
-    return { route: best, expandedStateCount: beamExpandedStateCount };
+    return {
+      route: best,
+      expandedStateCount: beamExpandedStateCount,
+      rolloutCount: beamRolloutCount,
+      timedOut: outerTimedOut(),
+      qualityStopped: beamTimedOut && !outerTimedOut()
+    };
   };
 
   try {
@@ -1377,11 +1550,16 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
   } catch (error) {
     if (!(error instanceof Error) || error.message !== "CORONATION_ELSA_PLANNER_TIMEOUT") throw error;
     const exactElapsedBeforeFallbackMs = Math.max(0, clock() - startedAt);
+    activeDeadline = outerDeadline;
     const beam = solveBeam();
     exploredStateCount += beam.expandedStateCount;
     return buildResult("beam", beam.route?.depth || 0, beam.route, {
       exactTimedOut: true,
-      exactElapsedBeforeFallbackMs
+      exactElapsedBeforeFallbackMs,
+      beamRolloutCount: beam.rolloutCount,
+      budgetTimedOut: beam.timedOut,
+      qualityDeadlineStopped: beam.qualityStopped,
+      bestSoFarUsed: (beam.timedOut || beam.qualityStopped) && !!beam.route
     });
   }
 }
