@@ -180,6 +180,9 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
   let upperInflowMask = 0n;
   let recentSpawnMask = 0n;
   let unsettledMask = 0n;
+  let stableSupportMask = 0n;
+  let dynamicSupportMask = 0n;
+  let genuineFallSpaceMask = 0n;
   const fallbackCoronationFrozenIds = new Set(
     (game.boardState.getFrozenNodesByKind?.(CORONATION_ELSA_FREEZE_KIND) || [])
       .map((tsum) => String(tsum?.id))
@@ -238,7 +241,16 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
     const settled = flowState?.settled !== false;
     const recentSpawn = !!flowState?.recentSpawn;
     const upperInflow = !!flowState?.upperInflow;
-    const naturalFallSpace = !!flowState?.naturalFallSpace;
+    const dynamicSupport = !!flowState?.dynamicSupport;
+    const genuineFallSpace = !!(
+      flowState?.genuineFallSpace ||
+      flowState?.naturalFallSpace ||
+      (flowState?.activeInflow && !dynamicSupport)
+    );
+    const stableSupport = flowState?.stableSupport === true || (!dynamicSupport && !genuineFallSpace);
+    const supportKind = flowState?.supportKind || (
+      stableSupport ? "stable" : (dynamicSupport ? "dynamic" : "fall-space")
+    );
     const activeInflow = !!(baseTraceEligible && !anyFrozen && flowState?.activeInflow);
     const inflowUnsafe = !!(baseTraceEligible && !anyFrozen && flowState?.inflowUnsafe);
     if (activeInflow) activeInflowMask |= bitForIndex(index);
@@ -246,6 +258,9 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
     if (baseTraceEligible && !anyFrozen && upperInflow) upperInflowMask |= bitForIndex(index);
     if (baseTraceEligible && !anyFrozen && recentSpawn) recentSpawnMask |= bitForIndex(index);
     if (baseTraceEligible && !anyFrozen && !settled) unsettledMask |= bitForIndex(index);
+    if (baseTraceEligible && !anyFrozen && stableSupport) stableSupportMask |= bitForIndex(index);
+    if (baseTraceEligible && !anyFrozen && dynamicSupport) dynamicSupportMask |= bitForIndex(index);
+    if (baseTraceEligible && !anyFrozen && genuineFallSpace) genuineFallSpaceMask |= bitForIndex(index);
     return Object.freeze({
       index,
       id: tsum?.id,
@@ -258,7 +273,11 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
       settled,
       recentSpawn,
       upperInflow,
-      naturalFallSpace,
+      supportKind,
+      stableSupport,
+      dynamicSupport,
+      genuineFallSpace,
+      naturalFallSpace: genuineFallSpace,
       activeInflow,
       inflowUnsafe,
       resolvedTypeId: resolvedType?.id || null,
@@ -307,6 +326,9 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
     upperInflowMask,
     recentSpawnMask,
     unsettledMask,
+    stableSupportMask,
+    dynamicSupportMask,
+    genuineFallSpaceMask,
     lowerPlayableNodeCount: Number.isFinite(flowContext?.lowerPlayableNodeCount)
       ? flowContext.lowerPlayableNodeCount
       : 0,
@@ -319,6 +341,9 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
       upperInflowNodeCount: popcountMask(upperInflowMask),
       recentSpawnCount: popcountMask(recentSpawnMask),
       unsettledNodeCount: popcountMask(unsettledMask),
+      stableSupportNodeCount: popcountMask(stableSupportMask),
+      dynamicSupportNodeCount: popcountMask(dynamicSupportMask),
+      genuineFallSpaceNodeCount: popcountMask(genuineFallSpaceMask),
       lowerPlayableNodeCount: Number.isFinite(flowContext?.lowerPlayableNodeCount)
         ? flowContext.lowerPlayableNodeCount
         : 0
@@ -493,12 +518,15 @@ export function evaluateCoronationElsaFreezeTransitionSafety(
   const simulation = simulationOverride || simulateCoronationElsaFreeze(snapshot, normalizedState, chainIndices);
   const newlyFrozenMask = simulation.nextFrozenMask & ~normalizedState.frozenMask;
   const unsafeNewlyFrozenMask = newlyFrozenMask & (snapshot.inflowUnsafeMask || 0n);
+  const activeInflowNewlyFrozenMask = newlyFrozenMask & (snapshot.activeInflowMask || 0n);
   return Object.freeze({
     simulation,
     newlyFrozenMask,
     unsafeNewlyFrozenMask,
+    activeInflowNewlyFrozenMask,
     newlyFrozenCount: popcountMask(newlyFrozenMask),
     unsafeNewlyFrozenCount: popcountMask(unsafeNewlyFrozenMask),
+    activeInflowNewlyFrozenCount: popcountMask(activeInflowNewlyFrozenMask),
     freezeFlowSafe: unsafeNewlyFrozenMask === 0n
   });
 }
@@ -600,9 +628,12 @@ export function enumerateCoronationElsaPlannerTraces(
       targetMask: simulation.targetMask,
       newlyFrozenMask: safety.newlyFrozenMask,
       unsafeNewlyFrozenMask: safety.unsafeNewlyFrozenMask,
+      activeInflowNewlyFrozenMask: safety.activeInflowNewlyFrozenMask,
       newlyFrozenCount: safety.newlyFrozenCount,
       unsafeNewlyFrozenCount: safety.unsafeNewlyFrozenCount,
+      activeInflowNewlyFrozenCount: safety.activeInflowNewlyFrozenCount,
       freezeFlowSafe: safety.freezeFlowSafe,
+      rootRejectReason: safety.freezeFlowSafe ? null : "ACTIVE_INFLOW_FREEZE",
       nextFrozenMask: simulation.nextFrozenMask,
       nextFreezeLayerCounts: simulation.nextFreezeLayerCounts,
       simulation
@@ -614,6 +645,10 @@ export function enumerateCoronationElsaPlannerTraces(
   ));
   const safeTraceCandidateCount = pathCandidates.filter((candidate) => candidate.freezeFlowSafe).length;
   const unsafeTraceCandidateCount = pathCandidates.length - safeTraceCandidateCount;
+  const waitableUnsafeTraceCandidateCount = pathCandidates.filter((candidate) => (
+    candidate.unsafeNewlyFrozenMask !== 0n &&
+    (candidate.unsafeNewlyFrozenMask & ~(snapshot.activeInflowMask || 0n)) === 0n
+  )).length;
   const eligiblePathCandidates = excludeUnsafeTransitions
     ? pathCandidates.filter((candidate) => candidate.freezeFlowSafe)
     : pathCandidates;
@@ -643,6 +678,7 @@ export function enumerateCoronationElsaPlannerTraces(
     frozenMaskDedupedCandidateCount: candidates.length,
     safeTraceCandidateCount,
     unsafeTraceCandidateCount,
+    waitableUnsafeTraceCandidateCount,
     aborted,
     elapsedMs: nowMs() - startedAt
   });
@@ -845,7 +881,7 @@ export function evaluateCoronationElsaTapComponents(snapshot, state = snapshot.i
 }
 
 const buildWeakNeighborSets = (snapshot, adjacency, frozenMask) => {
-  const blockedMask = snapshot.otherFrozenMask | frozenMask | (snapshot.inflowUnsafeMask || 0n);
+  const blockedMask = snapshot.otherFrozenMask | frozenMask;
   const neighbors = snapshot.nodes.map(() => new Set());
   for (const context of adjacency.contexts) {
     for (let fromIndex = 0; fromIndex < context.neighborsByNode.length; fromIndex += 1) {
@@ -861,7 +897,7 @@ const buildWeakNeighborSets = (snapshot, adjacency, frozenMask) => {
 };
 
 const getTraceUpperBound = (snapshot, adjacency, frozenMask) => {
-  const blockedMask = snapshot.otherFrozenMask | frozenMask | (snapshot.inflowUnsafeMask || 0n);
+  const blockedMask = snapshot.otherFrozenMask | frozenMask;
   const available = snapshot.nodes.filter((node) => (
     node.baseTraceEligible && !maskHasIndex(blockedMask, node.index)
   ));
@@ -958,7 +994,9 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
   let rootDedupedCandidateCount = 0;
   let rootSafeTraceCandidateCount = 0;
   let rootUnsafeTraceCandidateCount = 0;
+  let rootWaitableUnsafeTraceCandidateCount = 0;
   let unsafeTransitionRejectedCount = 0;
+  let futureTemporarilyUnsafeCandidateCount = 0;
   const depthMemo = new Map();
   const candidateMemo = new Map();
   const timedOut = () => clock() >= deadline;
@@ -967,7 +1005,8 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
   };
   const maskState = (mask) => Object.freeze({ frozenMask: mask, freezeLayerCounts: null });
   const getMaskCandidates = (frozenMask, exact = true) => {
-    const key = frozenMask.toString(16);
+    const isRoot = frozenMask === snapshot.initialState.frozenMask;
+    const key = `${frozenMask.toString(16)}:${isRoot ? "root-safe" : "future-structural"}`;
     if (candidateMemo.has(key)) return candidateMemo.get(key);
     const enumeration = enumerateCoronationElsaPlannerTraces(
       snapshot,
@@ -976,18 +1015,21 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
       {
         lengths: config.traceLengths,
         dedupeByNextFrozenMask: true,
-        excludeUnsafeTransitions: true,
+        excludeUnsafeTransitions: isRoot,
         shouldAbort: exact ? timedOut : null
       }
     );
     if (enumeration.aborted) assertWithinBudget();
-    if (frozenMask === snapshot.initialState.frozenMask) {
+    if (isRoot) {
       rootRawCandidateCount = enumeration.pathDedupedCandidateCount;
       rootDedupedCandidateCount = enumeration.frozenMaskDedupedCandidateCount;
       rootSafeTraceCandidateCount = enumeration.safeTraceCandidateCount;
       rootUnsafeTraceCandidateCount = enumeration.unsafeTraceCandidateCount;
+      rootWaitableUnsafeTraceCandidateCount = enumeration.waitableUnsafeTraceCandidateCount;
+      unsafeTransitionRejectedCount += enumeration.unsafeTraceCandidateCount;
+    } else {
+      futureTemporarilyUnsafeCandidateCount += enumeration.unsafeTraceCandidateCount;
     }
-    unsafeTransitionRejectedCount += enumeration.unsafeTraceCandidateCount;
     candidateMemo.set(key, enumeration.candidates);
     return enumeration.candidates;
   };
@@ -1075,9 +1117,19 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
     const firstCandidate = route?.route?.[0] || null;
     const terminal = route?.terminal || evaluateTerminal(snapshot.initialState);
     const hasActiveInflow = (snapshot.activeInflowMask || 0n) !== 0n;
+    const hasWaitableRootReject = (
+      rootSafeTraceCandidateCount === 0 &&
+      rootRawCandidateCount > 0 &&
+      rootWaitableUnsafeTraceCandidateCount > 0
+    );
     const action = firstCandidate
       ? "trace"
-      : (hasActiveInflow ? "wait" : (terminal ? "tap" : "none"));
+      : (hasWaitableRootReject
+        ? "wait"
+        : (terminal ? "tap" : (hasActiveInflow ? "wait" : "none")));
+    const waitReason = action === "wait"
+      ? (hasWaitableRootReject ? "WAIT_FOR_INFLOW" : "WAIT_FOR_BOARD_REFILL")
+      : null;
     const metrics = firstCandidate
       ? getCandidateMetrics(snapshot, snapshot.initialState, firstCandidate)
       : null;
@@ -1088,7 +1140,7 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
       chainIds: firstCandidate?.chainIds || [],
       routeChainIds: (route?.route || []).map((candidate) => candidate.chainIds),
       tapNodeId: action === "tap" ? terminal?.tapNodeId ?? null : null,
-      waitReason: action === "wait" ? "WAIT_FOR_INFLOW" : null,
+      waitReason,
       maxAdditionalTraces: maxDepth,
       terminal,
       diagnostics: {
@@ -1102,12 +1154,19 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
         rootDedupedCandidateCount,
         safeTraceCandidateCount: rootSafeTraceCandidateCount,
         unsafeTraceCandidateCount: rootUnsafeTraceCandidateCount,
+        rootLegalTraceCandidateCount: rootRawCandidateCount,
+        rootSafeTraceCandidateCount,
+        rootFlowBlockedTraceCandidateCount: rootWaitableUnsafeTraceCandidateCount,
         unsafeTransitionRejectedCount,
+        futureTemporarilyUnsafeCandidateCount,
         activeInflowNodeCount: snapshot.flowDiagnostics?.activeInflowNodeCount || 0,
         inflowUnsafeNodeCount: snapshot.flowDiagnostics?.inflowUnsafeNodeCount || 0,
         upperInflowNodeCount: snapshot.flowDiagnostics?.upperInflowNodeCount || 0,
         recentSpawnCount: snapshot.flowDiagnostics?.recentSpawnCount || 0,
         unsettledNodeCount: snapshot.flowDiagnostics?.unsettledNodeCount || 0,
+        stableSupportNodeCount: snapshot.flowDiagnostics?.stableSupportNodeCount || 0,
+        dynamicSupportNodeCount: snapshot.flowDiagnostics?.dynamicSupportNodeCount || 0,
+        genuineFallSpaceNodeCount: snapshot.flowDiagnostics?.genuineFallSpaceNodeCount || 0,
         lowerPlayableNodeCount: snapshot.flowDiagnostics?.lowerPlayableNodeCount || 0,
         calculatedMaxAdditionalTraces: maxDepth,
         selectedRouteProjectedTotalTraces: maxDepth,
@@ -1116,6 +1175,7 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
         selectedUnsafeNewlyFrozenCount: firstCandidate?.unsafeNewlyFrozenCount || 0,
         terminalEffectiveClear: terminal?.effectiveClearCount || 0,
         terminalPredictedRawCoins: terminal?.rawCoins || 0,
+        waitReason,
         ...extraDiagnostics
       }
     });
@@ -1127,8 +1187,7 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
   const countFutureThreeChainNodes = (state) => {
     const enumeration = enumerateCoronationElsaPlannerTraces(snapshot, adjacency, state, {
       lengths: [3],
-      dedupeByNextFrozenMask: false,
-      excludeUnsafeTransitions: true
+      dedupeByNextFrozenMask: false
     });
     const nodes = new Set();
     enumeration.candidates.forEach((candidate) => candidate.chainIndices.forEach((index) => nodes.add(index)));
@@ -1143,8 +1202,7 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
     while (depth < config.maxTraceDepth) {
       const enumeration = enumerateCoronationElsaPlannerTraces(snapshot, adjacency, state, {
         lengths: config.traceLengths,
-        dedupeByNextFrozenMask: true,
-        excludeUnsafeTransitions: true
+        dedupeByNextFrozenMask: true
       });
       if (!enumeration.candidates.length) break;
       const ranked = enumeration.candidates.map((candidate) => {
@@ -1190,15 +1248,18 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
         const enumeration = enumerateCoronationElsaPlannerTraces(snapshot, adjacency, entry.state, {
           lengths: config.traceLengths,
           dedupeByNextFrozenMask: true,
-          excludeUnsafeTransitions: true
+          excludeUnsafeTransitions: entry.depth === 0
         });
         if (entry.depth === 0) {
           rootRawCandidateCount = enumeration.pathDedupedCandidateCount;
           rootDedupedCandidateCount = enumeration.frozenMaskDedupedCandidateCount;
           rootSafeTraceCandidateCount = enumeration.safeTraceCandidateCount;
           rootUnsafeTraceCandidateCount = enumeration.unsafeTraceCandidateCount;
+          rootWaitableUnsafeTraceCandidateCount = enumeration.waitableUnsafeTraceCandidateCount;
+          unsafeTransitionRejectedCount += enumeration.unsafeTraceCandidateCount;
+        } else {
+          futureTemporarilyUnsafeCandidateCount += enumeration.unsafeTraceCandidateCount;
         }
-        unsafeTransitionRejectedCount += enumeration.unsafeTraceCandidateCount;
         if (!enumeration.candidates.length) {
           terminals.push(entry);
           continue;

@@ -493,6 +493,181 @@ test("safe lower trace remains selectable while unrelated upper inflow is fallin
   assert.equal(plan.diagnostics.selectedUnsafeNewlyFrozenCount, 0);
 });
 
+test("moving lower chain on stable support remains freeze-flow safe", () => {
+  const nodes = [
+    makeNode("stable-a", 100, 410, "red", { vx: 1.8, vy: 1.4 }),
+    makeNode("stable-b", 155, 410, "red", { vx: -1.6, vy: 1.2 }),
+    makeNode("stable-c", 210, 410, "red", { vx: 1.4, vy: -1.3 })
+  ];
+  const supportedMoving = {
+    spawnAgeSec: 1,
+    settled: false,
+    recentSpawn: false,
+    supportKind: "stable",
+    stableSupport: true,
+    dynamicSupport: false,
+    genuineFallSpace: false,
+    activeInflow: false,
+    inflowUnsafe: false
+  };
+  const game = makeGame(nodes, {
+    flowStates: Object.fromEntries(nodes.map((node) => [node.id, supportedMoving]))
+  });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+
+  assert.equal(snapshot.flowDiagnostics.stableSupportNodeCount, 3);
+  assert.equal(snapshot.flowDiagnostics.activeInflowNodeCount, 0);
+  assert.equal(snapshot.flowDiagnostics.inflowUnsafeNodeCount, 0);
+  assert.equal(plan.action, "trace");
+});
+
+test("Phase A keeps temporary unsafe nodes as future structural trace potential", () => {
+  const safeNodes = [
+    makeNode("safe-a", 80, 410, "safe"),
+    makeNode("safe-b", 135, 410, "safe"),
+    makeNode("safe-c", 190, 410, "safe")
+  ];
+  const flowNodes = [
+    makeNode("flow-a", 330, 170, "flow", { vy: 7 }),
+    makeNode("flow-b", 385, 170, "flow", { vy: 7 }),
+    makeNode("flow-c", 440, 170, "flow", { vy: 7 })
+  ];
+  const falling = {
+    spawnAgeSec: 0.05,
+    settled: false,
+    recentSpawn: true,
+    supportKind: "fall-space",
+    stableSupport: false,
+    dynamicSupport: false,
+    genuineFallSpace: true,
+    activeInflow: true,
+    inflowUnsafe: true
+  };
+  const game = makeGame([...safeNodes, ...flowNodes], {
+    lowerPlayableNodeCount: 20,
+    flowStates: Object.fromEntries(flowNodes.map((node) => [node.id, falling]))
+  });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+
+  assert.equal(plan.action, "trace");
+  assert.deepEqual(new Set(plan.chainIds), new Set(safeNodes.map((node) => node.id)));
+  assert.equal(plan.maxAdditionalTraces, 2);
+  assert.equal(plan.routeChainIds.length, 2);
+  assert.deepEqual(new Set(plan.routeChainIds[1]), new Set(flowNodes.map((node) => node.id)));
+  assert.ok(plan.diagnostics.unsafeTransitionRejectedCount > 0);
+  assert.ok(plan.diagnostics.futureTemporarilyUnsafeCandidateCount > 0);
+
+  let clockCalls = 0;
+  const beamPlan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    now: () => (clockCalls++ === 0 ? 0 : 11),
+    config: { hardBudgetMs: 10, softBudgetMs: 6 }
+  });
+  assert.equal(beamPlan.mode, "beam");
+  assert.equal(beamPlan.action, "trace");
+  assert.deepEqual(new Set(beamPlan.chainIds), new Set(safeNodes.map((node) => node.id)));
+  assert.equal(beamPlan.maxAdditionalTraces, 2);
+  assert.ok(beamPlan.diagnostics.futureTemporarilyUnsafeCandidateCount > 0);
+});
+
+test("five supported trace groups remain projected before the first ice tap", () => {
+  const nodes = [];
+  const links = new Set();
+  const supportedMoving = {
+    spawnAgeSec: 1,
+    settled: false,
+    recentSpawn: false,
+    supportKind: "stable",
+    stableSupport: true,
+    activeInflow: false,
+    inflowUnsafe: false
+  };
+  for (let group = 0; group < 5; group += 1) {
+    const type = `group-${group}`;
+    const x = 50 + group * 200;
+    const groupNodes = [
+      makeNode(`${type}-a`, x, 300, type, { vx: 1.4 }),
+      makeNode(`${type}-b`, x, 355, type, { vy: 1.5 }),
+      makeNode(`${type}-c`, x, 410, type, { vx: -1.3 })
+    ];
+    nodes.push(...groupNodes);
+    for (let index = 0; index < groupNodes.length - 1; index += 1) {
+      links.add(`${groupNodes[index].id}:${groupNodes[index + 1].id}`);
+      links.add(`${groupNodes[index + 1].id}:${groupNodes[index].id}`);
+    }
+  }
+  const game = makeGame(nodes, {
+    links,
+    flowStates: Object.fromEntries(nodes.map((node) => [node.id, supportedMoving]))
+  });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+
+  assert.equal(plan.action, "trace");
+  assert.equal(plan.maxAdditionalTraces, 5);
+  assert.equal(plan.routeChainIds.length, 5);
+});
+
+test("ice taps without waiting when no legal root trace is flow-blocked", () => {
+  const nodes = [
+    makeNode("ice", 100, 500, "blue"),
+    makeNode("single-flow", 200, 170, "red", { vy: 8 })
+  ];
+  const game = makeGame(nodes, {
+    coronationLayers: { ice: 1 },
+    flowStates: {
+      "single-flow": {
+        settled: false,
+        supportKind: "fall-space",
+        genuineFallSpace: true,
+        activeInflow: true,
+        inflowUnsafe: true
+      }
+    }
+  });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+
+  assert.equal(plan.diagnostics.rootLegalTraceCandidateCount, 0);
+  assert.equal(plan.action, "tap");
+});
+
+test("board refill waits separately when no ice or legal trace exists", () => {
+  const node = makeNode("single-flow", 200, 170, "red", { vy: 8 });
+  const game = makeGame([node], {
+    flowStates: {
+      "single-flow": {
+        settled: false,
+        supportKind: "fall-space",
+        genuineFallSpace: true,
+        activeInflow: true,
+        inflowUnsafe: true
+      }
+    }
+  });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+
+  assert.equal(plan.action, "wait");
+  assert.equal(plan.waitReason, "WAIT_FOR_BOARD_REFILL");
+});
+
 test("condition-based wait releases immediately when the same upper chain becomes safe", () => {
   const nodes = [
     makeNode("flow-a", 100, 170),

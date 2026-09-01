@@ -156,8 +156,7 @@ const CORONATION_ELSA_FREEZE_STACK_STYLES = {
 };
 const CORONATION_ELSA_ICE_CONNECT_DISTANCE = 78;
 
-const hasStrongestModeCoronationElsaNaturalFallSpace = (game, tsum, context = null) => {
-  if (!tsum) return false;
+const buildStrongestModeCoronationElsaFlowSupportStates = (game, physicsBodies = null) => {
   const getRadius = (body) => (
     typeof game.getBodyRadius === "function"
       ? game.getBodyRadius(body)
@@ -169,31 +168,66 @@ const hasStrongestModeCoronationElsaNaturalFallSpace = (game, tsum, context = nu
   const getY = (body) => (
     typeof game.getBodyCollisionY === "function" ? game.getBodyCollisionY(body) : body?.y || 0
   );
-  const bodyRadius = getRadius(tsum);
-  const floorY = typeof game.getFieldFloorY === "function"
-    ? game.getFieldFloorY(tsum.x)
-    : FIELD_BOTTOM;
-  if ((tsum.y || 0) + bodyRadius >= floorY - 0.5) return false;
-
-  const bodies = context?.physicsBodies || game.getPhysicsBodies?.() || game.tsums || [];
-  const bodyX = getX(tsum);
-  const bodyY = getY(tsum);
-  for (const other of bodies) {
-    if (
-      other === tsum ||
-      other?.dead ||
-      (other?.removing && !other?.clearOccupying) ||
-      (other?.inChain && !other?.clearOccupying)
-    ) {
-      continue;
+  const bodies = (physicsBodies || game.getPhysicsBodies?.() || game.tsums || []).filter((body) => (
+    body &&
+    !body.dead &&
+    (!body.removing || body.clearOccupying) &&
+    (!body.inChain || body.clearOccupying)
+  ));
+  const supportBodiesByBody = new Map(bodies.map((body) => [body, []]));
+  const floorSupportedBodies = new Set();
+  for (const body of bodies) {
+    const bodyRadius = getRadius(body);
+    const floorY = typeof game.getFieldFloorY === "function"
+      ? game.getFieldFloorY(body.x)
+      : FIELD_BOTTOM;
+    if ((body.y || 0) + bodyRadius >= floorY - 0.5) floorSupportedBodies.add(body);
+    const bodyX = getX(body);
+    const bodyY = getY(body);
+    for (const other of bodies) {
+      if (other === body) continue;
+      const dx = getX(other) - bodyX;
+      const dy = getY(other) - bodyY;
+      if (dy <= 0 || dy <= Math.abs(dx) * 0.2) continue;
+      const minDistance = bodyRadius + getRadius(other);
+      if (Math.hypot(dx, dy) <= minDistance + 1.5) {
+        supportBodiesByBody.get(body).push(other);
+      }
     }
-    const dx = getX(other) - bodyX;
-    const dy = getY(other) - bodyY;
-    if (dy <= 0 || dy <= Math.abs(dx) * 0.2) continue;
-    const minDistance = bodyRadius + getRadius(other);
-    if (Math.hypot(dx, dy) <= minDistance + 1.5) return false;
   }
-  return true;
+  const stableMemo = new Map();
+  const hasStableSupport = (body) => {
+    if (stableMemo.has(body)) return stableMemo.get(body);
+    const stableBase = !!(
+      floorSupportedBodies.has(body) ||
+      game.boardState?.isFrozen?.(body) ||
+      game.isBodyMotionLocked?.(body) ||
+      game.isBodySettled?.(body)
+    );
+    if (stableBase) {
+      stableMemo.set(body, true);
+      return true;
+    }
+    stableMemo.set(body, false);
+    const stable = (supportBodiesByBody.get(body) || []).some((support) => hasStableSupport(support));
+    stableMemo.set(body, stable);
+    return stable;
+  };
+  const supportStateByBody = new Map();
+  for (const body of bodies) {
+    const supportBodies = supportBodiesByBody.get(body) || [];
+    const stableSupport = hasStableSupport(body);
+    const dynamicSupport = !stableSupport && supportBodies.length > 0;
+    const genuineFallSpace = !stableSupport && supportBodies.length === 0;
+    supportStateByBody.set(body, Object.freeze({
+      supportKind: stableSupport ? "stable" : (dynamicSupport ? "dynamic" : "fall-space"),
+      stableSupport,
+      dynamicSupport,
+      genuineFallSpace,
+      supportCount: supportBodies.length
+    }));
+  }
+  return supportStateByBody;
 };
 
 const classifyStrongestModeCoronationElsaFlowSafety = (game, tsum, context = null) => {
@@ -234,20 +268,32 @@ const classifyStrongestModeCoronationElsaFlowSafety = (game, tsum, context = nul
     game.boardState.hasBubble(tsum) ||
     game.isBodyMotionLocked?.(tsum)
   );
-  const naturalFallSpace = !unavailable && hasStrongestModeCoronationElsaNaturalFallSpace(game, tsum, context);
-  const activeInflow = naturalFallSpace && !settled && (recentSpawn || moving || upper);
-  const inflowUnsafe = !unavailable && (
-    (recentSpawn && !settled) ||
-    moving ||
-    (upper && !lowerBoardFilled && !settled)
+  const supportStateByBody = context?.supportStateByBody || buildStrongestModeCoronationElsaFlowSupportStates(
+    game,
+    context?.physicsBodies
   );
+  const supportState = supportStateByBody.get(tsum) || Object.freeze({
+    supportKind: "fall-space",
+    stableSupport: false,
+    dynamicSupport: false,
+    genuineFallSpace: true,
+    supportCount: 0
+  });
+  const structurallyFlowing = supportState.dynamicSupport || supportState.genuineFallSpace;
+  const activeInflow = !unavailable && !settled && structurallyFlowing;
+  const inflowUnsafe = activeInflow;
   return Object.freeze({
     spawnAgeSec,
     settled,
     recentSpawn,
     moving,
     upper,
-    naturalFallSpace,
+    supportKind: supportState.supportKind,
+    stableSupport: supportState.stableSupport,
+    dynamicSupport: supportState.dynamicSupport,
+    genuineFallSpace: supportState.genuineFallSpace,
+    naturalFallSpace: supportState.genuineFallSpace,
+    supportCount: supportState.supportCount,
     upperInflow: !unavailable && upper && !settled,
     activeInflow,
     inflowUnsafe
@@ -2514,6 +2560,7 @@ class Game {
     this.strongestModeCoronationElsaPlannerProfileKey = null;
     this.strongestModeCoronationElsaPendingTapPrediction = null;
     this.strongestModeCoronationElsaInflowWaitStartedAt = null;
+    this.strongestModeCoronationElsaInflowWaitReason = null;
     this.aiAutoPlay = false;
     this.aiTrainingMode = false;
     this.aiLearningMode = false;
@@ -5904,6 +5951,7 @@ class Game {
       this.strongestModeCoronationElsaLastSearchDiagnostics = null;
       this.strongestModeCoronationElsaPlannerProfileKey = null;
       this.strongestModeCoronationElsaInflowWaitStartedAt = null;
+      this.strongestModeCoronationElsaInflowWaitReason = null;
       this.resetStrongestModeCoronationElsaTracePlan();
     }
     if (this.tryTapStrongestModeJudyNickJudyBubble()) {
@@ -7141,11 +7189,13 @@ class Game {
   getStrongestModeCoronationElsaFlowSafetyContext() {
     const safePlayableY = this.getStrongestModeCoronationElsaSafePlayableY();
     const lowerPlayableNodeCount = this.countStrongestModePlayableNodesBelowCeiling();
+    const physicsBodies = Object.freeze([...this.getPhysicsBodies()]);
     return Object.freeze({
       safePlayableY,
       lowerPlayableNodeCount,
       lowerBoardFilled: lowerPlayableNodeCount >= this.strongestModeCoronationElsaMinPlayableNodesBeforeFreezeTap,
-      physicsBodies: Object.freeze([...this.getPhysicsBodies()])
+      physicsBodies,
+      supportStateByBody: buildStrongestModeCoronationElsaFlowSupportStates(this, physicsBodies)
     });
   }
 
@@ -7531,6 +7581,7 @@ class Game {
 
   beginStrongestModeCoronationElsaSkillSummary(sessionId) {
     this.strongestModeCoronationElsaInflowWaitStartedAt = null;
+    this.strongestModeCoronationElsaInflowWaitReason = null;
     if (!this.shouldRecordStrongestModeCoronationElsaSummary()) {
       return;
     }
@@ -7586,10 +7637,17 @@ class Game {
       plannerSafeTraceCandidateCount: 0,
       plannerUnsafeTraceCandidateCount: 0,
       plannerUnsafeTransitionRejectedCount: 0,
+      plannerRootLegalTraceCandidateCount: 0,
+      plannerRootSafeTraceCandidateCount: 0,
+      plannerRootFlowBlockedTraceCandidateCount: 0,
+      plannerFutureTemporarilyUnsafeCandidateCount: 0,
       plannerInflowUnsafeNodeCount: 0,
       plannerUpperInflowNodeCount: 0,
       plannerRecentSpawnCount: 0,
       plannerUnsettledNodeCount: 0,
+      plannerStableSupportNodeCount: 0,
+      plannerDynamicSupportNodeCount: 0,
+      plannerGenuineFallSpaceNodeCount: 0,
       plannerLowerPlayableNodeCount: 0,
       plannerCalculatedMaxAdditionalTraces: 0,
       plannerSelectedRouteProjectedTotalTraces: 0,
@@ -7597,6 +7655,7 @@ class Game {
       plannerSelectedNextFrozenCount: 0,
       plannerSelectedUnsafeNewlyFrozenCount: 0,
       waitForInflowCount: 0,
+      waitForBoardRefillCount: 0,
       waitForInflowTotalDurationSec: 0,
       waitForInflowMinDurationSec: null,
       waitForInflowMaxDurationSec: 0,
@@ -7652,10 +7711,17 @@ class Game {
     summary.plannerSafeTraceCandidateCount = diagnostics.safeTraceCandidateCount || 0;
     summary.plannerUnsafeTraceCandidateCount = diagnostics.unsafeTraceCandidateCount || 0;
     summary.plannerUnsafeTransitionRejectedCount += Math.max(0, diagnostics.unsafeTransitionRejectedCount || 0);
+    summary.plannerRootLegalTraceCandidateCount = diagnostics.rootLegalTraceCandidateCount || 0;
+    summary.plannerRootSafeTraceCandidateCount = diagnostics.rootSafeTraceCandidateCount || 0;
+    summary.plannerRootFlowBlockedTraceCandidateCount = diagnostics.rootFlowBlockedTraceCandidateCount || 0;
+    summary.plannerFutureTemporarilyUnsafeCandidateCount += Math.max(0, diagnostics.futureTemporarilyUnsafeCandidateCount || 0);
     summary.plannerInflowUnsafeNodeCount = diagnostics.inflowUnsafeNodeCount || 0;
     summary.plannerUpperInflowNodeCount = diagnostics.upperInflowNodeCount || 0;
     summary.plannerRecentSpawnCount = diagnostics.recentSpawnCount || 0;
     summary.plannerUnsettledNodeCount = diagnostics.unsettledNodeCount || 0;
+    summary.plannerStableSupportNodeCount = diagnostics.stableSupportNodeCount || 0;
+    summary.plannerDynamicSupportNodeCount = diagnostics.dynamicSupportNodeCount || 0;
+    summary.plannerGenuineFallSpaceNodeCount = diagnostics.genuineFallSpaceNodeCount || 0;
     summary.plannerLowerPlayableNodeCount = diagnostics.lowerPlayableNodeCount || 0;
     summary.plannerCalculatedMaxAdditionalTraces = diagnostics.calculatedMaxAdditionalTraces || 0;
     summary.plannerSelectedRouteProjectedTotalTraces = diagnostics.selectedRouteProjectedTotalTraces || 0;
@@ -7671,8 +7737,15 @@ class Game {
     if (plan.action === "wait") {
       if (!Number.isFinite(this.strongestModeCoronationElsaInflowWaitStartedAt)) {
         this.strongestModeCoronationElsaInflowWaitStartedAt = this.elapsed;
+        this.strongestModeCoronationElsaInflowWaitReason = plan.waitReason || "WAIT_FOR_INFLOW";
         const summary = this.getStrongestModeCoronationElsaSkillSummary();
-        if (summary) summary.waitForInflowCount += 1;
+        if (summary) {
+          if (this.strongestModeCoronationElsaInflowWaitReason === "WAIT_FOR_BOARD_REFILL") {
+            summary.waitForBoardRefillCount += 1;
+          } else {
+            summary.waitForInflowCount += 1;
+          }
+        }
         this.logCodexCoronationPayload("[CODEXLOG CORONATION WAIT FOR INFLOW]", {
           event: "start",
           elapsed: this.elapsed,
@@ -7683,6 +7756,7 @@ class Game {
     }
     if (!Number.isFinite(this.strongestModeCoronationElsaInflowWaitStartedAt)) return;
     const durationSec = Math.max(0, this.elapsed - this.strongestModeCoronationElsaInflowWaitStartedAt);
+    const waitReason = this.strongestModeCoronationElsaInflowWaitReason || "WAIT_FOR_INFLOW";
     const summary = this.getStrongestModeCoronationElsaSkillSummary();
     if (summary) {
       summary.waitForInflowTotalDurationSec += durationSec;
@@ -7690,16 +7764,20 @@ class Game {
         ? durationSec
         : Math.min(summary.waitForInflowMinDurationSec, durationSec);
       summary.waitForInflowMaxDurationSec = Math.max(summary.waitForInflowMaxDurationSec, durationSec);
-      if (plan.action === "trace") summary.waitForInflowToSafeTraceCount += 1;
+      if (plan.action === "trace" && waitReason === "WAIT_FOR_INFLOW") {
+        summary.waitForInflowToSafeTraceCount += 1;
+      }
     }
     this.logCodexCoronationPayload("[CODEXLOG CORONATION WAIT FOR INFLOW]", {
       event: "release",
       releasedTo: plan.action,
+      waitReason,
       durationSec,
       elapsed: this.elapsed,
       ...plan.diagnostics
     });
     this.strongestModeCoronationElsaInflowWaitStartedAt = null;
+    this.strongestModeCoronationElsaInflowWaitReason = null;
   }
 
   recordStrongestModeCoronationElsaIceTapActual(stats = {}) {
@@ -7822,10 +7900,17 @@ class Game {
       plannerSafeTraceCandidateCount: summary.plannerSafeTraceCandidateCount,
       plannerUnsafeTraceCandidateCount: summary.plannerUnsafeTraceCandidateCount,
       plannerUnsafeTransitionRejectedCount: summary.plannerUnsafeTransitionRejectedCount,
+      plannerRootLegalTraceCandidateCount: summary.plannerRootLegalTraceCandidateCount,
+      plannerRootSafeTraceCandidateCount: summary.plannerRootSafeTraceCandidateCount,
+      plannerRootFlowBlockedTraceCandidateCount: summary.plannerRootFlowBlockedTraceCandidateCount,
+      plannerFutureTemporarilyUnsafeCandidateCount: summary.plannerFutureTemporarilyUnsafeCandidateCount,
       plannerInflowUnsafeNodeCount: summary.plannerInflowUnsafeNodeCount,
       plannerUpperInflowNodeCount: summary.plannerUpperInflowNodeCount,
       plannerRecentSpawnCount: summary.plannerRecentSpawnCount,
       plannerUnsettledNodeCount: summary.plannerUnsettledNodeCount,
+      plannerStableSupportNodeCount: summary.plannerStableSupportNodeCount,
+      plannerDynamicSupportNodeCount: summary.plannerDynamicSupportNodeCount,
+      plannerGenuineFallSpaceNodeCount: summary.plannerGenuineFallSpaceNodeCount,
       plannerLowerPlayableNodeCount: summary.plannerLowerPlayableNodeCount,
       plannerCalculatedMaxAdditionalTraces: summary.plannerCalculatedMaxAdditionalTraces,
       plannerSelectedRouteProjectedTotalTraces: summary.plannerSelectedRouteProjectedTotalTraces,
@@ -7833,8 +7918,11 @@ class Game {
       plannerSelectedNextFrozenCount: summary.plannerSelectedNextFrozenCount,
       plannerSelectedUnsafeNewlyFrozenCount: summary.plannerSelectedUnsafeNewlyFrozenCount,
       waitForInflowCount: summary.waitForInflowCount,
-      waitForInflowAverageDurationSec: summary.waitForInflowCount > 0
-        ? Number((summary.waitForInflowTotalDurationSec / summary.waitForInflowCount).toFixed(3))
+      waitForBoardRefillCount: summary.waitForBoardRefillCount,
+      waitForInflowAverageDurationSec: (summary.waitForInflowCount + summary.waitForBoardRefillCount) > 0
+        ? Number((summary.waitForInflowTotalDurationSec / (
+          summary.waitForInflowCount + summary.waitForBoardRefillCount
+        )).toFixed(3))
         : 0,
       waitForInflowMinDurationSec: summary.waitForInflowMinDurationSec,
       waitForInflowMaxDurationSec: summary.waitForInflowMaxDurationSec,
@@ -7842,6 +7930,9 @@ class Game {
       plannerTerminalEffectiveClear: summary.plannerTerminalEffectiveClear,
       plannerTerminalPredictedRawCoins: summary.plannerTerminalPredictedRawCoins,
       actualTraceCount: summary.chainCount,
+      tracesPerTap: summary.endedBy === "iceTap" ? summary.chainCount : null,
+      oneTraceThenTap: summary.endedBy === "iceTap" && summary.chainCount === 1,
+      fourOrMoreTraces: summary.endedBy === "iceTap" && summary.chainCount >= 4,
       actualIceTapEffectiveClear: summary.actualIceTapEffectiveClear,
       actualIceTapRawCoins: summary.actualIceTapRawCoins,
       plannerEffectiveClearDifference: summary.plannerEffectiveClearDifference,
@@ -11065,6 +11156,7 @@ export const coronationElsaSkillHandler = {
     ctx.game.strongestModeCoronationElsaPlannerProfileKey = null;
     ctx.game.strongestModeCoronationElsaPendingTapPrediction = null;
     ctx.game.strongestModeCoronationElsaInflowWaitStartedAt = null;
+    ctx.game.strongestModeCoronationElsaInflowWaitReason = null;
     ctx.game.resetStrongestModeCoronationElsaTracePlan();
     const session = ctx.createSession({
       remainingMs: skillValue("coronationElsa", "durationSec", ctx.level) * 1000,
@@ -11129,6 +11221,7 @@ export const coronationElsaSkillHandler = {
       ctx.game.strongestModeCoronationElsaPlannerProfileKey = null;
       ctx.game.strongestModeCoronationElsaPendingTapPrediction = null;
       ctx.game.strongestModeCoronationElsaInflowWaitStartedAt = null;
+      ctx.game.strongestModeCoronationElsaInflowWaitReason = null;
     }
     ctx?.game?.resetStrongestModeCoronationElsaTracePlan();
   },

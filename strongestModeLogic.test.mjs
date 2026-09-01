@@ -511,8 +511,9 @@ test("Coronation Elsa practical stability accepts non-contact Tsums at 1 velocit
 });
 
 test("Coronation Elsa active inflow excludes a moving Tsum already supported from below", () => {
-  const moving = { id: "moving", x: 150, y: 400, vx: 2, vy: 2, radius: 29, spawnedAtElapsed: 0 };
-  const support = { id: "support", x: 150, y: 458, vx: 0, vy: 0, radius: 29, spawnedAtElapsed: 0 };
+  const supportY = FIELD_BOTTOM - 29;
+  const moving = { id: "moving", x: 150, y: supportY - 58, vx: 2, vy: 2, radius: 29, spawnedAtElapsed: 0 };
+  const support = { id: "support", x: 150, y: supportY, vx: 0, vy: 0, radius: 29, spawnedAtElapsed: 0 };
   const harness = {
     elapsed: 1,
     strongestModeCoronationElsaPracticalStableMinSpawnAgeSec: 0.3,
@@ -538,11 +539,48 @@ test("Coronation Elsa active inflow excludes a moving Tsum already supported fro
   context.physicsBodies = [moving];
   const falling = Game.prototype.getStrongestModeCoronationElsaFlowSafetyState.call(harness, moving, context);
 
-  assert.equal(supported.inflowUnsafe, true);
+  assert.equal(supported.supportKind, "stable");
+  assert.equal(supported.inflowUnsafe, false);
   assert.equal(supported.naturalFallSpace, false);
   assert.equal(supported.activeInflow, false);
   assert.equal(falling.naturalFallSpace, true);
   assert.equal(falling.activeInflow, true);
+  assert.equal(falling.inflowUnsafe, true);
+});
+
+test("Coronation Elsa marks an unsupported descending support column as dynamic inflow", () => {
+  const upper = { id: "upper", x: 150, y: 260, vx: 0, vy: 2, radius: 29, spawnedAtElapsed: 0 };
+  const lower = { id: "lower", x: 150, y: 318, vx: 0, vy: 2, radius: 29, spawnedAtElapsed: 0 };
+  const harness = {
+    elapsed: 1,
+    strongestModeCoronationElsaPracticalStableMinSpawnAgeSec: 0.3,
+    strongestModeCoronationElsaPracticalStableVelocityThreshold: 1,
+    strongestModeCoronationElsaMinPlayableNodesBeforeFreezeTap: 35,
+    isTsumInPlayArea: () => true,
+    boardState: { isFrozen: () => false, hasBubble: () => false },
+    getBodyRadius: (body) => body.radius,
+    getBodyCollisionX: (body) => body.x,
+    getBodyCollisionY: (body) => body.y,
+    getFieldFloorY: () => FIELD_BOTTOM,
+    getPhysicsBodies: () => [upper, lower],
+    isBodySettled: () => false
+  };
+  const context = {
+    safePlayableY: 220,
+    lowerPlayableNodeCount: 20,
+    lowerBoardFilled: false,
+    physicsBodies: [upper, lower]
+  };
+
+  const upperState = Game.prototype.getStrongestModeCoronationElsaFlowSafetyState.call(harness, upper, context);
+  const lowerState = Game.prototype.getStrongestModeCoronationElsaFlowSafetyState.call(harness, lower, context);
+
+  assert.equal(upperState.supportKind, "dynamic");
+  assert.equal(upperState.activeInflow, true);
+  assert.equal(upperState.inflowUnsafe, true);
+  assert.equal(lowerState.supportKind, "fall-space");
+  assert.equal(lowerState.activeInflow, true);
+  assert.equal(lowerState.inflowUnsafe, true);
 });
 
 test("Coronation Elsa preview rejects a chain containing a practically unstable Tsum", () => {
