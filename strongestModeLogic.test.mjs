@@ -33,6 +33,13 @@ const makeOpportunityPlan = (overrides = {}) => Object.freeze({
     selectedCandidateUpperHalfNodeCount: 0,
     selectedCandidateLowerHalfNodeCount: 3,
     activeInflowMeanY: 170,
+    settlingOpportunityNodeCount: 3,
+    pendingGeometryNodeCount: 3,
+    settlingOpportunityAboveSelectionCount: 3,
+    activeInflowAboveSelectionCount: 0,
+    pendingGeometryAboveSelectionCount: 3,
+    selectedCandidateVerticalSpan: 0,
+    terminalPredictedRawCoins: 1,
     ...(overrides.diagnostics || {})
   }),
   ...overrides,
@@ -48,6 +55,13 @@ const makeOpportunityPlan = (overrides = {}) => Object.freeze({
     selectedCandidateUpperHalfNodeCount: 0,
     selectedCandidateLowerHalfNodeCount: 3,
     activeInflowMeanY: 170,
+    settlingOpportunityNodeCount: 3,
+    pendingGeometryNodeCount: 3,
+    settlingOpportunityAboveSelectionCount: 3,
+    activeInflowAboveSelectionCount: 0,
+    pendingGeometryAboveSelectionCount: 3,
+    selectedCandidateVerticalSpan: 0,
+    terminalPredictedRawCoins: 1,
     ...(overrides.diagnostics || {})
   })
 });
@@ -73,13 +87,18 @@ test("Coronation Elsa opportunity wait starts on a lower safe trace and releases
     maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs
   });
   assert.equal(frame2.plan.action, "trace");
-  assert.equal(frame2.event.releaseReason, "ROOT_SAFE_CANDIDATES_IMPROVED");
+  assert.equal(frame2.event.releaseReason, "MAX_ADDITIONAL_TRACES_IMPROVED");
   assert.equal(frame2.event.maxAdditionalTracesIncreased, true);
 });
 
-test("Coronation Elsa opportunity wait does not start without active upper inflow", () => {
+test("Coronation Elsa opportunity wait does not start when pending geometry is not above the selection", () => {
   const result = evaluateCoronationElsaSettleOpportunity({
-    plan: makeOpportunityPlan({ diagnostics: { activeInflowNodeCount: 0, upperInflowNodeCount: 0 } }),
+    plan: makeOpportunityPlan({ diagnostics: {
+      activeInflowNodeCount: 0, upperInflowNodeCount: 0,
+      settlingOpportunityAboveSelectionCount: 0,
+      activeInflowAboveSelectionCount: 0,
+      pendingGeometryAboveSelectionCount: 0
+    } }),
     waveId: 1,
     nowMs: 0,
     maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs
@@ -128,17 +147,63 @@ test("Coronation Elsa opportunity timeout never promotes the still-unsafe upper 
   assert.equal(released.plan.diagnostics.selectedUnsafeNewlyFrozenCount, 0);
 });
 
-test("Coronation Elsa consumes one opportunity episode per settle wave and rearms for a forced spawn wave", () => {
+test("Coronation Elsa settlement waits use trace capacity, geometry, and a bounded ice-cycle budget", () => {
+  const options = {
+    waveId: 1, nowMs: 0,
+    maxWaitMs: 60, secondaryWaitMs: 20, totalWaitBudgetMs: 80,
+    sufficientTraceCount: 4
+  };
+  // Already-good routes do not wait merely for a small supported/unsettled group.
+  assert.equal(evaluateCoronationElsaSettleOpportunity({
+    ...options, plan: makeOpportunityPlan({ maxAdditionalTraces: 4 })
+  }).plan.action, "trace");
+  // A safe-candidate-count increase alone is not an early-release signal.
+  const started = evaluateCoronationElsaSettleOpportunity({ ...options, plan: makeOpportunityPlan() });
+  const unchangedGeometry = evaluateCoronationElsaSettleOpportunity({
+    ...options, nowMs: 20, plan: makeOpportunityPlan({ diagnostics: { rootSafeTraceCandidateCount: 2 } }),
+    episode: started.episode, cycle: started.cycle
+  });
+  assert.equal(unchangedGeometry.plan.action, "wait");
+  // A real trace-capacity improvement releases before the cap.
+  const improved = evaluateCoronationElsaSettleOpportunity({
+    ...options, nowMs: 20, plan: makeOpportunityPlan({ maxAdditionalTraces: 4 }),
+    episode: started.episode, cycle: started.cycle
+  });
+  assert.equal(improved.event.releaseReason, "MAX_ADDITIONAL_TRACES_IMPROVED");
+  // After one trace, exactly one shorter same-cycle wait is permitted.
+  const secondary = evaluateCoronationElsaSettleOpportunity({
+    ...options, nowMs: 30, plan: makeOpportunityPlan(),
+    cycle: { ...improved.cycle, primaryUsed: true, traceCount: 1 }
+  });
+  assert.equal(secondary.event.kind, "secondary");
+  const exhausted = evaluateCoronationElsaSettleOpportunity({
+    ...options, nowMs: 31, plan: makeOpportunityPlan(),
+    cycle: { totalWaitMs: 80, totalBudgetMs: 80, primaryUsed: true, secondaryUsed: true, traceCount: 2 }
+  });
+  assert.equal(exhausted.plan.action, "trace");
+  // A proposed early tap receives the final micro-wait while budget remains.
+  const tapWait = evaluateCoronationElsaSettleOpportunity({
+    ...options, nowMs: 31,
+    plan: makeOpportunityPlan({ action: "tap", chainIds: Object.freeze([]), maxAdditionalTraces: 0 }),
+    cycle: { ...improved.cycle, primaryUsed: true, traceCount: 2 }
+  });
+  assert.equal(tapWait.plan.action, "wait");
+});
+
+test("Coronation Elsa permits one bounded secondary wait in the same ice cycle", () => {
   const first = evaluateCoronationElsaSettleOpportunity({
     plan: makeOpportunityPlan(), waveId: 1, nowMs: 0,
     maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs
   });
   const sameWave = evaluateCoronationElsaSettleOpportunity({
     plan: makeOpportunityPlan(), waveId: 1, consumedWaveId: first.consumedWaveId, nowMs: 200,
-    maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs
+    maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs,
+    secondaryWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunitySecondaryWaitMaxMs,
+    totalWaitBudgetMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityCycleWaitBudgetMs,
+    cycle: { ...first.cycle, primaryUsed: true, traceCount: 1 }
   });
-  assert.equal(sameWave.plan.action, "trace");
-  assert.equal(sameWave.suppressedSameWave, true);
+  assert.equal(sameWave.plan.action, "wait");
+  assert.equal(sameWave.event.kind, "secondary");
 
   const harness = {};
   Game.prototype.resetStrongestModeCoronationElsaSettleOpportunityState.call(harness);

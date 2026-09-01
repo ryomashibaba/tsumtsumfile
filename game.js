@@ -5727,10 +5727,19 @@ class Game {
       waveId: this.strongestModeCoronationElsaSettleWaveId,
       consumedWaveId: this.strongestModeCoronationElsaOpportunityConsumedWaveId,
       nowMs: Math.max(0, this.elapsed || 0) * 1000,
-      maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs
+      maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs,
+      secondaryWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunitySecondaryWaitMaxMs,
+      totalWaitBudgetMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityCycleWaitBudgetMs,
+      sufficientTraceCount: CORONATION_ELSA_PLANNER_CONFIG.opportunitySufficientTraceCount,
+      minPendingAboveSelection: CORONATION_ELSA_PLANNER_CONFIG.opportunityMinPendingAboveSelection,
+      cycle: this.strongestModeCoronationElsaSettleOpportunityCycle
     });
     this.strongestModeCoronationElsaOpportunityEpisode = opportunity.episode;
     this.strongestModeCoronationElsaOpportunityConsumedWaveId = opportunity.consumedWaveId;
+    this.strongestModeCoronationElsaSettleOpportunityCycle = Object.freeze({
+      ...(opportunity.cycle || {}),
+      pendingGeometryNodeCount: Math.max(0, basePlan.diagnostics?.pendingGeometryNodeCount || 0)
+    });
     this.recordStrongestModeCoronationElsaOpportunityDecision(opportunity, basePlan);
     if (opportunity.plan.waitReason !== STRONGEST_MODE_CORONATION_ELSA_SETTLE_OPPORTUNITY_WAIT_REASON) {
       this.recordStrongestModeCoronationElsaPlannerDecision(opportunity.plan);
@@ -5803,6 +5812,13 @@ class Game {
     this.strongestModeCoronationElsaOpportunityConsumedWaveId = null;
     this.strongestModeCoronationElsaOpportunitySuppressionRecordedWaveId = null;
     this.strongestModeCoronationElsaOpportunityPerfBaseline = null;
+    this.strongestModeCoronationElsaSettleOpportunityCycle = Object.freeze({
+      totalWaitMs: 0,
+      totalBudgetMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityCycleWaitBudgetMs,
+      primaryUsed: false,
+      secondaryUsed: false,
+      traceCount: 0
+    });
   }
 
   beginStrongestModeCoronationElsaSettleWave({ force = false } = {}) {
@@ -6226,6 +6242,12 @@ class Game {
             return false;
           }
           const chained = this.performStrongestModeChains(decision.chain);
+          if (chained && this.strongestModeCoronationElsaSettleOpportunityCycle) {
+            this.strongestModeCoronationElsaSettleOpportunityCycle = Object.freeze({
+              ...this.strongestModeCoronationElsaSettleOpportunityCycle,
+              traceCount: this.strongestModeCoronationElsaSettleOpportunityCycle.traceCount + 1
+            });
+          }
           if (!chained && allowReplan && !this.isStrongestModeBusy()) {
             return executeDecision(this.planStrongestModeCoronationElsaAction(), false);
           }
@@ -7659,6 +7681,11 @@ class Game {
       }
       return false;
     }
+    const summary = this.getStrongestModeCoronationElsaSkillSummary?.();
+    if (summary) {
+      summary.tapPendingGeometryCount = Math.max(0, this.strongestModeCoronationElsaSettleOpportunityCycle?.pendingGeometryNodeCount || 0);
+      summary.tracesBeforeTap = Math.max(0, this.strongestModeCoronationElsaSettleOpportunityCycle?.traceCount || 0);
+    }
     this.strongestModeCoronationElsaNoChainFrames = 0;
     this.strongestModeCoronationElsaNoTraceDurationSec = 0;
     this.strongestModeCoronationElsaStopLogged = false;
@@ -7669,6 +7696,7 @@ class Game {
     this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
     this.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
     this.strongestModeCoronationElsaForceNextSpawnWave = true;
+    this.resetStrongestModeCoronationElsaSettleOpportunityState?.();
     return true;
   }
 
@@ -7912,6 +7940,13 @@ class Game {
       plannerStableSupportNodeCount: 0,
       plannerDynamicSupportNodeCount: 0,
       plannerGenuineFallSpaceNodeCount: 0,
+      plannerSettlingOpportunityNodeCount: 0,
+      plannerPendingGeometryNodeCount: 0,
+      plannerStableSupportButUnsettledCount: 0,
+      plannerSettlingOpportunityAboveSelectionCount: 0,
+      plannerActiveInflowAboveSelectionCount: 0,
+      plannerPendingGeometryAboveSelectionCount: 0,
+      plannerSelectedCandidateVerticalSpan: 0,
       plannerLowerPlayableNodeCount: 0,
       plannerCalculatedMaxAdditionalTraces: 0,
       plannerSelectedRouteProjectedTotalTraces: 0,
@@ -7944,6 +7979,12 @@ class Game {
       opportunityWaitRootSafeCandidateIncreasedCount: 0,
       opportunityWaitMaxAdditionalTracesIncreasedCount: 0,
       opportunityWaitSameWaveSuppressedCount: 0,
+      primaryOpportunityWaitCount: 0,
+      secondaryMicroWaitCount: 0,
+      totalSettleWaitMs: 0,
+      waitBudgetRemainingMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityCycleWaitBudgetMs,
+      tapPendingGeometryCount: 0,
+      tracesBeforeTap: 0,
       opportunityWaitWallClockSamplesMs: [],
       opportunityWaitGameplayDeltaSamplesMs: [],
       opportunityWaitPlannerBlockedSamplesMs: [],
@@ -8028,6 +8069,13 @@ class Game {
     summary.plannerStableSupportNodeCount = diagnostics.stableSupportNodeCount || 0;
     summary.plannerDynamicSupportNodeCount = diagnostics.dynamicSupportNodeCount || 0;
     summary.plannerGenuineFallSpaceNodeCount = diagnostics.genuineFallSpaceNodeCount || 0;
+    summary.plannerSettlingOpportunityNodeCount = diagnostics.settlingOpportunityNodeCount || 0;
+    summary.plannerPendingGeometryNodeCount = diagnostics.pendingGeometryNodeCount || 0;
+    summary.plannerStableSupportButUnsettledCount = diagnostics.stableSupportButUnsettledCount || 0;
+    summary.plannerSettlingOpportunityAboveSelectionCount = diagnostics.settlingOpportunityAboveSelectionCount || 0;
+    summary.plannerActiveInflowAboveSelectionCount = diagnostics.activeInflowAboveSelectionCount || 0;
+    summary.plannerPendingGeometryAboveSelectionCount = diagnostics.pendingGeometryAboveSelectionCount || 0;
+    summary.plannerSelectedCandidateVerticalSpan = diagnostics.selectedCandidateVerticalSpan || 0;
     summary.plannerLowerPlayableNodeCount = diagnostics.lowerPlayableNodeCount || 0;
     summary.plannerCalculatedMaxAdditionalTraces = diagnostics.calculatedMaxAdditionalTraces || 0;
     summary.plannerSelectedRouteProjectedTotalTraces = diagnostics.selectedRouteProjectedTotalTraces || 0;
@@ -8120,7 +8168,11 @@ class Game {
         plannerBlockedMs: this.strongestModeCoronationElsaPlannerBlockedTotalMs || 0,
         physicsStepCount: this.strongestModeCoronationElsaPhysicsStepCount || 0
       });
-      if (summary) summary.opportunityWaitCount += 1;
+      if (summary) {
+        summary.opportunityWaitCount += 1;
+        if (result.event.kind === "primary") summary.primaryOpportunityWaitCount += 1;
+        else summary.secondaryMicroWaitCount += 1;
+      }
       if (this.coronationElsaDebug !== false) {
         this.logCodexCoronationPayload("[CODEXLOG CORONATION SETTLE OPPORTUNITY]", {
           event: "start",
@@ -8136,6 +8188,10 @@ class Game {
       const durationMs = Math.max(0, result.event.durationMs || 0);
       summary.opportunityWaitCompletedCount += 1;
       summary.opportunityWaitTotalDurationMs += durationMs;
+      summary.totalSettleWaitMs += durationMs;
+      summary.waitBudgetRemainingMs = Math.max(0, CORONATION_ELSA_PLANNER_CONFIG.opportunityCycleWaitBudgetMs - (
+        this.strongestModeCoronationElsaSettleOpportunityCycle?.totalWaitMs || 0
+      ));
       summary.opportunityWaitMinDurationMs = summary.opportunityWaitMinDurationMs == null
         ? durationMs
         : Math.min(summary.opportunityWaitMinDurationMs, durationMs);
@@ -8392,6 +8448,19 @@ class Game {
         ? Number((summary.opportunityWaitMaxAdditionalTracesIncreasedCount / summary.opportunityWaitCompletedCount).toFixed(3))
         : 0,
       opportunityWaitSameWaveSuppressedCount: summary.opportunityWaitSameWaveSuppressedCount,
+      primaryOpportunityWaitCount: summary.primaryOpportunityWaitCount,
+      secondaryMicroWaitCount: summary.secondaryMicroWaitCount,
+      totalSettleWaitMs: Number(summary.totalSettleWaitMs.toFixed(3)),
+      waitBudgetRemainingMs: Number(summary.waitBudgetRemainingMs.toFixed(3)),
+      settlingOpportunityNodeCount: summary.plannerSettlingOpportunityNodeCount,
+      settlingOpportunityAboveSelectionCount: summary.plannerSettlingOpportunityAboveSelectionCount,
+      pendingGeometryNodeCount: summary.plannerPendingGeometryNodeCount,
+      pendingGeometryAboveSelectionCount: summary.plannerPendingGeometryAboveSelectionCount,
+      stableSupportButUnsettledCount: summary.plannerStableSupportButUnsettledCount,
+      activeInflowAboveSelectionCount: summary.plannerActiveInflowAboveSelectionCount,
+      tapPendingGeometryCount: summary.tapPendingGeometryCount,
+      tracesBeforeTap: summary.tracesBeforeTap,
+      selectedCandidateVerticalSpan: summary.plannerSelectedCandidateVerticalSpan,
       executedUnsafeTransitionCount: summary.executedUnsafeTransitionCount,
       opportunityWaitMaxConfiguredMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs,
       plannerTerminalEffectiveClear: summary.plannerTerminalEffectiveClear,

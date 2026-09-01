@@ -33,6 +33,10 @@ export const CORONATION_ELSA_PLANNER_CONFIG = Object.freeze({
   rolloutTwoMinRemainingMs: 2,
   rolloutOneMinRemainingMs: 1,
   opportunityWaitMaxMs: 1000 / 15,
+  opportunitySecondaryWaitMaxMs: 1000 / 30,
+  opportunityCycleWaitBudgetMs: 100,
+  opportunityMinPendingAboveSelection: 1,
+  opportunitySufficientTraceCount: 4,
   maxTraceDepth: MAX_TRACE_DEPTH,
   traceLengths: Object.freeze([3, 4, 5, 6]),
   beamWidths: Object.freeze([
@@ -192,6 +196,7 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
   let stableSupportMask = 0n;
   let dynamicSupportMask = 0n;
   let genuineFallSpaceMask = 0n;
+  let settlingOpportunityMask = 0n;
   const fallbackCoronationFrozenIds = new Set(
     (game.boardState.getFrozenNodesByKind?.(CORONATION_ELSA_FREEZE_KIND) || [])
       .map((tsum) => String(tsum?.id))
@@ -262,6 +267,9 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
     );
     const activeInflow = !!(baseTraceEligible && !anyFrozen && flowState?.activeInflow);
     const inflowUnsafe = !!(baseTraceEligible && !anyFrozen && flowState?.inflowUnsafe);
+    // Opportunity is temporal evidence only; it must never become a hard
+    // transition reject like active inflow.
+    const settlingOpportunity = !!(baseTraceEligible && !anyFrozen && stableSupport && !settled);
     if (activeInflow) activeInflowMask |= bitForIndex(index);
     if (inflowUnsafe) inflowUnsafeMask |= bitForIndex(index);
     if (baseTraceEligible && !anyFrozen && upperInflow) upperInflowMask |= bitForIndex(index);
@@ -270,6 +278,7 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
     if (baseTraceEligible && !anyFrozen && stableSupport) stableSupportMask |= bitForIndex(index);
     if (baseTraceEligible && !anyFrozen && dynamicSupport) dynamicSupportMask |= bitForIndex(index);
     if (baseTraceEligible && !anyFrozen && genuineFallSpace) genuineFallSpaceMask |= bitForIndex(index);
+    if (settlingOpportunity) settlingOpportunityMask |= bitForIndex(index);
     return Object.freeze({
       index,
       id: tsum?.id,
@@ -289,6 +298,7 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
       naturalFallSpace: genuineFallSpace,
       activeInflow,
       inflowUnsafe,
+      settlingOpportunity,
       resolvedTypeId: resolvedType?.id || null,
       effectiveRadius: Number(effectiveRadius) || 0,
       baseRadius: Number(tsum?.baseRadius ?? tsum?.radius) || 0,
@@ -332,6 +342,8 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
     activeInflowMask,
     inflowUnsafeMask,
     freezeProtectedMask: inflowUnsafeMask,
+    settlingOpportunityMask,
+    pendingGeometryMask: activeInflowMask | settlingOpportunityMask,
     upperInflowMask,
     recentSpawnMask,
     unsettledMask,
@@ -353,6 +365,9 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
       stableSupportNodeCount: popcountMask(stableSupportMask),
       dynamicSupportNodeCount: popcountMask(dynamicSupportMask),
       genuineFallSpaceNodeCount: popcountMask(genuineFallSpaceMask),
+      settlingOpportunityNodeCount: popcountMask(settlingOpportunityMask),
+      pendingGeometryNodeCount: popcountMask(activeInflowMask | settlingOpportunityMask),
+      stableSupportButUnsettledCount: popcountMask(settlingOpportunityMask),
       lowerPlayableNodeCount: Number.isFinite(flowContext?.lowerPlayableNodeCount)
         ? flowContext.lowerPlayableNodeCount
         : 0
@@ -1258,6 +1273,14 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
     const activeInflowY = getYDistribution(
       snapshot.nodes.filter((node) => maskHasIndex(snapshot.activeInflowMask || 0n, node.index))
     );
+    const selectionMeanY = selectedCandidateY.meanY;
+    const isAboveSelection = (node) => Number.isFinite(selectionMeanY) && node.y < selectionMeanY;
+    const settlingOpportunityAboveSelectionCount = snapshot.nodes.filter((node) => (
+      maskHasIndex(snapshot.settlingOpportunityMask || 0n, node.index) && isAboveSelection(node)
+    )).length;
+    const activeInflowAboveSelectionCount = snapshot.nodes.filter((node) => (
+      maskHasIndex(snapshot.activeInflowMask || 0n, node.index) && isAboveSelection(node)
+    )).length;
     const elapsedMs = Math.max(0, clock() - startedAt);
     return freezePlanResult({
       mode,
@@ -1292,6 +1315,9 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
         stableSupportNodeCount: snapshot.flowDiagnostics?.stableSupportNodeCount || 0,
         dynamicSupportNodeCount: snapshot.flowDiagnostics?.dynamicSupportNodeCount || 0,
         genuineFallSpaceNodeCount: snapshot.flowDiagnostics?.genuineFallSpaceNodeCount || 0,
+        settlingOpportunityNodeCount: snapshot.flowDiagnostics?.settlingOpportunityNodeCount || 0,
+        pendingGeometryNodeCount: snapshot.flowDiagnostics?.pendingGeometryNodeCount || 0,
+        stableSupportButUnsettledCount: snapshot.flowDiagnostics?.stableSupportButUnsettledCount || 0,
         lowerPlayableNodeCount: snapshot.flowDiagnostics?.lowerPlayableNodeCount || 0,
         calculatedMaxAdditionalTraces: maxDepth,
         selectedRouteProjectedTotalTraces: maxDepth,
@@ -1303,11 +1329,17 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
         selectedCandidateMeanY: selectedCandidateY.meanY,
         selectedCandidateUpperHalfNodeCount: selectedCandidateY.upperHalfNodeCount,
         selectedCandidateLowerHalfNodeCount: selectedCandidateY.lowerHalfNodeCount,
+        selectedCandidateVerticalSpan: Number.isFinite(selectedCandidateY.minY) && Number.isFinite(selectedCandidateY.maxY)
+          ? selectedCandidateY.maxY - selectedCandidateY.minY
+          : 0,
         activeInflowMinY: activeInflowY.minY,
         activeInflowMaxY: activeInflowY.maxY,
         activeInflowMeanY: activeInflowY.meanY,
         activeInflowUpperHalfNodeCount: activeInflowY.upperHalfNodeCount,
         activeInflowLowerHalfNodeCount: activeInflowY.lowerHalfNodeCount,
+        settlingOpportunityAboveSelectionCount,
+        activeInflowAboveSelectionCount,
+        pendingGeometryAboveSelectionCount: settlingOpportunityAboveSelectionCount + activeInflowAboveSelectionCount,
         terminalEffectiveClear: terminal?.effectiveClearCount || 0,
         terminalPredictedRawCoins: terminal?.rawCoins || 0,
         waitReason,

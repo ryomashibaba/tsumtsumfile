@@ -3,7 +3,7 @@ export const STRONGEST_MODE_FEVER_BOMB_CANCEL_MIN_REMAINING = 5;
 export const STRONGEST_MODE_CORONATION_ELSA_NO_TRACE_TAP_DELAY_SEC = 0.15;
 export const STRONGEST_MODE_CORONATION_ELSA_SETTLE_OPPORTUNITY_WAIT_REASON = "WAIT_FOR_SETTLE_OPPORTUNITY";
 
-const buildOpportunityWaitPlan = (plan, episode, elapsedMs) => Object.freeze({
+const buildOpportunityWaitPlan = (plan, episode, elapsedMs, cycle) => Object.freeze({
   ...plan,
   action: "wait",
   chainIds: Object.freeze([]),
@@ -17,11 +17,11 @@ const buildOpportunityWaitPlan = (plan, episode, elapsedMs) => Object.freeze({
     opportunityWaitBaselineRootCandidateCount: episode.baselineRootCandidateCount,
     opportunityWaitBaselineRootSafeCandidateCount: episode.baselineRootSafeCandidateCount,
     opportunityWaitBaselineMaxAdditionalTraces: episode.baselineMaxAdditionalTraces,
-    opportunityWaitEvidenceActiveUpperInflow: true,
-    opportunityWaitEvidenceFlowBlockedCandidate: episode.flowBlockedCandidateCount > 0,
-    opportunityWaitEvidenceRecentSpawn: episode.recentSpawnCount > 0,
-    opportunityWaitEvidenceSelectedLowerBiased: true,
-    opportunityWaitEvidenceInflowAboveSelection: true
+    opportunityWaitKind: episode.kind,
+    settlingOpportunityAboveSelectionCount: Math.max(0, plan?.diagnostics?.settlingOpportunityAboveSelectionCount || 0),
+    activeInflowAboveSelectionCount: Math.max(0, plan?.diagnostics?.activeInflowAboveSelectionCount || 0),
+    pendingGeometryAboveSelectionCount: Math.max(0, plan?.diagnostics?.pendingGeometryAboveSelectionCount || 0),
+    waitBudgetRemainingMs: Math.max(0, cycle.totalBudgetMs - cycle.totalWaitMs - elapsedMs)
   })
 });
 
@@ -31,33 +31,56 @@ export function evaluateCoronationElsaSettleOpportunity({
   waveId = 0,
   consumedWaveId = null,
   nowMs = 0,
-  maxWaitMs = 0
+  maxWaitMs = 0,
+  secondaryWaitMs = 0,
+  totalWaitBudgetMs = 0,
+  sufficientTraceCount = 4,
+  minPendingAboveSelection = 1,
+  cycle = null
 } = {}) {
+  const normalizedCycle = Object.freeze({
+    totalWaitMs: Math.max(0, cycle?.totalWaitMs || 0),
+    totalBudgetMs: Math.max(0, totalWaitBudgetMs || maxWaitMs || 0),
+    primaryUsed: !!cycle?.primaryUsed,
+    secondaryUsed: !!cycle?.secondaryUsed,
+    traceCount: Math.max(0, cycle?.traceCount || 0)
+  });
   if (!plan) {
-    return Object.freeze({ plan, episode, consumedWaveId, event: null, suppressedSameWave: false });
+    return Object.freeze({ plan, episode, consumedWaveId, cycle: normalizedCycle, event: null, suppressedSameWave: false });
   }
   const diagnostics = plan.diagnostics || {};
   const currentRootCandidateCount = Math.max(0, diagnostics.rootLegalTraceCandidateCount || 0);
   const currentRootSafeCandidateCount = Math.max(0, diagnostics.rootSafeTraceCandidateCount || 0);
   const currentMaxAdditionalTraces = Math.max(0, plan.maxAdditionalTraces || 0);
+  const pendingAbove = Math.max(0, diagnostics.pendingGeometryAboveSelectionCount || 0);
+  const settlingAbove = Math.max(0, diagnostics.settlingOpportunityAboveSelectionCount || 0);
+  const routeImproved = (baseline) => (
+    (Number.isFinite(diagnostics.selectedCandidateMeanY) && Number.isFinite(baseline.selectedCandidateMeanY) && diagnostics.selectedCandidateMeanY < baseline.selectedCandidateMeanY) ||
+    Math.max(0, diagnostics.selectedCandidateVerticalSpan || 0) > Math.max(0, baseline.selectedCandidateVerticalSpan || 0) ||
+    Math.max(0, diagnostics.selectedCandidateUpperHalfNodeCount || 0) > Math.max(0, baseline.selectedCandidateUpperHalfNodeCount || 0) ||
+    Math.max(0, diagnostics.terminalPredictedRawCoins || 0) > Math.max(0, baseline.terminalPredictedRawCoins || 0)
+  );
 
   if (episode) {
     const elapsedMs = Math.max(0, nowMs - episode.startedAtMs);
     let releaseReason = null;
-    if (Math.max(0, diagnostics.activeInflowNodeCount || 0) === 0) {
-      releaseReason = "ACTIVE_INFLOW_RESOLVED";
-    } else if (currentRootSafeCandidateCount > episode.baselineRootSafeCandidateCount) {
-      releaseReason = "ROOT_SAFE_CANDIDATES_IMPROVED";
-    } else if (currentMaxAdditionalTraces > episode.baselineMaxAdditionalTraces) {
+    if (currentMaxAdditionalTraces > episode.baselineMaxAdditionalTraces) {
       releaseReason = "MAX_ADDITIONAL_TRACES_IMPROVED";
-    } else if (elapsedMs >= maxWaitMs) {
+    } else if (pendingAbove === 0) {
+      releaseReason = "PENDING_GEOMETRY_RESOLVED";
+    } else if (settlingAbove === 0) {
+      releaseReason = "SETTLING_OPPORTUNITY_RESOLVED";
+    } else if (routeImproved(episode)) {
+      releaseReason = "SELECTED_ROUTE_IMPROVED";
+    } else if (elapsedMs >= episode.maxWaitMs) {
       releaseReason = "MAX_WAIT_REACHED";
     }
     if (!releaseReason) {
       return Object.freeze({
-        plan: buildOpportunityWaitPlan(plan, episode, elapsedMs),
+        plan: buildOpportunityWaitPlan(plan, episode, elapsedMs, normalizedCycle),
         episode,
         consumedWaveId,
+        cycle: normalizedCycle,
         event: null,
         suppressedSameWave: false
       });
@@ -77,40 +100,36 @@ export function evaluateCoronationElsaSettleOpportunity({
       rootSafeCandidateCountIncreased: currentRootSafeCandidateCount > episode.baselineRootSafeCandidateCount,
       maxAdditionalTracesIncreased: currentMaxAdditionalTraces > episode.baselineMaxAdditionalTraces
     });
-    return Object.freeze({ plan, episode: null, consumedWaveId, event, suppressedSameWave: false });
+    const nextCycle = Object.freeze({
+      ...normalizedCycle,
+      totalWaitMs: normalizedCycle.totalWaitMs + elapsedMs,
+      primaryUsed: normalizedCycle.primaryUsed || episode.kind === "primary",
+      secondaryUsed: normalizedCycle.secondaryUsed || episode.kind !== "primary"
+    });
+    return Object.freeze({ plan, episode: null, consumedWaveId, cycle: nextCycle, event, suppressedSameWave: false });
   }
 
-  const selectedLowerCount = Math.max(0, diagnostics.selectedCandidateLowerHalfNodeCount || 0);
-  const selectedUpperCount = Math.max(0, diagnostics.selectedCandidateUpperHalfNodeCount || 0);
-  const hasYOpportunity = Number.isFinite(diagnostics.activeInflowMeanY)
-    && Number.isFinite(diagnostics.selectedCandidateMeanY)
-    && diagnostics.activeInflowMeanY < diagnostics.selectedCandidateMeanY;
-  const hasSettleEvidence = Math.max(0, diagnostics.rootFlowBlockedTraceCandidateCount || 0) > 0
-    || Math.max(0, diagnostics.recentSpawnCount || 0) > 0;
+  const budgetRemainingMs = Math.max(0, normalizedCycle.totalBudgetMs - normalizedCycle.totalWaitMs);
+  const hasPendingAbove = pendingAbove >= Math.max(1, minPendingAboveSelection || 1);
+  const traceCapacityLow = currentMaxAdditionalTraces < Math.max(1, sufficientTraceCount || 4);
+  const kind = !normalizedCycle.primaryUsed
+    ? "primary"
+    : (!normalizedCycle.secondaryUsed && normalizedCycle.traceCount >= 1 ? "secondary" : null);
+  const requestedWaitMs = kind === "primary" ? maxWaitMs : secondaryWaitMs;
+  const waitLimitMs = Math.min(Math.max(0, requestedWaitMs || 0), budgetRemainingMs);
   const eligible = !!(
-    plan.action === "trace"
+    (plan.action === "trace" || (
+      plan.action === "tap" && kind === "secondary" && normalizedCycle.traceCount <= 2
+    ))
     && currentRootSafeCandidateCount > 0
     && Math.max(0, diagnostics.selectedUnsafeNewlyFrozenCount || 0) === 0
-    && Number.isFinite(waveId)
-    && waveId > 0
-    && consumedWaveId !== waveId
-    && Math.max(0, diagnostics.activeInflowNodeCount || 0) > 0
-    && Math.max(0, diagnostics.upperInflowNodeCount || 0) > 0
-    && hasSettleEvidence
-    && selectedLowerCount > selectedUpperCount
-    && hasYOpportunity
+    && kind
+    && waitLimitMs > 0
+    && traceCapacityLow
+    && hasPendingAbove
   );
   if (!eligible) {
-    const suppressedSameWave = !!(
-      plan.action === "trace"
-      && waveId > 0
-      && consumedWaveId === waveId
-      && Math.max(0, diagnostics.activeInflowNodeCount || 0) > 0
-      && hasSettleEvidence
-      && selectedLowerCount > selectedUpperCount
-      && hasYOpportunity
-    );
-    return Object.freeze({ plan, episode: null, consumedWaveId, event: null, suppressedSameWave });
+    return Object.freeze({ plan, episode: null, consumedWaveId, cycle: normalizedCycle, event: null, suppressedSameWave: false });
   }
 
   const nextEpisode = Object.freeze({
@@ -119,20 +138,21 @@ export function evaluateCoronationElsaSettleOpportunity({
     baselineRootCandidateCount: currentRootCandidateCount,
     baselineRootSafeCandidateCount: currentRootSafeCandidateCount,
     baselineMaxAdditionalTraces: currentMaxAdditionalTraces,
+    kind,
+    maxWaitMs: waitLimitMs,
     selectedCandidateMinY: diagnostics.selectedCandidateMinY ?? null,
     selectedCandidateMaxY: diagnostics.selectedCandidateMaxY ?? null,
     selectedCandidateMeanY: diagnostics.selectedCandidateMeanY ?? null,
-    activeInflowMinY: diagnostics.activeInflowMinY ?? null,
-    activeInflowMaxY: diagnostics.activeInflowMaxY ?? null,
-    activeInflowMeanY: diagnostics.activeInflowMeanY ?? null,
-    flowBlockedCandidateCount: Math.max(0, diagnostics.rootFlowBlockedTraceCandidateCount || 0),
-    recentSpawnCount: Math.max(0, diagnostics.recentSpawnCount || 0)
+    selectedCandidateVerticalSpan: diagnostics.selectedCandidateVerticalSpan || 0,
+    selectedCandidateUpperHalfNodeCount: diagnostics.selectedCandidateUpperHalfNodeCount || 0,
+    terminalPredictedRawCoins: diagnostics.terminalPredictedRawCoins || 0
   });
   const event = Object.freeze({ type: "start", ...nextEpisode });
   return Object.freeze({
-    plan: buildOpportunityWaitPlan(plan, nextEpisode, 0),
+    plan: buildOpportunityWaitPlan(plan, nextEpisode, 0, normalizedCycle),
     episode: nextEpisode,
     consumedWaveId: waveId,
+    cycle: normalizedCycle,
     event,
     suppressedSameWave: false
   });
