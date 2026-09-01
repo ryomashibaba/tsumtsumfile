@@ -38,6 +38,7 @@ const makeOpportunityPlan = (overrides = {}) => Object.freeze({
     settlingOpportunityAboveSelectionCount: 3,
     activeInflowAboveSelectionCount: 0,
     pendingGeometryAboveSelectionCount: 3,
+    pendingGeometryAboveFrozenMeanCount: 3,
     selectedCandidateVerticalSpan: 0,
     terminalPredictedRawCoins: 1,
     ...(overrides.diagnostics || {})
@@ -60,6 +61,7 @@ const makeOpportunityPlan = (overrides = {}) => Object.freeze({
     settlingOpportunityAboveSelectionCount: 3,
     activeInflowAboveSelectionCount: 0,
     pendingGeometryAboveSelectionCount: 3,
+    pendingGeometryAboveFrozenMeanCount: 3,
     selectedCandidateVerticalSpan: 0,
     terminalPredictedRawCoins: 1,
     ...(overrides.diagnostics || {})
@@ -181,13 +183,64 @@ test("Coronation Elsa settlement waits use trace capacity, geometry, and a bound
     cycle: { totalWaitMs: 80, totalBudgetMs: 80, primaryUsed: true, secondaryUsed: true, traceCount: 2 }
   });
   assert.equal(exhausted.plan.action, "trace");
-  // A proposed early tap receives the final micro-wait while budget remains.
+  // A proposed early tap has a separate reserve and requires no safe trace.
   const tapWait = evaluateCoronationElsaSettleOpportunity({
     ...options, nowMs: 31,
-    plan: makeOpportunityPlan({ action: "tap", chainIds: Object.freeze([]), maxAdditionalTraces: 0 }),
+    preTapWaitMs: 20, preTapWaitReserveMs: 20,
+    plan: makeOpportunityPlan({ action: "tap", chainIds: Object.freeze([]), maxAdditionalTraces: 0, diagnostics: { rootSafeTraceCandidateCount: 0 } }),
     cycle: { ...improved.cycle, primaryUsed: true, traceCount: 2 }
   });
   assert.equal(tapWait.plan.action, "wait");
+});
+
+test("Coronation Elsa pre-TAP settle wait is reachable without a selected trace and remains bounded", () => {
+  const base = {
+    action: "tap", chainIds: Object.freeze([]), maxAdditionalTraces: 0,
+    diagnostics: {
+      rootLegalTraceCandidateCount: 0,
+      rootSafeTraceCandidateCount: 0,
+      selectedCandidateMeanY: null,
+      pendingGeometryAboveSelectionCount: 0,
+      pendingGeometryAboveFrozenMeanCount: 2
+    }
+  };
+  const options = { nowMs: 0, preTapWaitMs: 20, preTapWaitReserveMs: 20, totalWaitBudgetMs: 100 };
+  for (const traceCount of [1, 2, 3]) {
+    const started = evaluateCoronationElsaSettleOpportunity({
+      ...options, plan: makeOpportunityPlan(base), cycle: { traceCount }
+    });
+    assert.equal(started.plan.action, "wait");
+    assert.equal(started.plan.waitReason, "WAIT_FOR_PRE_TAP_SETTLE");
+    // If a fresh snapshot gets a legal chain, never tap it.
+    const recovered = evaluateCoronationElsaSettleOpportunity({
+      ...options, nowMs: 10, episode: started.episode, cycle: started.cycle,
+      plan: makeOpportunityPlan({ maxAdditionalTraces: 1 })
+    });
+    assert.equal(recovered.plan.action, "trace");
+  }
+  const exhausted = evaluateCoronationElsaSettleOpportunity({
+    ...options, plan: makeOpportunityPlan(base), cycle: { traceCount: 2, totalWaitMs: 100, totalBudgetMs: 100 }
+  });
+  assert.equal(exhausted.plan.action, "tap");
+  assert.equal(evaluateCoronationElsaSettleOpportunity({
+    ...options, plan: makeOpportunityPlan(base), cycle: { traceCount: 4 }
+  }).plan.action, "tap");
+});
+
+test("Coronation Elsa opportunity does not release for active inflow or a two-pixel route shift", () => {
+  const started = evaluateCoronationElsaSettleOpportunity({
+    plan: makeOpportunityPlan(), nowMs: 0, maxWaitMs: 30, totalWaitBudgetMs: 100
+  });
+  const stillWaiting = evaluateCoronationElsaSettleOpportunity({
+    plan: makeOpportunityPlan({ diagnostics: {
+      settlingOpportunityAboveSelectionCount: 0,
+      activeInflowAboveSelectionCount: 2,
+      pendingGeometryAboveSelectionCount: 2,
+      selectedCandidateMeanY: 408
+    } }),
+    episode: started.episode, cycle: started.cycle, nowMs: 10, maxWaitMs: 30, totalWaitBudgetMs: 100
+  });
+  assert.equal(stillWaiting.plan.action, "wait");
 });
 
 test("Coronation Elsa permits one bounded secondary wait in the same ice cycle", () => {
@@ -490,6 +543,22 @@ test("Coronation Elsa planner always traces before attempting remaining ice", ()
   assert.equal(Game.prototype.performStrongestModeStep.call(harness), true);
   assert.equal(performedChain, chain);
   assert.equal(iceGuardCalled, false);
+});
+
+test("Coronation Elsa counts every committed trace from one multi-trace execution", () => {
+  const chain = [{ id: 1 }, { id: 2 }, { id: 3 }];
+  const harness = {
+    ...makeCoronationElsaStepHarness(),
+    strongestModeCoronationElsaSettleOpportunityCycle: { traceCount: 1 },
+    planStrongestModeCoronationElsaAction: () => ({ plan: { action: "trace" }, chain, tapTarget: null }),
+    isStrongestModeCoronationElsaPlannedChainValid: () => true,
+    performStrongestModeChains(_chain, { stats }) {
+      stats.performedLengths.push(3, 3);
+      return true;
+    }
+  };
+  assert.equal(Game.prototype.performStrongestModeStep.call(harness), true);
+  assert.equal(harness.strongestModeCoronationElsaSettleOpportunityCycle.traceCount, 3);
 });
 
 test("Coronation Elsa settle opportunity WAIT performs no trace or ice tap and retries on the next frame", () => {

@@ -33,7 +33,9 @@ export const CORONATION_ELSA_PLANNER_CONFIG = Object.freeze({
   rolloutTwoMinRemainingMs: 2,
   rolloutOneMinRemainingMs: 1,
   opportunityWaitMaxMs: 1000 / 15,
-  opportunitySecondaryWaitMaxMs: 1000 / 30,
+  opportunitySecondaryWaitMaxMs: 1000 / 60,
+  opportunityPreTapWaitMaxMs: 1000 / 30,
+  opportunityPreTapWaitReserveMs: 1000 / 30,
   opportunityCycleWaitBudgetMs: 100,
   opportunityMinPendingAboveSelection: 1,
   opportunitySufficientTraceCount: 4,
@@ -1273,6 +1275,9 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
     const activeInflowY = getYDistribution(
       snapshot.nodes.filter((node) => maskHasIndex(snapshot.activeInflowMask || 0n, node.index))
     );
+    const coronationFrozenY = getYDistribution(
+      snapshot.nodes.filter((node) => maskHasIndex(snapshot.coronationFrozenMask || 0n, node.index))
+    );
     const selectionMeanY = selectedCandidateY.meanY;
     const isAboveSelection = (node) => Number.isFinite(selectionMeanY) && node.y < selectionMeanY;
     const settlingOpportunityAboveSelectionCount = snapshot.nodes.filter((node) => (
@@ -1281,6 +1286,19 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
     const activeInflowAboveSelectionCount = snapshot.nodes.filter((node) => (
       maskHasIndex(snapshot.activeInflowMask || 0n, node.index) && isAboveSelection(node)
     )).length;
+    // TAP has no selected chain. Compare pending bodies to the actual frozen
+    // region, with a small radius-derived margin to avoid pixel jitter.
+    const frozenRelativeThresholdY = Number.isFinite(coronationFrozenY.meanY)
+      ? coronationFrozenY.meanY - TSUM_RADIUS * 0.25
+      : null;
+    const frozenTopThresholdY = Number.isFinite(coronationFrozenY.minY)
+      ? coronationFrozenY.minY + TSUM_RADIUS * 0.25
+      : null;
+    const isAboveFrozenMean = (node) => Number.isFinite(frozenRelativeThresholdY) && node.y < frozenRelativeThresholdY;
+    const isAboveFrozenRegion = (node) => Number.isFinite(frozenTopThresholdY) && node.y < frozenTopThresholdY;
+    const pendingNodes = snapshot.nodes.filter((node) => maskHasIndex(snapshot.pendingGeometryMask || 0n, node.index));
+    const settlingNodes = snapshot.nodes.filter((node) => maskHasIndex(snapshot.settlingOpportunityMask || 0n, node.index));
+    const inflowNodes = snapshot.nodes.filter((node) => maskHasIndex(snapshot.activeInflowMask || 0n, node.index));
     const elapsedMs = Math.max(0, clock() - startedAt);
     return freezePlanResult({
       mode,
@@ -1317,7 +1335,26 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
         genuineFallSpaceNodeCount: snapshot.flowDiagnostics?.genuineFallSpaceNodeCount || 0,
         settlingOpportunityNodeCount: snapshot.flowDiagnostics?.settlingOpportunityNodeCount || 0,
         pendingGeometryNodeCount: snapshot.flowDiagnostics?.pendingGeometryNodeCount || 0,
+        coronationFrozenNodeCount: popcountMask(snapshot.coronationFrozenMask || 0n),
+        coronationFrozenMinY: coronationFrozenY.minY,
+        coronationFrozenMaxY: coronationFrozenY.maxY,
+        coronationFrozenMeanY: coronationFrozenY.meanY,
+        coronationFrozenUpperHalfCount: coronationFrozenY.upperHalfNodeCount,
+        coronationFrozenLowerHalfCount: coronationFrozenY.lowerHalfNodeCount,
+        pendingGeometryUpperHalfCount: pendingNodes.filter((node) => node.y < FIELD_CENTER_Y).length,
+        settlingOpportunityUpperHalfCount: settlingNodes.filter((node) => node.y < FIELD_CENTER_Y).length,
+        activeInflowUpperHalfCount: inflowNodes.filter((node) => node.y < FIELD_CENTER_Y).length,
+        pendingGeometryAboveFrozenMeanCount: pendingNodes.filter(isAboveFrozenMean).length,
+        pendingGeometryAboveFrozenRegionCount: pendingNodes.filter(isAboveFrozenRegion).length,
+        settlingOpportunityAboveFrozenCount: settlingNodes.filter(isAboveFrozenMean).length,
+        activeInflowAboveFrozenCount: inflowNodes.filter(isAboveFrozenMean).length,
         stableSupportButUnsettledCount: snapshot.flowDiagnostics?.stableSupportButUnsettledCount || 0,
+        playableNodeCount: snapshot.nodes.filter((node) => node.baseTraceEligible && !node.anyFrozen).length,
+        settledNodeCount: snapshot.nodes.filter((node) => node.baseTraceEligible && !node.anyFrozen && node.settled).length,
+        upperHalfSettledNodeCount: snapshot.nodes.filter((node) => node.baseTraceEligible && !node.anyFrozen && node.settled && node.y < FIELD_CENTER_Y).length,
+        lowerHalfSettledNodeCount: snapshot.nodes.filter((node) => node.baseTraceEligible && !node.anyFrozen && node.settled && node.y >= FIELD_CENTER_Y).length,
+        upperHalfPendingNodeCount: pendingNodes.filter((node) => node.y < FIELD_CENTER_Y).length,
+        lowerHalfPendingNodeCount: pendingNodes.filter((node) => node.y >= FIELD_CENTER_Y).length,
         lowerPlayableNodeCount: snapshot.flowDiagnostics?.lowerPlayableNodeCount || 0,
         calculatedMaxAdditionalTraces: maxDepth,
         selectedRouteProjectedTotalTraces: maxDepth,

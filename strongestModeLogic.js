@@ -2,16 +2,17 @@ export const FEVER_ENTRY_CLEAR_COUNT = 29;
 export const STRONGEST_MODE_FEVER_BOMB_CANCEL_MIN_REMAINING = 5;
 export const STRONGEST_MODE_CORONATION_ELSA_NO_TRACE_TAP_DELAY_SEC = 0.15;
 export const STRONGEST_MODE_CORONATION_ELSA_SETTLE_OPPORTUNITY_WAIT_REASON = "WAIT_FOR_SETTLE_OPPORTUNITY";
+export const STRONGEST_MODE_CORONATION_ELSA_PRE_TAP_SETTLE_WAIT_REASON = "WAIT_FOR_PRE_TAP_SETTLE";
 
 const buildOpportunityWaitPlan = (plan, episode, elapsedMs, cycle) => Object.freeze({
   ...plan,
   action: "wait",
   chainIds: Object.freeze([]),
   tapNodeId: null,
-  waitReason: STRONGEST_MODE_CORONATION_ELSA_SETTLE_OPPORTUNITY_WAIT_REASON,
+  waitReason: episode.waitReason,
   diagnostics: Object.freeze({
     ...(plan?.diagnostics || {}),
-    waitReason: STRONGEST_MODE_CORONATION_ELSA_SETTLE_OPPORTUNITY_WAIT_REASON,
+    waitReason: episode.waitReason,
     opportunityWaitWaveId: episode.waveId,
     opportunityWaitElapsedMs: elapsedMs,
     opportunityWaitBaselineRootCandidateCount: episode.baselineRootCandidateCount,
@@ -33,6 +34,8 @@ export function evaluateCoronationElsaSettleOpportunity({
   nowMs = 0,
   maxWaitMs = 0,
   secondaryWaitMs = 0,
+  preTapWaitMs = 0,
+  preTapWaitReserveMs = 0,
   totalWaitBudgetMs = 0,
   sufficientTraceCount = 4,
   minPendingAboveSelection = 1,
@@ -43,6 +46,7 @@ export function evaluateCoronationElsaSettleOpportunity({
     totalBudgetMs: Math.max(0, totalWaitBudgetMs || maxWaitMs || 0),
     primaryUsed: !!cycle?.primaryUsed,
     secondaryUsed: !!cycle?.secondaryUsed,
+    preTapUsed: !!cycle?.preTapUsed,
     traceCount: Math.max(0, cycle?.traceCount || 0)
   });
   if (!plan) {
@@ -53,12 +57,15 @@ export function evaluateCoronationElsaSettleOpportunity({
   const currentRootSafeCandidateCount = Math.max(0, diagnostics.rootSafeTraceCandidateCount || 0);
   const currentMaxAdditionalTraces = Math.max(0, plan.maxAdditionalTraces || 0);
   const pendingAbove = Math.max(0, diagnostics.pendingGeometryAboveSelectionCount || 0);
-  const settlingAbove = Math.max(0, diagnostics.settlingOpportunityAboveSelectionCount || 0);
+  const preTapPending = Math.max(0, diagnostics.pendingGeometryAboveFrozenMeanCount || 0);
   const routeImproved = (baseline) => (
-    (Number.isFinite(diagnostics.selectedCandidateMeanY) && Number.isFinite(baseline.selectedCandidateMeanY) && diagnostics.selectedCandidateMeanY < baseline.selectedCandidateMeanY) ||
-    Math.max(0, diagnostics.selectedCandidateVerticalSpan || 0) > Math.max(0, baseline.selectedCandidateVerticalSpan || 0) ||
-    Math.max(0, diagnostics.selectedCandidateUpperHalfNodeCount || 0) > Math.max(0, baseline.selectedCandidateUpperHalfNodeCount || 0) ||
-    Math.max(0, diagnostics.terminalPredictedRawCoins || 0) > Math.max(0, baseline.terminalPredictedRawCoins || 0)
+    currentMaxAdditionalTraces >= baseline.baselineMaxAdditionalTraces && (
+      Math.max(0, diagnostics.selectedCandidateVerticalSpan || 0) >= Math.max(0, baseline.selectedCandidateVerticalSpan || 0) + 20 ||
+      (
+        Math.max(0, diagnostics.terminalPredictedRawCoins || 0) >= Math.max(0, baseline.terminalPredictedRawCoins || 0) + 2 &&
+        pendingAbove < baseline.pendingRelevantCount
+      )
+    )
   );
 
   if (episode) {
@@ -66,11 +73,9 @@ export function evaluateCoronationElsaSettleOpportunity({
     let releaseReason = null;
     if (currentMaxAdditionalTraces > episode.baselineMaxAdditionalTraces) {
       releaseReason = "MAX_ADDITIONAL_TRACES_IMPROVED";
-    } else if (pendingAbove === 0) {
+    } else if ((episode.kind === "pre-tap" ? preTapPending : pendingAbove) === 0) {
       releaseReason = "PENDING_GEOMETRY_RESOLVED";
-    } else if (settlingAbove === 0) {
-      releaseReason = "SETTLING_OPPORTUNITY_RESOLVED";
-    } else if (routeImproved(episode)) {
+    } else if (episode.kind !== "pre-tap" && routeImproved(episode)) {
       releaseReason = "SELECTED_ROUTE_IMPROVED";
     } else if (elapsedMs >= episode.maxWaitMs) {
       releaseReason = "MAX_WAIT_REACHED";
@@ -104,34 +109,47 @@ export function evaluateCoronationElsaSettleOpportunity({
       ...normalizedCycle,
       totalWaitMs: normalizedCycle.totalWaitMs + elapsedMs,
       primaryUsed: normalizedCycle.primaryUsed || episode.kind === "primary",
-      secondaryUsed: normalizedCycle.secondaryUsed || episode.kind !== "primary"
+      secondaryUsed: normalizedCycle.secondaryUsed || episode.kind === "secondary",
+      preTapUsed: normalizedCycle.preTapUsed || episode.kind === "pre-tap"
     });
     return Object.freeze({ plan, episode: null, consumedWaveId, cycle: nextCycle, event, suppressedSameWave: false });
   }
 
   const budgetRemainingMs = Math.max(0, normalizedCycle.totalBudgetMs - normalizedCycle.totalWaitMs);
   const hasPendingAbove = pendingAbove >= Math.max(1, minPendingAboveSelection || 1);
+  const hasPreTapPending = preTapPending >= 1;
   const traceCapacityLow = currentMaxAdditionalTraces < Math.max(1, sufficientTraceCount || 4);
-  const kind = !normalizedCycle.primaryUsed
+  const traceKind = !normalizedCycle.primaryUsed
     ? "primary"
     : (!normalizedCycle.secondaryUsed && normalizedCycle.traceCount >= 1 ? "secondary" : null);
-  const requestedWaitMs = kind === "primary" ? maxWaitMs : secondaryWaitMs;
-  const waitLimitMs = Math.min(Math.max(0, requestedWaitMs || 0), budgetRemainingMs);
-  const eligible = !!(
-    (plan.action === "trace" || (
-      plan.action === "tap" && kind === "secondary" && normalizedCycle.traceCount <= 2
-    ))
+  const traceRequestedWaitMs = traceKind === "primary" ? maxWaitMs : secondaryWaitMs;
+  const traceWaitLimitMs = Math.min(
+    Math.max(0, traceRequestedWaitMs || 0),
+    Math.max(0, budgetRemainingMs - Math.max(0, preTapWaitReserveMs || 0))
+  );
+  const traceEligible = !!(
+    plan.action === "trace"
     && currentRootSafeCandidateCount > 0
     && Math.max(0, diagnostics.selectedUnsafeNewlyFrozenCount || 0) === 0
-    && kind
-    && waitLimitMs > 0
+    && traceKind
+    && traceWaitLimitMs > 0
     && traceCapacityLow
     && hasPendingAbove
   );
-  if (!eligible) {
+  const preTapWaitLimitMs = Math.min(Math.max(0, preTapWaitMs || 0), budgetRemainingMs);
+  const preTapEligible = !!(
+    plan.action === "tap"
+    && currentRootSafeCandidateCount === 0
+    && normalizedCycle.traceCount <= 3
+    && !normalizedCycle.preTapUsed
+    && preTapWaitLimitMs > 0
+    && hasPreTapPending
+  );
+  if (!traceEligible && !preTapEligible) {
     return Object.freeze({ plan, episode: null, consumedWaveId, cycle: normalizedCycle, event: null, suppressedSameWave: false });
   }
 
+  const kind = preTapEligible ? "pre-tap" : traceKind;
   const nextEpisode = Object.freeze({
     waveId,
     startedAtMs: nowMs,
@@ -139,13 +157,17 @@ export function evaluateCoronationElsaSettleOpportunity({
     baselineRootSafeCandidateCount: currentRootSafeCandidateCount,
     baselineMaxAdditionalTraces: currentMaxAdditionalTraces,
     kind,
-    maxWaitMs: waitLimitMs,
+    maxWaitMs: preTapEligible ? preTapWaitLimitMs : traceWaitLimitMs,
+    waitReason: preTapEligible
+      ? STRONGEST_MODE_CORONATION_ELSA_PRE_TAP_SETTLE_WAIT_REASON
+      : STRONGEST_MODE_CORONATION_ELSA_SETTLE_OPPORTUNITY_WAIT_REASON,
     selectedCandidateMinY: diagnostics.selectedCandidateMinY ?? null,
     selectedCandidateMaxY: diagnostics.selectedCandidateMaxY ?? null,
     selectedCandidateMeanY: diagnostics.selectedCandidateMeanY ?? null,
     selectedCandidateVerticalSpan: diagnostics.selectedCandidateVerticalSpan || 0,
     selectedCandidateUpperHalfNodeCount: diagnostics.selectedCandidateUpperHalfNodeCount || 0,
-    terminalPredictedRawCoins: diagnostics.terminalPredictedRawCoins || 0
+    terminalPredictedRawCoins: diagnostics.terminalPredictedRawCoins || 0,
+    pendingRelevantCount: preTapEligible ? preTapPending : pendingAbove
   });
   const event = Object.freeze({ type: "start", ...nextEpisode });
   return Object.freeze({

@@ -539,6 +539,30 @@ test("moving lower chain on stable support remains freeze-flow safe", () => {
   assert.equal(plan.action, "trace");
 });
 
+test("TAP diagnostics compare pending geometry with the current Coronation ice when no trace is selected", () => {
+  const ice = makeNode("ice", 260, 430, "blue");
+  const pending = makeNode("pending", 260, 180, "red", { vy: 2 });
+  const game = makeGame([ice, pending], {
+    coronationLayers: { ice: 1 },
+    flowStates: {
+      pending: {
+        settled: false, stableSupport: true, dynamicSupport: false,
+        genuineFallSpace: false, activeInflow: false, inflowUnsafe: false
+      }
+    }
+  });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+    config: { hardBudgetMs: 1000, softBudgetMs: 1000 }
+  });
+  assert.equal(plan.action, "tap");
+  assert.equal(plan.diagnostics.selectedCandidateMeanY, null);
+  assert.equal(plan.diagnostics.coronationFrozenMeanY, 430);
+  assert.equal(plan.diagnostics.pendingGeometryAboveFrozenMeanCount, 1);
+  assert.equal(plan.diagnostics.settlingOpportunityAboveFrozenCount, 1);
+});
+
 test("Phase A keeps temporary unsafe nodes as future structural trace potential", () => {
   const safeNodes = [
     makeNode("safe-a", 80, 410, "safe"),
