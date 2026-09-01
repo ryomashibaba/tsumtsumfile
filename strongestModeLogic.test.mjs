@@ -223,6 +223,32 @@ test("Coronation Elsa recovery requires two stable physics ticks before TAP", ()
   assert.equal(stable.plan.action, "tap");
 });
 
+test("Coronation Elsa trace potential does not become stable while relevant positions keep changing", () => {
+  const firstPlan = makeOpportunityPlan({
+    action: "tap",
+    maxAdditionalTraces: 0,
+    diagnostics: { futureTraceRelevantPendingCount: 2, futureTraceRelevantMotionSignature: "a:100:200" }
+  });
+  const started = evaluateCoronationElsaSettleOpportunity({
+    plan: firstPlan, nowMs: 0, recoveryWaitMs: 50, stablePhysicsTicks: 2, cycle: { traceCount: 1 }
+  });
+  const moving = evaluateCoronationElsaSettleOpportunity({
+    plan: makeOpportunityPlan({
+      action: "tap",
+      maxAdditionalTraces: 0,
+      diagnostics: { futureTraceRelevantPendingCount: 2, futureTraceRelevantMotionSignature: "a:100:205" }
+    }),
+    episode: started.episode,
+    cycle: started.cycle,
+    nowMs: 10,
+    physicsStepCount: 1,
+    recoveryWaitMs: 50,
+    stablePhysicsTicks: 2
+  });
+  assert.equal(moving.plan.action, "wait");
+  assert.equal(moving.episode.stableTickCount, 0);
+});
+
 test("Coronation Elsa settle cycle rearms after a tap", () => {
   const first = evaluateCoronationElsaSettleOpportunity({
     plan: makeOpportunityPlan(), waveId: 1, nowMs: 0,
@@ -479,7 +505,7 @@ test("Coronation Elsa common ice-tap path taps only after confirming no legal tr
 
 const makeCoronationElsaIceTapReadinessHarness = ({ moving = true } = {}) => {
   const ice = { id: "ice", x: 150, y: 420, vx: 0, vy: 0, radius: 29, type: { id: "red" } };
-  const falling = { id: "falling", x: 155, y: 190, vx: 0, vy: moving ? 14 : 0, radius: 29, type: { id: "blue" } };
+  const falling = { id: "falling", x: 155, y: moving ? 380 : 190, vx: 0, vy: moving ? 14 : 0, radius: 29, type: { id: "blue" } };
   const nodes = [ice, falling];
   const flowStates = new Map([
     ["ice", { settled: true, stableSupport: true }],
@@ -510,7 +536,7 @@ const makeCoronationElsaIceTapReadinessHarness = ({ moving = true } = {}) => {
     elapsed: 10,
     strongestModeCoronationElsaFreezeRevision: 1,
     strongestModeCoronationElsaPhysicsStepCount: 10,
-    strongestModeCoronationElsaTemporalPositions: new Map([["falling", { x: 155, y: moving ? 175 : 190 }]]),
+    strongestModeCoronationElsaTemporalPositions: new Map([["falling", { x: 155, y: moving ? 365 : 190 }]]),
     strongestModeCoronationElsaIceTapReadinessState: null,
     coronationElsaDebug: false,
     isTsumInPlayArea: () => true,
@@ -557,7 +583,7 @@ test("Coronation Elsa ICE_TAP_READY blocks planValidated TAP after four traces w
   assert.equal(harness.strongestModeCoronationElsaIceTapReadinessState.lastResult.activeInflowCount, 1);
 });
 
-test("Coronation Elsa ICE_TAP_READY requires three distinct stable physics ticks after motion", () => {
+test("Coronation Elsa ICE_TAP_READY requires one distinct stable physics tick after motion", () => {
   const { harness, ice, falling, flowStates } = makeCoronationElsaIceTapReadinessHarness();
   const target = { type: "freeze", x: ice.x, y: ice.y, target: ice };
   const blocked = Game.prototype.evaluateStrongestModeCoronationElsaIceTapReadiness.call(harness, target);
@@ -570,18 +596,12 @@ test("Coronation Elsa ICE_TAP_READY requires three distinct stable physics ticks
   falling.vy = 0;
   flowStates.set("falling", { settled: true, stableSupport: true });
   harness.strongestModeCoronationElsaTemporalPositions = new Map([["falling", { x: falling.x, y: falling.y }]]);
-  for (const expectedTicks of [1, 2]) {
-    harness.strongestModeCoronationElsaPhysicsStepCount += 1;
-    const waiting = Game.prototype.evaluateStrongestModeCoronationElsaIceTapReadiness.call(harness, target);
-    assert.equal(waiting.ready, false);
-    assert.equal(waiting.stablePhysicsTicks, expectedTicks);
-    const duplicate = Game.prototype.evaluateStrongestModeCoronationElsaIceTapReadiness.call(harness, target);
-    assert.equal(duplicate.stablePhysicsTicks, expectedTicks);
-  }
   harness.strongestModeCoronationElsaPhysicsStepCount += 1;
   const ready = Game.prototype.evaluateStrongestModeCoronationElsaIceTapReadiness.call(harness, target);
   assert.equal(ready.ready, true);
-  assert.equal(ready.stablePhysicsTicks, 3);
+  assert.equal(ready.stablePhysicsTicks, 1);
+  const duplicate = Game.prototype.evaluateStrongestModeCoronationElsaIceTapReadiness.call(harness, target);
+  assert.equal(duplicate, ready);
 });
 
 test("Coronation Elsa ICE_TAP_READY adds no fixed wait to an initially stable board", () => {
@@ -679,7 +699,7 @@ test("Coronation Elsa planner always traces before attempting remaining ice", ()
   assert.equal(iceGuardCalled, false);
 });
 
-test("Coronation Elsa counts every committed trace from one multi-trace execution", () => {
+test("Coronation Elsa outer step does not double-count traces reported by the executor", () => {
   const chain = [{ id: 1 }, { id: 2 }, { id: 3 }];
   const harness = {
     ...makeCoronationElsaStepHarness(),
@@ -692,7 +712,7 @@ test("Coronation Elsa counts every committed trace from one multi-trace executio
     }
   };
   assert.equal(Game.prototype.performStrongestModeStep.call(harness), true);
-  assert.equal(harness.strongestModeCoronationElsaSettleOpportunityCycle.traceCount, 3);
+  assert.equal(harness.strongestModeCoronationElsaSettleOpportunityCycle.traceCount, 1);
 });
 
 test("Coronation Elsa settle opportunity WAIT performs no trace or ice tap and retries on the next frame", () => {
@@ -1011,6 +1031,7 @@ test("Coronation Elsa replans the second trace in the same step and stops after 
   firstChain.strongestModeCoronationElsaSource = "planner";
   secondChain.strongestModeCoronationElsaSource = "planner";
   const performed = [];
+  const observedTraceCounts = [];
   let replans = 0;
   const harness = {
     myTsum: { id: "coronationElsa" },
@@ -1020,6 +1041,8 @@ test("Coronation Elsa replans the second trace in the same step and stops after 
     canQueueChainDuringActiveClear: () => false,
     getActiveSkillSession: () => ({}),
     getStrongestModeCoronationElsaSkillSummary: () => null,
+    strongestModeCoronationElsaSettleOpportunityCycle: { traceCount: 0 },
+    resetStrongestModeCoronationElsaIceTapReadiness() {},
     performStrongestModeChain(chain, options) {
       performed.push(chain);
       options.result.committedLength = chain.length;
@@ -1027,6 +1050,7 @@ test("Coronation Elsa replans the second trace in the same step and stops after 
     },
     findStrongestModeChain() {
       replans += 1;
+      observedTraceCounts.push(this.strongestModeCoronationElsaSettleOpportunityCycle.traceCount);
       return secondChain;
     }
   };
@@ -1034,6 +1058,8 @@ test("Coronation Elsa replans the second trace in the same step and stops after 
   assert.equal(Game.prototype.performStrongestModeChains.call(harness, firstChain), true);
   assert.deepEqual(performed, [firstChain, secondChain]);
   assert.equal(replans, 1);
+  assert.deepEqual(observedTraceCounts, [1]);
+  assert.equal(harness.strongestModeCoronationElsaSettleOpportunityCycle.traceCount, 2);
 });
 
 const makeCoronationElsaNode = (id, x, y) => ({

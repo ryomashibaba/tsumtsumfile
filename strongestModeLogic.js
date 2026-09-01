@@ -43,6 +43,7 @@ export function evaluateCoronationElsaSettleOpportunity({
   const normalizedCycle = Object.freeze({
     readinessUsed: !!cycle?.readinessUsed,
     recoveryUsed: !!cycle?.recoveryUsed,
+    finalTraceWaitUsed: !!cycle?.finalTraceWaitUsed,
     traceCount: Math.max(0, cycle?.traceCount || 0)
   });
   const resolvedReadinessWaitMs = Number.isFinite(readinessWaitMs)
@@ -55,13 +56,15 @@ export function evaluateCoronationElsaSettleOpportunity({
   const currentRootSafeCandidateCount = Math.max(0, diagnostics.rootSafeTraceCandidateCount || 0);
   const currentMaxAdditionalTraces = Math.max(0, plan.maxAdditionalTraces || 0);
   const relevantPendingCount = Math.max(0, diagnostics.futureTraceRelevantPendingCount || 0);
+  const relevantMotionSignature = String(diagnostics.futureTraceRelevantMotionSignature || "");
 
   if (episode) {
     const elapsedMs = Math.max(0, nowMs - episode.startedAtMs);
     const advancedPhysics = physicsStepCount > episode.lastPhysicsStepCount;
     const potentialStable = advancedPhysics && (
       currentMaxAdditionalTraces === episode.lastMaxAdditionalTraces &&
-      relevantPendingCount === episode.lastRelevantPendingCount
+      relevantPendingCount === episode.lastRelevantPendingCount &&
+      relevantMotionSignature === episode.lastRelevantMotionSignature
     );
     const stableTickCount = potentialStable ? episode.stableTickCount + 1 : 0;
     let releaseReason = null;
@@ -77,7 +80,7 @@ export function evaluateCoronationElsaSettleOpportunity({
     if (!releaseReason) {
       return Object.freeze({
         plan: buildOpportunityWaitPlan(plan, episode, elapsedMs, normalizedCycle),
-        episode: Object.freeze({ ...episode, stableTickCount, lastPhysicsStepCount: physicsStepCount, lastMaxAdditionalTraces: currentMaxAdditionalTraces, lastRelevantPendingCount: relevantPendingCount }),
+        episode: Object.freeze({ ...episode, stableTickCount, lastPhysicsStepCount: physicsStepCount, lastMaxAdditionalTraces: currentMaxAdditionalTraces, lastRelevantPendingCount: relevantPendingCount, lastRelevantMotionSignature: relevantMotionSignature }),
         consumedWaveId,
         cycle: normalizedCycle,
         event: null,
@@ -119,7 +122,7 @@ export function evaluateCoronationElsaSettleOpportunity({
     && !normalizedCycle.recoveryUsed
     && relevantPendingCount > 0
     && recoveryWaitMs > 0
-    && (plan.action === "tap" || currentMaxAdditionalTraces <= 2)
+    && plan.action === "tap"
   );
   if (!readinessEligible && !recoveryEligible) {
     return Object.freeze({ plan, episode: null, consumedWaveId, cycle: normalizedCycle, event: null, suppressedSameWave: false });
@@ -139,7 +142,8 @@ export function evaluateCoronationElsaSettleOpportunity({
     stableTickCount: 0,
     lastPhysicsStepCount: physicsStepCount,
     lastMaxAdditionalTraces: currentMaxAdditionalTraces,
-    lastRelevantPendingCount: relevantPendingCount
+    lastRelevantPendingCount: relevantPendingCount,
+    lastRelevantMotionSignature: relevantMotionSignature
   });
   const event = Object.freeze({ type: "start", ...nextEpisode });
   return Object.freeze({

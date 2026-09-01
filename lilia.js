@@ -23,7 +23,8 @@ export const LILIA_TUNING = Object.freeze({
   // TODO LILIA_VERIFY: Exact flight motion, radii and boundary behavior are not known.
   batSpeed: 315,
   batTurnRate: 0.75,
-  batLineRadius: 34,
+  batLineRadius: 68,
+  batBoundaryEdgeOffset: 10,
   liliaAuraRadius: 58,
   boundaryPadding: 24,
   // TODO LILIA_VERIFY: Confirm whether newly spawned matching sub-tsums transform immediately.
@@ -133,8 +134,10 @@ export class LiliaBatFlightController {
       return;
     }
     this.holdTime += dt;
-    const radiusX = Math.max(1, FIELD_RADIUS_X - this.tuning.boundaryPadding - TSUM_RADIUS * 0.45);
-    const radiusY = Math.max(1, FIELD_RADIUS_Y - this.tuning.boundaryPadding - TSUM_RADIUS * 0.45);
+    const edgeOffset = Math.max(0, this.tuning.batBoundaryEdgeOffset || 0);
+    const radiusX = Math.max(1, FIELD_RADIUS_X - this.tuning.boundaryPadding - TSUM_RADIUS * 0.45 + edgeOffset);
+    const radiusY = Math.max(1, FIELD_RADIUS_Y - this.tuning.boundaryPadding - TSUM_RADIUS * 0.45 + edgeOffset * 0.5);
+    const centerY = FIELD_CENTER_Y + edgeOffset * 0.5;
     for (const bat of this.flying) {
       const turn = Math.sin(this.holdTime * 1.7 + bat.turnPhase) * this.tuning.batTurnRate * dt;
       const cos = Math.cos(turn);
@@ -148,7 +151,7 @@ export class LiliaBatFlightController {
       bat.y += bat.vy * dt;
 
       const nx = (bat.x - FIELD_CENTER_X) / radiusX;
-      const ny = (bat.y - FIELD_CENTER_Y) / radiusY;
+      const ny = (bat.y - centerY) / radiusY;
       if (nx * nx + ny * ny > 1) {
         const normalX = nx / radiusX;
         const normalY = ny / radiusY;
@@ -160,7 +163,7 @@ export class LiliaBatFlightController {
         bat.vy -= 2 * dot * uy;
         const scale = 0.995 / Math.sqrt(nx * nx + ny * ny);
         bat.x = FIELD_CENTER_X + (bat.x - FIELD_CENTER_X) * scale;
-        bat.y = FIELD_CENTER_Y + (bat.y - FIELD_CENTER_Y) * scale;
+        bat.y = centerY + (bat.y - centerY) * scale;
       }
     }
   }

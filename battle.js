@@ -1,29 +1,12 @@
 import { STORAGE_KEY } from "./config.js?v=tsum-images-5";
 
 export const BATTLE_STORAGE_KEY = `${STORAGE_KEY}_cpu_battle_v1`;
+export const CPU_BATTLE_MODE = "strongest";
 
 export const DIFFICULTY_PROFILES = Object.freeze({
-  easy: Object.freeze({
-    id: "easy",
-    label: "Easy",
-    strategy: "fastClear",
-    actionInterval: 1.2,
-    chainStepDelay: 0.14,
-    chainFinishDelay: 0.25,
-    winBonus: 1000
-  }),
-  normal: Object.freeze({
-    id: "normal",
-    label: "Normal",
-    strategy: "longestChain",
-    actionInterval: 0.75,
-    chainStepDelay: 0.1,
-    chainFinishDelay: 0.2,
-    winBonus: 5000
-  }),
-  hard: Object.freeze({
-    id: "hard",
-    label: "Hard",
+  [CPU_BATTLE_MODE]: Object.freeze({
+    id: CPU_BATTLE_MODE,
+    label: "Strongest",
     strategy: "skillFirst",
     actionInterval: 0.4,
     chainStepDelay: 0.06,
@@ -35,18 +18,16 @@ export const DIFFICULTY_PROFILES = Object.freeze({
 export function createDefaultBattleRecords() {
   const empty = () => ({ wins: 0, losses: 0, draws: 0, streak: 0, recent: [] });
   return {
-    version: 1,
-    selectedDifficulty: "normal",
+    version: 2,
+    selectedDifficulty: CPU_BATTLE_MODE,
     byDifficulty: {
-      easy: empty(),
-      normal: empty(),
-      hard: empty()
+      [CPU_BATTLE_MODE]: empty()
     }
   };
 }
 
 export function normalizeDifficulty(value) {
-  return DIFFICULTY_PROFILES[value] ? value : "normal";
+  return CPU_BATTLE_MODE;
 }
 
 export function calculateAdaptiveMultiplier(recent = []) {
@@ -132,7 +113,8 @@ export class BattleController {
         return fallback;
       }
       for (const id of Object.keys(DIFFICULTY_PROFILES)) {
-        const source = parsed.byDifficulty?.[id] || {};
+        // Preserve the old "hard" battle history when migrating to one fixed opponent.
+        const source = parsed.byDifficulty?.[id] || parsed.byDifficulty?.hard || {};
         fallback.byDifficulty[id] = {
           wins: Math.max(0, Number(source.wins) || 0),
           losses: Math.max(0, Number(source.losses) || 0),
@@ -172,19 +154,6 @@ export class BattleController {
     this.updateArena();
   }
 
-  setDifficulty(difficulty) {
-    if (this.active) {
-      return;
-    }
-    this.difficulty = normalizeDifficulty(difficulty);
-    this.player.battleDifficulty = this.difficulty;
-    if (this.cpu) {
-      this.cpu.battleDifficulty = this.difficulty;
-    }
-    this.records.selectedDifficulty = this.difficulty;
-    this.saveRecords();
-  }
-
   updateArena() {
     const battleVisible = this.mode === "battle" || this.active || !!this.player.battleStats;
     this.arena.dataset.mode = battleVisible ? "battle" : "solo";
@@ -218,9 +187,9 @@ export class BattleController {
 
   getDifficultyRuntime() {
     const profile = DIFFICULTY_PROFILES[this.difficulty];
-    const recent = this.records.byDifficulty[this.difficulty].recent;
-    const adaptiveMultiplier = calculateAdaptiveMultiplier(recent);
-    return { profile, adaptiveMultiplier };
+    // A CPU battle is always the fixed strongest opponent; past results never
+    // weaken or accelerate it.
+    return { profile, adaptiveMultiplier: 1 };
   }
 
   startBattle() {
@@ -240,11 +209,12 @@ export class BattleController {
     this.cpu.currentSkillLevel = this.player.selectedSkillLevel;
     this.cpu.itemSelection = { ...this.player.itemSelection };
     this.cpu.myTsum = this.player.myTsum;
-    this.cpu.aiAutoPlay = true;
+    this.cpu.aiAutoPlay = false;
     this.cpu.aiLearningMode = false;
     this.cpu.aiLearningAutoRepeat = false;
     this.cpu.aiTrainingMode = false;
-    this.cpu.strongestModeEnabled = false;
+    this.cpu.disableAiModesForStrongestMode?.();
+    this.cpu.strongestModeEnabled = true;
     this.cpu.aiCurrentStrategy = profile.strategy;
     this.cpu.aiAutoPlayInterval = profile.actionInterval * adaptiveMultiplier;
     this.cpu.aiChainStepDelay = profile.chainStepDelay * adaptiveMultiplier;

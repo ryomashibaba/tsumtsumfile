@@ -39,7 +39,7 @@ export const CORONATION_ELSA_PLANNER_CONFIG = Object.freeze({
   boardTraceReadinessWaitMaxMs: 100,
   traceRecoveryWaitMaxMs: 50,
   tracePotentialStablePhysicsTicks: 2,
-  iceTapStablePhysicsTicks: 3,
+  iceTapStablePhysicsTicks: 1,
   opportunityCycleWaitBudgetMs: 100,
   opportunityMinPendingAboveSelection: 1,
   opportunitySufficientTraceCount: 4,
@@ -353,6 +353,21 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
     .filter((node) => node.futureTracePendingCandidate && (traceEligibleTypeCounts.get(node.resolvedTypeId) || 0) >= 3)
     .map((node) => node.index);
   for (const index of futureTraceRelevantNodeIndices) futureTraceRelevantPendingMask |= bitForIndex(index);
+  const futureTraceRelevantMotionSignature = futureTraceRelevantNodeIndices
+    .map((index) => {
+      const node = nodes[index];
+      return [
+        String(node.id),
+        node.x.toFixed(2),
+        node.y.toFixed(2),
+        node.vx.toFixed(2),
+        node.vy.toFixed(2),
+        node.positionDelta.toFixed(2),
+        node.settled ? 1 : 0
+      ].join(":");
+    })
+    .sort()
+    .join("\u001f");
   const freezeLayerCounts = freezeArray(nodes.map((node) => node.coronationFreezeLayerCount));
   const initialState = Object.freeze({
     frozenMask: coronationFrozenMask,
@@ -400,6 +415,7 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
       pendingGeometryNodeCount: popcountMask(activeInflowMask | settlingOpportunityMask),
       stableSupportButUnsettledCount: popcountMask(settlingOpportunityMask),
       futureTraceRelevantPendingCount: popcountMask(futureTraceRelevantPendingMask),
+      futureTraceRelevantMotionSignature,
       lowerPlayableNodeCount: Number.isFinite(flowContext?.lowerPlayableNodeCount)
         ? flowContext.lowerPlayableNodeCount
         : 0
@@ -1001,18 +1017,6 @@ export function evaluateCoronationElsaIceTapReadiness(
   }
 
   const componentNodes = component.componentIndices.map((index) => snapshot.nodes[index]).filter(Boolean);
-  const frozenMinY = componentNodes.length
-    ? Math.min(...componentNodes.map((node) => node.y))
-    : null;
-  const frozenMeanY = componentNodes.length
-    ? componentNodes.reduce((sum, node) => sum + node.y, 0) / componentNodes.length
-    : null;
-  const frozenRegionThresholdY = Number.isFinite(frozenMinY)
-    ? frozenMinY + TSUM_RADIUS * 0.25
-    : null;
-  const frozenMeanThresholdY = Number.isFinite(frozenMeanY)
-    ? frozenMeanY - TSUM_RADIUS * 0.25
-    : null;
   const relevantUnstableNodes = [];
   let pendingGeometryCount = 0;
   let activeInflowCount = 0;
@@ -1025,16 +1029,15 @@ export function evaluateCoronationElsaIceTapReadiness(
 
   for (const node of snapshot.nodes) {
     if (!node.baseTraceEligible || node.anyFrozen) continue;
-    const aboveFrozenRegion = !!(
-      (Number.isFinite(frozenRegionThresholdY) && node.y < frozenRegionThresholdY) ||
-      (Number.isFinite(frozenMeanThresholdY) && node.y < frozenMeanThresholdY)
-    );
-    const aroundFrozenComponent = componentNodes.some((frozenNode) => (
-      distanceBetween(node, frozenNode) <= (
-        node.effectiveRadius + frozenNode.effectiveRadius + TSUM_RADIUS
-      )
-    ));
-    if (!aboveFrozenRegion && !aroundFrozenComponent) continue;
+    const predictedPositions = [0, 1, 2].map((ticks) => ({
+      x: node.x + node.vx * ticks,
+      y: node.y + node.vy * ticks
+    }));
+    const aroundFrozenComponent = componentNodes.some((frozenNode) => {
+      const splashDistance = node.effectiveRadius + frozenNode.effectiveRadius + TSUM_RADIUS * 0.02;
+      return predictedPositions.some((position) => distanceBetween(position, frozenNode) <= splashDistance);
+    });
+    if (!aroundFrozenComponent) continue;
 
     const pendingGeometry = !!(node.activeInflow || node.settlingOpportunity);
     const positionChanged = (Number(node.positionDelta) || 0) > 0.75;
@@ -1055,7 +1058,6 @@ export function evaluateCoronationElsaIceTapReadiness(
     if (!physicallyUnstable) continue;
 
     relevantUnstableNodes.push(node);
-    if (aboveFrozenRegion) aboveFrozenRegionCount += 1;
     if (aroundFrozenComponent) aroundFrozenComponentCount += 1;
   }
 
@@ -1091,6 +1093,60 @@ export function evaluateCoronationElsaIceTapReadiness(
     unsettledCount,
     aboveFrozenRegionCount,
     aroundFrozenComponentCount
+  });
+}
+
+/**
+ * Identifies motion that can materially change the freeze made by a likely
+ * final trace or the immediately following tap. This is advisory only: the
+ * caller waits one physics step and replans from a fresh snapshot.
+ */
+export function evaluateCoronationElsaFinalTraceSettleRisk(snapshot, state, chainIndices) {
+  if (!snapshot || !Array.isArray(snapshot.nodes) || !Array.isArray(chainIndices)) {
+    throw new TypeError("A Coronation Elsa snapshot and chain indices are required");
+  }
+  const transition = simulateCoronationElsaFreeze(snapshot, state, chainIndices);
+  const normalizedState = normalizeState(snapshot, state);
+  const newlyFrozenIndices = transition.targetIndices.filter((index) => !maskHasIndex(normalizedState.frozenMask, index));
+  const newlyFrozenSet = new Set(newlyFrozenIndices);
+  const nextState = Object.freeze({
+    frozenMask: transition.nextFrozenMask,
+    freezeLayerCounts: transition.nextFreezeLayerCounts
+  });
+  const tapEvaluation = evaluateCoronationElsaTapComponents(snapshot, nextState);
+  const component = tapEvaluation.components.find((entry) => (
+    entry.componentIndices.some((index) => newlyFrozenSet.has(index))
+  )) || null;
+  const componentNodes = component
+    ? component.componentIndices.map((index) => snapshot.nodes[index]).filter(Boolean)
+    : newlyFrozenIndices.map((index) => snapshot.nodes[index]).filter(Boolean);
+  const related = [];
+  for (const node of snapshot.nodes) {
+    if (!node.baseTraceEligible || node.settled) continue;
+    const isNewlyFrozen = newlyFrozenSet.has(node.index);
+    const predictedPositions = [0, 1, 2].map((ticks) => ({
+      x: node.x + node.vx * ticks,
+      y: node.y + node.vy * ticks
+    }));
+    const canAffectTap = componentNodes.some((frozenNode) => {
+      const splashDistance = node.effectiveRadius + frozenNode.effectiveRadius + TSUM_RADIUS * 0.02;
+      return predictedPositions.some((position) => distanceBetween(position, frozenNode) <= splashDistance);
+    });
+    if (!isNewlyFrozen && !canAffectTap) continue;
+    if (!(
+      node.recentSpawn || node.meaningfulMotion || node.positionDelta > 0.75 ||
+      node.dynamicSupport || node.genuineFallSpace || !node.settled
+    )) continue;
+    related.push(node);
+  }
+  const freezeTargetCount = newlyFrozenIndices.length;
+  return Object.freeze({
+    shouldWait: related.length > 0,
+    freezeTargetCount,
+    relatedUnsettledCount: related.length,
+    maxVelocity: related.reduce((max, node) => Math.max(max, Math.hypot(node.vx, node.vy)), 0),
+    maxPositionDelta: related.reduce((max, node) => Math.max(max, node.positionDelta || 0), 0),
+    relatedNodeIds: freezeArray(related.map((node) => node.id))
   });
 }
 
@@ -1496,6 +1552,7 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
         settlingOpportunityNodeCount: snapshot.flowDiagnostics?.settlingOpportunityNodeCount || 0,
         pendingGeometryNodeCount: snapshot.flowDiagnostics?.pendingGeometryNodeCount || 0,
         futureTraceRelevantPendingCount: snapshot.flowDiagnostics?.futureTraceRelevantPendingCount || 0,
+        futureTraceRelevantMotionSignature: snapshot.flowDiagnostics?.futureTraceRelevantMotionSignature || "",
         coronationFrozenNodeCount: popcountMask(snapshot.coronationFrozenMask || 0n),
         coronationFrozenMinY: coronationFrozenY.minY,
         coronationFrozenMaxY: coronationFrozenY.maxY,

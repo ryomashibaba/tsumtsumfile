@@ -107,6 +107,21 @@ test("default Lilia BAT flight speed is increased 1.5x to 315", () => {
   assert.ok(Math.abs(Math.hypot(bat.vx, bat.vy) - 315) < 1e-9);
 });
 
+test("all Lilia BAT clear paths use the doubled default line thickness", () => {
+  assert.equal(LILIA_TUNING.batLineRadius, 68);
+  const board = [node("near", "x", 50, 60), node("far", "x", 50, 70)];
+  const batPositions = [{ tsumId: "b1", x: 0, y: 0 }, { tsumId: "b2", x: 100, y: 0 }];
+  assert.deepEqual([...resolveLiliaChain({
+    batPositions,
+    chainedLilia: [],
+    boardTsums: board
+  }).lineClearIds], ["near"]);
+  assert.deepEqual([...resolveBatChain({
+    batPositions,
+    boardTsums: board
+  }).lineClearIds], ["near"]);
+});
+
 test("BAT chain flies the selected BATs themselves in chain order", () => {
   const bats = [node("b1", "subA", 100, 300), node("b2", "subA", 140, 300), node("b3", "subA", 180, 300)];
   const controller = new LiliaSkillController("subA");
@@ -189,6 +204,23 @@ test("flight reflects within the configured elliptical field boundary", () => {
   assert.ok(normalized <= 1.001);
 });
 
+test("flight boundary moves 10px toward the left, right, and bottom edges while top stays fixed", () => {
+  const flight = new LiliaBatFlightController(LILIA_TUNING);
+  const baseRadiusX = 207 - LILIA_TUNING.boundaryPadding - 29 * 0.45;
+  const baseRadiusY = 220 - LILIA_TUNING.boundaryPadding - 29 * 0.45;
+  const centerY = 360 + 5;
+  assert.equal(207 - (baseRadiusX + 10), 207 - baseRadiusX - 10);
+  assert.equal(centerY - (baseRadiusY + 5), 360 - baseRadiusY);
+  assert.equal(centerY + (baseRadiusY + 5), 360 + baseRadiusY + 10);
+  flight.sync([node("edge-bat", "subA", 380, 360)]);
+  for (let index = 0; index < 200; index += 1) {
+    flight.update(0.05);
+  }
+  const bat = flight.snapshot()[0];
+  const normalized = ((bat.x - 207) / (baseRadiusX + 10)) ** 2 + ((bat.y - centerY) / (baseRadiusY + 5)) ** 2;
+  assert.ok(normalized <= 1.001);
+});
+
 test("registered skill advances flight without pausing game time and passes clear integration options", () => {
   const registry = {};
   registerLiliaSkill({
@@ -238,6 +270,69 @@ test("registered skill advances flight without pausing game time and passes clea
   assert.equal(clearCalls[0].allowBomb, true);
   assert.equal(clearCalls[0].targets.some((target) => target.isBomb), false);
   assert.equal(clearCalls[0].targets.some((target) => target.id.startsWith("lilia-flight:")), false);
+});
+
+test("Lilia skill chain hooks prepare BAT drawing and clearing for strongest-mode execution", () => {
+  const registry = {};
+  registerLiliaSkill({
+    SkillRegistry: registry,
+    skillValue: (_id, key, level) => SKILL_TABLES.liliaVanrouge[key][level - 1]
+  });
+  const lilias = [
+    node("l1", "liliaVanrouge", 100, 300),
+    node("l2", "liliaVanrouge", 130, 300),
+    node("l3", "liliaVanrouge", 160, 300)
+  ];
+  const bats = [
+    node("b1", "subA", 90, 320),
+    node("b2", "subA", 150, 320),
+    node("b3", "subA", 210, 320)
+  ];
+  const clearCalls = [];
+  const game = {
+    tsums: [...lilias, ...bats],
+    availableTypes: [{ id: "liliaVanrouge" }, { id: "subA" }],
+    chain: [],
+    dragging: false,
+    isMyTsumTypeId: (id) => id === "liliaVanrouge",
+    pushCenterMessage() {},
+    findTsumAt(x, y) {
+      return this.tsums.find((entry) => entry.x === x && entry.y === y) || null;
+    },
+    startChain(start) {
+      this.dragging = true;
+      this.chain = [start];
+    },
+    extendChain(pos) {
+      const next = this.findTsumAt(pos.x, pos.y);
+      if (next && !this.chain.includes(next)) {
+        next.inChain = true;
+        this.chain.push(next);
+      }
+    },
+    finishChain() {}
+  };
+  let session;
+  const ctx = {
+    level: 1,
+    game,
+    clear: { beginClear: (spec) => (clearCalls.push(spec), true) },
+    createSession(spec) {
+      session = { id: "lilia-strongest-1", handlerId: "liliaVanrouge", level: 1, ...spec };
+      return session;
+    }
+  };
+  const handler = registry.liliaVanrouge;
+  handler.onActivate(ctx);
+  assert.equal(handler.onChainStart(ctx, session, { x: 100, y: 300 }), true);
+  assert.equal(handler.onDrag(ctx, session, { x: 130, y: 300 }), true);
+  assert.equal(handler.onDrag(ctx, session, { x: 160, y: 300 }), true);
+  assert.equal(session.data.controller.flight.snapshot().length, 3);
+  session.data.controller.snapshotRelease();
+
+  handler.onChainCommit(ctx, session, game.chain);
+  assert.equal(clearCalls.length, 1);
+  assert.deepEqual(clearCalls[0].targets.map((target) => target.id).filter((id) => id.startsWith("b")), ["b1", "b2", "b3"]);
 });
 
 test("different hold durations can produce different geometric clear sets", () => {

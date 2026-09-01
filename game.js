@@ -57,7 +57,7 @@ import {
   drawLiliaBat,
   isLiliaBatNode,
   registerLiliaSkill
-} from './lilia.js?v=tsum-images-7';
+} from './lilia.js?v=tsum-images-8';
 import { drawTsumArtwork } from './tsumImages.js?v=tsum-images-5';
 import { areBoardTypesColorCompatible } from './boardTypeSelection.js?v=tsum-images-5';
 import {
@@ -86,6 +86,7 @@ import {
   CORONATION_ELSA_PLANNER_CONFIG,
   buildCoronationElsaPlannerAdjacency,
   buildCoronationElsaPlannerSnapshot,
+  evaluateCoronationElsaFinalTraceSettleRisk,
   evaluateCoronationElsaIceTapReadiness,
   evaluateCoronationElsaTapComponents,
   evaluateCoronationElsaFreezeTransitionSafety,
@@ -93,7 +94,7 @@ import {
   profileCoronationElsaPlanner,
   solveCoronationElsaStrongestModePlan,
   simulateCoronationElsaFreeze
-} from './coronationElsaPlanner.js?v=coronation-elsa-ice-tap-ready-1';
+} from './coronationElsaPlanner.js?v=coronation-elsa-final-trace-settle-2';
 import {
   STRONGEST_MODE_CORONATION_ELSA_BOARD_TRACE_READINESS_WAIT_REASON,
   STRONGEST_MODE_CORONATION_ELSA_PRE_TAP_SETTLE_WAIT_REASON,
@@ -102,7 +103,7 @@ import {
   evaluateCoronationElsaSettleOpportunity,
   shouldTapStrongestModeCoronationElsaCompletedIce,
   shouldUseStrongestModeFeverBombCancel
-} from './strongestModeLogic.js?v=strongest-mode-coronation-ice-1';
+} from './strongestModeLogic.js?v=coronation-elsa-final-trace-settle-2';
 
 const TITLE_TSUMS_PER_PAGE = 10;
 const JUDY_NICK_MOVING_FREEZE_KIND = "judyNickMovingIce";
@@ -2496,7 +2497,7 @@ class Game {
     this.battleContext = null;
     this.battleStats = null;
     this.gameMode = "solo";
-    this.battleDifficulty = "normal";
+    this.battleDifficulty = "strongest";
     this.runFinished = false;
     this.width = WIDTH;
     this.height = HEIGHT;
@@ -4819,15 +4820,6 @@ class Game {
       this.battleController?.setMode("battle");
       return;
     }
-    if (this.gameMode === "battle") {
-      const difficultyRects = this.getDifficultyRects();
-      for (const difficulty of ["easy", "normal", "hard"]) {
-        if (rectContains(difficultyRects[difficulty], pos.x, pos.y)) {
-          this.battleController?.setDifficulty(difficulty);
-          return;
-        }
-      }
-    }
     const selectable = this.getTitleCharacterPageTypes();
     const charRects = this.getTitleCharacterRects();
     for (let i = 0; i < charRects.length; i += 1) {
@@ -4986,14 +4978,6 @@ class Game {
     return {
       solo: { x: 48, y: 478, w: 150, h: 34 },
       battle: { x: 216, y: 478, w: 150, h: 34 }
-    };
-  }
-
-  getDifficultyRects() {
-    return {
-      easy: { x: 48, y: 518, w: 96, h: 30 },
-      normal: { x: 159, y: 518, w: 96, h: 30 },
-      hard: { x: 270, y: 518, w: 96, h: 30 }
     };
   }
 
@@ -5838,15 +5822,72 @@ class Game {
     this.strongestModeCoronationElsaOpportunitySuppressionRecordedWaveId = null;
     this.strongestModeCoronationElsaOpportunityPerfBaseline = null;
     this.strongestModeCoronationElsaTemporalPositions = new Map();
+    this.strongestModeCoronationElsaFinalTraceWait = null;
     this.strongestModeCoronationElsaSettleOpportunityCycle = Object.freeze({
       readinessUsed: false,
       recoveryUsed: false,
+      finalTraceWaitUsed: false,
       traceCount: 0
     });
   }
 
   resetStrongestModeCoronationElsaIceTapReadiness() {
     this.strongestModeCoronationElsaIceTapReadinessState = null;
+    this.strongestModeCoronationElsaIceTapReadinessCache = null;
+  }
+
+  shouldWaitForStrongestModeCoronationElsaFinalTrace(chain) {
+    const plan = chain?.strongestModeCoronationElsaPlan || null;
+    const committedTraceCount = this.strongestModeCoronationElsaSettleOpportunityCycle?.traceCount || 0;
+    const finalTraceThreshold = Math.max(1, (this.strongestModeCoronationElsaMinimumTraceCount || 4) - 1);
+    if (
+      !plan || plan.action !== "trace" || committedTraceCount < finalTraceThreshold ||
+      this.strongestModeCoronationElsaSettleOpportunityCycle?.finalTraceWaitUsed ||
+      Math.max(0, plan.maxAdditionalTraces || 0) > 1
+    ) {
+      this.strongestModeCoronationElsaFinalTraceWait = null;
+      return false;
+    }
+    const token = chain.strongestModeCoronationElsaValidationToken || null;
+    const context = token?.context;
+    if (!context?.snapshot || !this.isCoronationElsaPlannerRevisionCurrent(token.revision)) return false;
+    const chainIndices = chain.map((node) => getCoronationElsaPlannerNodeIndex(context.snapshot, node.id));
+    if (chainIndices.some((index) => index < 0)) return false;
+    const risk = evaluateCoronationElsaFinalTraceSettleRisk(context.snapshot, context.initialState, chainIndices);
+    const physicsStepCount = this.strongestModeCoronationElsaPhysicsStepCount || 0;
+    const signature = `${token.revision.freezeRevision}:${plan.chainIds.join(",")}`;
+    const pending = this.strongestModeCoronationElsaFinalTraceWait;
+    if (pending) {
+      if (physicsStepCount <= pending.startedPhysicsStepCount) return true;
+      const summary = this.getStrongestModeCoronationElsaSkillSummary?.();
+      if (summary) {
+        summary.finalTracePreWaitTotalMs += Math.max(0, ((this.elapsed || 0) * 1000) - pending.startedAtMs);
+        summary.finalTracePreWaitPhysicsTicks += Math.max(0, physicsStepCount - pending.startedPhysicsStepCount);
+        summary.finalTracePreWaitFreezeTargetGain += risk.freezeTargetCount - pending.freezeTargetCount;
+      }
+      this.strongestModeCoronationElsaFinalTraceWait = null;
+      return false;
+    }
+    if (!risk.shouldWait) return false;
+    this.strongestModeCoronationElsaFinalTraceWait = Object.freeze({
+      signature,
+      startedPhysicsStepCount: physicsStepCount,
+      startedAtMs: Math.max(0, this.elapsed || 0) * 1000,
+      freezeTargetCount: risk.freezeTargetCount
+    });
+    this.strongestModeCoronationElsaSettleOpportunityCycle = Object.freeze({
+      ...this.strongestModeCoronationElsaSettleOpportunityCycle,
+      finalTraceWaitUsed: true
+    });
+    this.strongestModeStepTimer = this.strongestModeStepInterval;
+    const summary = this.getStrongestModeCoronationElsaSkillSummary?.();
+    if (summary) {
+      summary.finalTracePreWaitCount += 1;
+      summary.finalTraceRelatedUnsettledCount = risk.relatedUnsettledCount;
+      summary.finalTraceMaxVelocity = risk.maxVelocity;
+      summary.finalTraceMaxPositionDelta = risk.maxPositionDelta;
+    }
+    return true;
   }
 
   evaluateStrongestModeCoronationElsaIceTapReadiness(specialTarget) {
@@ -5875,15 +5916,19 @@ class Game {
       return result;
     }
 
+    const sessionId = this.getActiveSkillSession?.("coronationElsa")?.id || "no-session";
+    const physicsStepCount = this.strongestModeCoronationElsaPhysicsStepCount || 0;
+    const cacheKey = `${sessionId}:${physicsStepCount}:${this.strongestModeCoronationElsaFreezeRevision || 0}:${String(target.id)}`;
+    if (this.strongestModeCoronationElsaIceTapReadinessCache?.key === cacheKey) {
+      return this.strongestModeCoronationElsaIceTapReadinessCache.result;
+    }
     const flowContext = this.getStrongestModeCoronationElsaFlowSafetyContext();
     const snapshot = buildCoronationElsaPlannerSnapshot(this, this.selectedSkillLevel, {
       flowContext,
       temporalPositions: this.strongestModeCoronationElsaTemporalPositions
     });
     const physical = evaluateCoronationElsaIceTapReadiness(snapshot, target.id, snapshot.initialState);
-    const sessionId = this.getActiveSkillSession?.("coronationElsa")?.id || "no-session";
     const key = `${sessionId}:${this.strongestModeCoronationElsaFreezeRevision || 0}:${physical.componentSignature}`;
-    const physicsStepCount = this.strongestModeCoronationElsaPhysicsStepCount || 0;
     const requiredStablePhysicsTicks = CORONATION_ELSA_PLANNER_CONFIG.iceTapStablePhysicsTicks;
     const previous = this.strongestModeCoronationElsaIceTapReadinessState?.key === key
       ? this.strongestModeCoronationElsaIceTapReadinessState
@@ -5942,6 +5987,7 @@ class Game {
       lastStableTapImpactSignature,
       lastResult: result
     });
+    this.strongestModeCoronationElsaIceTapReadinessCache = Object.freeze({ key: cacheKey, result });
     const summary = this.getStrongestModeCoronationElsaSkillSummary?.();
     if (summary) {
       summary.iceTapReady = ready;
@@ -5957,6 +6003,10 @@ class Game {
       summary.iceTapPositionDeltaCount = physical.positionDeltaCount;
       summary.iceTapComponentNodeCount = physical.componentNodeCount;
       summary.iceTapImpactNodeCount = physical.tapImpactNodeCount;
+      if (ready && summary.iceTapReadyPhysicsStepCount == null) {
+        summary.iceTapReadyPhysicsStepCount = physicsStepCount;
+        summary.iceTapReadyElapsedSec = Math.max(0, this.elapsed || 0);
+      }
     }
     if (!ready && this.coronationElsaDebug) {
       this.logCodexCoronationPayload("[CODEXLOG CORONATION ICE TAP WAIT]", result);
@@ -6388,11 +6438,13 @@ class Game {
             if (allowReplan) return executeDecision(this.planStrongestModeCoronationElsaAction(), false);
             return false;
           }
+          if (this.shouldWaitForStrongestModeCoronationElsaFinalTrace?.(decision.chain)) return false;
+          const traceCountBefore = this.strongestModeCoronationElsaSettleOpportunityCycle?.traceCount || 0;
           const traceStats = { performedLengths: [] };
           const chained = this.performStrongestModeChains(decision.chain, { stats: traceStats });
           const cycle = this.strongestModeCoronationElsaSettleOpportunityCycle;
           const summary = this.getStrongestModeCoronationElsaSkillSummary?.();
-          if (chained && summary && cycle?.traceCount === 0 && !summary.firstTraceBoardReadiness) {
+          if (chained && summary && traceCountBefore === 0 && !summary.firstTraceBoardReadiness) {
             const diagnostics = decision.plan?.diagnostics || {};
             summary.firstTraceBoardReadiness = Object.freeze({
               playableNodeCount: Math.max(0, diagnostics.playableNodeCount || 0),
@@ -6402,13 +6454,6 @@ class Game {
               upperHalfPendingNodeCount: Math.max(0, diagnostics.upperHalfPendingNodeCount || 0),
               lowerHalfSettledNodeCount: Math.max(0, diagnostics.lowerHalfSettledNodeCount || 0),
               lowerHalfPendingNodeCount: Math.max(0, diagnostics.lowerHalfPendingNodeCount || 0)
-            });
-          }
-          if (chained && this.strongestModeCoronationElsaSettleOpportunityCycle) {
-            this.resetStrongestModeCoronationElsaIceTapReadiness?.();
-            this.strongestModeCoronationElsaSettleOpportunityCycle = Object.freeze({
-              ...this.strongestModeCoronationElsaSettleOpportunityCycle,
-              traceCount: this.strongestModeCoronationElsaSettleOpportunityCycle.traceCount + traceStats.performedLengths.length
             });
           }
           if (!chained && allowReplan && !this.isStrongestModeBusy()) {
@@ -7856,6 +7901,16 @@ class Game {
       summary.tapPendingGeometryCount = Math.max(0, this.strongestModeCoronationElsaSettleOpportunityCycle?.pendingGeometryNodeCount || 0);
       summary.tapFutureTraceRelevantPendingCount = Math.max(0, this.strongestModeCoronationElsaSettleOpportunityCycle?.futureTraceRelevantPendingCount || 0);
       summary.tracesBeforeTap = Math.max(0, this.strongestModeCoronationElsaSettleOpportunityCycle?.traceCount || 0);
+      const physicsStepCount = this.strongestModeCoronationElsaPhysicsStepCount || 0;
+      summary.finalTraceCommitToTapPhysicsTicks = summary.finalTraceCommitPhysicsStepCount == null
+        ? null
+        : Math.max(0, physicsStepCount - summary.finalTraceCommitPhysicsStepCount);
+      summary.finalTraceCommitToTapMs = summary.finalTraceCommitElapsedSec == null
+        ? null
+        : Math.max(0, ((this.elapsed || 0) - summary.finalTraceCommitElapsedSec) * 1000);
+      summary.iceTapReadyToTapPhysicsTicks = summary.iceTapReadyPhysicsStepCount == null
+        ? null
+        : Math.max(0, physicsStepCount - summary.iceTapReadyPhysicsStepCount);
     }
     this.strongestModeCoronationElsaNoChainFrames = 0;
     this.strongestModeCoronationElsaNoTraceDurationSec = 0;
@@ -8033,6 +8088,7 @@ class Game {
     }
     this.strongestModeCoronationElsaSkillSummary = {
       sessionId,
+      skillStartedElapsedSec: Math.max(0, this.elapsed || 0),
       chainCount: 0,
       totalChainLength: 0,
       maxChainLength: 0,
@@ -8167,6 +8223,20 @@ class Game {
       waitBudgetRemainingMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityCycleWaitBudgetMs,
       tapPendingGeometryCount: 0,
       tracesBeforeTap: 0,
+      finalTracePreWaitCount: 0,
+      finalTracePreWaitTotalMs: 0,
+      finalTracePreWaitPhysicsTicks: 0,
+      finalTracePreWaitFreezeTargetGain: 0,
+      finalTraceRelatedUnsettledCount: 0,
+      finalTraceMaxVelocity: 0,
+      finalTraceMaxPositionDelta: 0,
+      finalTraceCommitPhysicsStepCount: null,
+      finalTraceCommitElapsedSec: null,
+      iceTapReadyPhysicsStepCount: null,
+      iceTapReadyElapsedSec: null,
+      finalTraceCommitToTapPhysicsTicks: null,
+      finalTraceCommitToTapMs: null,
+      iceTapReadyToTapPhysicsTicks: null,
       iceTapReady: false,
       iceTapBlockReason: null,
       iceTapStablePhysicsTicks: 0,
@@ -8690,6 +8760,16 @@ class Game {
       activeInflowAboveSelectionCount: summary.plannerActiveInflowAboveSelectionCount,
       tapPendingGeometryCount: summary.tapPendingGeometryCount,
       tracesBeforeTap: summary.tracesBeforeTap,
+      finalTracePreWaitCount: summary.finalTracePreWaitCount,
+      finalTracePreWaitTotalMs: Number(summary.finalTracePreWaitTotalMs.toFixed(3)),
+      finalTracePreWaitPhysicsTicks: summary.finalTracePreWaitPhysicsTicks,
+      finalTracePreWaitFreezeTargetGain: summary.finalTracePreWaitFreezeTargetGain,
+      finalTraceRelatedUnsettledCount: summary.finalTraceRelatedUnsettledCount,
+      finalTraceMaxVelocity: Number(summary.finalTraceMaxVelocity.toFixed(3)),
+      finalTraceMaxPositionDelta: Number(summary.finalTraceMaxPositionDelta.toFixed(3)),
+      finalTraceCommitToTapPhysicsTicks: summary.finalTraceCommitToTapPhysicsTicks,
+      finalTraceCommitToTapMs: summary.finalTraceCommitToTapMs == null ? null : Number(summary.finalTraceCommitToTapMs.toFixed(3)),
+      iceTapReadyToTapPhysicsTicks: summary.iceTapReadyToTapPhysicsTicks,
       tapFutureTraceRelevantPendingCount: summary.tapFutureTraceRelevantPendingCount,
       iceTapReady: summary.iceTapReady,
       iceTapBlockReason: summary.iceTapBlockReason,
@@ -8716,6 +8796,10 @@ class Game {
       fourOrMoreTraces: summary.endedBy === "iceTap" && summary.chainCount >= 4,
       actualIceTapEffectiveClear: summary.actualIceTapEffectiveClear,
       actualIceTapRawCoins: summary.actualIceTapRawCoins,
+      skillDurationSec: Number(Math.max(0, (this.elapsed || 0) - summary.skillStartedElapsedSec).toFixed(3)),
+      rawCoinsPerGameSecond: (this.elapsed || 0) > summary.skillStartedElapsedSec
+        ? Number((summary.actualIceTapRawCoins / ((this.elapsed || 0) - summary.skillStartedElapsedSec)).toFixed(3))
+        : 0,
       plannerEffectiveClearDifference: summary.plannerEffectiveClearDifference,
       plannerRawCoinsDifference: summary.plannerRawCoinsDifference,
       afterChainDelay: this.strongestModeCoronationElsaAfterChainDelay,
@@ -9049,6 +9133,18 @@ class Game {
         this.strongestModeCoronationElsaSuppressRelaxedFallback = false;
         this.strongestModeCoronationElsaSuppressSpecialTapFrames = 0;
         this.strongestModeCoronationElsaWaitStartElapsed = null;
+        const cycle = this.strongestModeCoronationElsaSettleOpportunityCycle || {};
+        this.strongestModeCoronationElsaSettleOpportunityCycle = Object.freeze({
+          ...cycle,
+          traceCount: Math.max(0, cycle.traceCount || 0) + 1
+        });
+        this.resetStrongestModeCoronationElsaIceTapReadiness?.();
+        if (coronationElsaSummary) {
+          coronationElsaSummary.finalTraceCommitPhysicsStepCount = this.strongestModeCoronationElsaPhysicsStepCount || 0;
+          coronationElsaSummary.finalTraceCommitElapsedSec = Math.max(0, this.elapsed || 0);
+          coronationElsaSummary.iceTapReadyPhysicsStepCount = null;
+          coronationElsaSummary.iceTapReadyElapsedSec = null;
+        }
       }
       if (!chainSucceeded) {
         break;
@@ -9229,9 +9325,16 @@ class Game {
       this.logCodexCoronationPayload("[CODEXLOG CORONATION CHAIN START]", coronationElsaChainStartLog);
       console.log("[CORONATION ELSA CHAIN START]", coronationElsaChainStartLog);
     }
-    this.startChain(chain[0], { x: chain[0].x, y: chain[0].y });
+    const firstPosition = { x: chain[0].x, y: chain[0].y };
+    const skillHandledStart = this.skillRuntime.dispatchChainStart(firstPosition);
+    if (!skillHandledStart && !this.startChain(chain[0], firstPosition)) {
+      return false;
+    }
     for (let i = 1; i < chain.length; i += 1) {
-      this.extendChain({ x: chain[i].x, y: chain[i].y });
+      const position = { x: chain[i].x, y: chain[i].y };
+      if (!this.skillRuntime.dispatchDrag(position)) {
+        this.extendChain(position);
+      }
     }
     const committedLength = this.chain.length;
     if (options.result) {

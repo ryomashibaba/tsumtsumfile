@@ -34,7 +34,7 @@ import {
   drawGlossButton,
   drawStarPath
 } from './config.js?v=tsum-images-5';
-import { drawLiliaBat } from './lilia.js?v=tsum-images-7';
+import { drawLiliaBat } from './lilia.js?v=tsum-images-8';
 import { drawTsumArtwork, preloadTsumImages } from './tsumImages.js?v=tsum-images-5';
 
 let sharedFeltTexture = null;
@@ -1348,25 +1348,12 @@ export class UIRenderer {
       glow: battleMode ? "#ff9cb0" : "#5f7894",
       size: 13
     });
-    if (battleMode) {
-      const difficultyRects = this.game.getDifficultyRects();
-      const selectedDifficulty = this.game.battleDifficulty || "normal";
-      const difficultyLabels = { easy: "かんたん", normal: "ふつう", hard: "むずかしい" };
-      for (const difficulty of ["easy", "normal", "hard"]) {
-        const selected = difficulty === selectedDifficulty;
-        this.drawButton(ctx, difficultyRects[difficulty], difficultyLabels[difficulty], {
-          fill: selected ? "#ef9c36" : "#3e5878",
-          glow: selected ? "#ffd074" : "#607694",
-          size: 10
-        });
-      }
-    }
     ctx.save();
     ctx.fillStyle = "#fff0a0";
     ctx.font = '800 12px "Trebuchet MS", "Yu Gothic", sans-serif';
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(battleMode ? "対戦モードを選択中" : "選んだキャラでアイテム画面へ", WIDTH * 0.5, 600);
+    ctx.fillText(battleMode ? "最強CPUと対戦します" : "選んだキャラでアイテム画面へ", WIDTH * 0.5, 600);
     ctx.restore();
 
     this.drawButton(ctx, this.game.getTitlePlayRect(), "決定", {
@@ -2203,7 +2190,7 @@ export class UIRenderer {
       draw: { title: "DRAW", color: "#fff09a" }
     };
     const outcome = outcomeLabels[battle.outcome] || outcomeLabels.draw;
-    const difficulty = String(battle.difficulty || "normal").toUpperCase();
+    const difficulty = battle.difficulty === "strongest" ? "STRONGEST" : String(battle.difficulty || "strongest").toUpperCase();
     const adjustment = battle.adaptiveMultiplier < 1
       ? "CPU SPEED +10%"
       : battle.adaptiveMultiplier > 1
