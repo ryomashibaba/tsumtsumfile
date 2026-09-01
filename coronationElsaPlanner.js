@@ -2,6 +2,7 @@ import {
   COIN_CORRECTION_TABLE,
   DEFAULT_COIN_CORRECTION_TYPE,
   FIELD_BOTTOM,
+  FIELD_CENTER_Y,
   FIELD_LEFT,
   FIELD_RIGHT,
   SKILL_TABLES,
@@ -24,6 +25,7 @@ const LINE_SEGMENT_FALLBACK_DISTANCE_SQ = (TSUM_RADIUS * 0.75) ** 2;
 export const CORONATION_ELSA_PLANNER_CONFIG = Object.freeze({
   softBudgetMs: 6,
   hardBudgetMs: 10,
+  opportunityWaitMaxMs: 1000 / 15,
   maxTraceDepth: MAX_TRACE_DEPTH,
   traceLengths: Object.freeze([3, 4, 5, 6]),
   beamWidths: Object.freeze([
@@ -955,6 +957,28 @@ const terminalTuple = (terminal) => terminal ? [
   -terminal.remainingComponentCount
 ] : [0, 0, 0, 0, 0, 0];
 
+const getYDistribution = (nodes) => {
+  const ys = nodes
+    .map((node) => Number(node?.y))
+    .filter(Number.isFinite);
+  if (ys.length === 0) {
+    return Object.freeze({
+      minY: null,
+      maxY: null,
+      meanY: null,
+      upperHalfNodeCount: 0,
+      lowerHalfNodeCount: 0
+    });
+  }
+  return Object.freeze({
+    minY: Math.min(...ys),
+    maxY: Math.max(...ys),
+    meanY: ys.reduce((sum, y) => sum + y, 0) / ys.length,
+    upperHalfNodeCount: ys.filter((y) => y < FIELD_CENTER_Y).length,
+    lowerHalfNodeCount: ys.filter((y) => y >= FIELD_CENTER_Y).length
+  });
+};
+
 const compareRoutes = (first, second) => {
   if (!second) return 1;
   const terminalComparison = compareNumberTuple(terminalTuple(first.terminal), terminalTuple(second.terminal));
@@ -1133,6 +1157,12 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
     const metrics = firstCandidate
       ? getCandidateMetrics(snapshot, snapshot.initialState, firstCandidate)
       : null;
+    const selectedCandidateY = getYDistribution(
+      (firstCandidate?.chainIndices || []).map((index) => snapshot.nodes[index])
+    );
+    const activeInflowY = getYDistribution(
+      snapshot.nodes.filter((node) => maskHasIndex(snapshot.activeInflowMask || 0n, node.index))
+    );
     const elapsedMs = Math.max(0, clock() - startedAt);
     return freezePlanResult({
       mode,
@@ -1173,6 +1203,16 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
         selectedFirstChainLength: firstCandidate?.chainIndices.length || 0,
         selectedNextFrozenCount: metrics?.newFrozenCount || 0,
         selectedUnsafeNewlyFrozenCount: firstCandidate?.unsafeNewlyFrozenCount || 0,
+        selectedCandidateMinY: selectedCandidateY.minY,
+        selectedCandidateMaxY: selectedCandidateY.maxY,
+        selectedCandidateMeanY: selectedCandidateY.meanY,
+        selectedCandidateUpperHalfNodeCount: selectedCandidateY.upperHalfNodeCount,
+        selectedCandidateLowerHalfNodeCount: selectedCandidateY.lowerHalfNodeCount,
+        activeInflowMinY: activeInflowY.minY,
+        activeInflowMaxY: activeInflowY.maxY,
+        activeInflowMeanY: activeInflowY.meanY,
+        activeInflowUpperHalfNodeCount: activeInflowY.upperHalfNodeCount,
+        activeInflowLowerHalfNodeCount: activeInflowY.lowerHalfNodeCount,
         terminalEffectiveClear: terminal?.effectiveClearCount || 0,
         terminalPredictedRawCoins: terminal?.rawCoins || 0,
         waitReason,

@@ -83,6 +83,7 @@ import {
   isBodyVisible
 } from './bodyLifecycle.js?v=ghost-tsum-1';
 import {
+  CORONATION_ELSA_PLANNER_CONFIG,
   buildCoronationElsaPlannerAdjacency,
   buildCoronationElsaPlannerSnapshot,
   evaluateCoronationElsaTapComponents,
@@ -93,6 +94,8 @@ import {
   simulateCoronationElsaFreeze
 } from './coronationElsaPlanner.js?v=coronation-elsa-planner-1';
 import {
+  STRONGEST_MODE_CORONATION_ELSA_SETTLE_OPPORTUNITY_WAIT_REASON,
+  evaluateCoronationElsaSettleOpportunity,
   shouldTapStrongestModeCoronationElsaCompletedIce,
   shouldUseStrongestModeFeverBombCancel
 } from './strongestModeLogic.js?v=strongest-mode-coronation-ice-1';
@@ -2561,6 +2564,7 @@ class Game {
     this.strongestModeCoronationElsaPendingTapPrediction = null;
     this.strongestModeCoronationElsaInflowWaitStartedAt = null;
     this.strongestModeCoronationElsaInflowWaitReason = null;
+    this.resetStrongestModeCoronationElsaSettleOpportunityState();
     this.aiAutoPlay = false;
     this.aiTrainingMode = false;
     this.aiLearningMode = false;
@@ -4420,6 +4424,7 @@ class Game {
     this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
     this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
     this.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
+    this.resetStrongestModeCoronationElsaSettleOpportunityState();
     this.resetStrongestModeCoronationElsaTracePlan();
   }
 
@@ -4528,6 +4533,7 @@ class Game {
         this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
         this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
         this.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
+        this.resetStrongestModeCoronationElsaSettleOpportunityState();
         this.resetStrongestModeCoronationElsaTracePlan();
       }
       this.noteAction();
@@ -5558,13 +5564,32 @@ class Game {
 
   planStrongestModeCoronationElsaAction(options = {}) {
     const context = this.buildCoronationElsaPlannerContext();
-    const plan = solveCoronationElsaStrongestModePlan(
+    const basePlan = solveCoronationElsaStrongestModePlan(
       context.snapshot,
       context.adjacency,
       options.plannerOptions || {}
     );
-    this.recordStrongestModeCoronationElsaPlannerRun(plan);
-    this.recordStrongestModeCoronationElsaPlannerDecision(plan);
+    this.recordStrongestModeCoronationElsaPlannerRun(basePlan);
+    this.updateStrongestModeCoronationElsaSettleWaveFromPlan(basePlan);
+    const opportunity = evaluateCoronationElsaSettleOpportunity({
+      plan: basePlan,
+      episode: this.strongestModeCoronationElsaOpportunityEpisode,
+      waveId: this.strongestModeCoronationElsaSettleWaveId,
+      consumedWaveId: this.strongestModeCoronationElsaOpportunityConsumedWaveId,
+      nowMs: Math.max(0, this.elapsed || 0) * 1000,
+      maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs
+    });
+    this.strongestModeCoronationElsaOpportunityEpisode = opportunity.episode;
+    this.strongestModeCoronationElsaOpportunityConsumedWaveId = opportunity.consumedWaveId;
+    this.recordStrongestModeCoronationElsaOpportunityDecision(opportunity, basePlan);
+    if (opportunity.plan.waitReason !== STRONGEST_MODE_CORONATION_ELSA_SETTLE_OPPORTUNITY_WAIT_REASON) {
+      this.recordStrongestModeCoronationElsaPlannerDecision(opportunity.plan);
+    } else if (basePlan.action === "trace") {
+      // A newly-safe base trace releases any older inflow/refill wait before the
+      // separate opportunity episode begins.
+      this.recordStrongestModeCoronationElsaPlannerDecision(basePlan);
+    }
+    const plan = opportunity.plan;
     if (this.coronationElsaDebug) {
       this.logCodexCoronationPayload("[CODEXLOG CORONATION TERMINAL PLANNER]", plan.diagnostics);
     }
@@ -5586,6 +5611,35 @@ class Game {
       ? liveById.get(String(plan.tapNodeId)) || null
       : null;
     return Object.freeze({ plan, chain, tapTarget });
+  }
+
+  resetStrongestModeCoronationElsaSettleOpportunityState() {
+    this.strongestModeCoronationElsaSettleWaveId = 0;
+    this.strongestModeCoronationElsaSettleWaveOpen = false;
+    this.strongestModeCoronationElsaForceNextSpawnWave = false;
+    this.strongestModeCoronationElsaOpportunityEpisode = null;
+    this.strongestModeCoronationElsaOpportunityConsumedWaveId = null;
+    this.strongestModeCoronationElsaOpportunitySuppressionRecordedWaveId = null;
+  }
+
+  beginStrongestModeCoronationElsaSettleWave({ force = false } = {}) {
+    if (force || !this.strongestModeCoronationElsaSettleWaveOpen) {
+      this.strongestModeCoronationElsaSettleWaveId += 1;
+    }
+    this.strongestModeCoronationElsaSettleWaveOpen = true;
+    this.strongestModeCoronationElsaForceNextSpawnWave = false;
+    return this.strongestModeCoronationElsaSettleWaveId;
+  }
+
+  updateStrongestModeCoronationElsaSettleWaveFromPlan(plan) {
+    const activeInflowNodeCount = Math.max(0, plan?.diagnostics?.activeInflowNodeCount || 0);
+    if (activeInflowNodeCount === 0 && !this.strongestModeCoronationElsaOpportunityEpisode) {
+      this.strongestModeCoronationElsaSettleWaveOpen = false;
+      return;
+    }
+    if (activeInflowNodeCount > 0 && this.strongestModeCoronationElsaSettleWaveId <= 0) {
+      this.beginStrongestModeCoronationElsaSettleWave();
+    }
   }
 
   findStrongestModeCoronationElsaPlannerChain() {
@@ -5952,6 +6006,7 @@ class Game {
       this.strongestModeCoronationElsaPlannerProfileKey = null;
       this.strongestModeCoronationElsaInflowWaitStartedAt = null;
       this.strongestModeCoronationElsaInflowWaitReason = null;
+      this.resetStrongestModeCoronationElsaSettleOpportunityState();
       this.resetStrongestModeCoronationElsaTracePlan();
     }
     if (this.tryTapStrongestModeJudyNickJudyBubble()) {
@@ -7423,6 +7478,7 @@ class Game {
     this.strongestModeCoronationElsaNoFreezeTargetWaitFrames = 0;
     this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
     this.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
+    this.strongestModeCoronationElsaForceNextSpawnWave = true;
     return true;
   }
 
@@ -7654,12 +7710,33 @@ class Game {
       plannerSelectedFirstChainLength: 0,
       plannerSelectedNextFrozenCount: 0,
       plannerSelectedUnsafeNewlyFrozenCount: 0,
+      plannerSelectedCandidateMinY: null,
+      plannerSelectedCandidateMaxY: null,
+      plannerSelectedCandidateMeanY: null,
+      plannerSelectedCandidateUpperHalfNodeCount: 0,
+      plannerSelectedCandidateLowerHalfNodeCount: 0,
+      plannerActiveInflowMinY: null,
+      plannerActiveInflowMaxY: null,
+      plannerActiveInflowMeanY: null,
+      plannerActiveInflowUpperHalfNodeCount: 0,
+      plannerActiveInflowLowerHalfNodeCount: 0,
       waitForInflowCount: 0,
       waitForBoardRefillCount: 0,
       waitForInflowTotalDurationSec: 0,
       waitForInflowMinDurationSec: null,
       waitForInflowMaxDurationSec: 0,
       waitForInflowToSafeTraceCount: 0,
+      opportunityWaitCount: 0,
+      opportunityWaitCompletedCount: 0,
+      opportunityWaitTotalDurationMs: 0,
+      opportunityWaitMinDurationMs: null,
+      opportunityWaitMaxDurationMs: 0,
+      opportunityWaitReleaseReasonCounts: {},
+      opportunityWaitRootCandidateIncreasedCount: 0,
+      opportunityWaitRootSafeCandidateIncreasedCount: 0,
+      opportunityWaitMaxAdditionalTracesIncreasedCount: 0,
+      opportunityWaitSameWaveSuppressedCount: 0,
+      executedUnsafeTransitionCount: 0,
       plannerTerminalEffectiveClear: 0,
       plannerTerminalPredictedRawCoins: 0,
       actualIceTapEffectiveClear: 0,
@@ -7728,12 +7805,23 @@ class Game {
     summary.plannerSelectedFirstChainLength = diagnostics.selectedFirstChainLength || 0;
     summary.plannerSelectedNextFrozenCount = diagnostics.selectedNextFrozenCount || 0;
     summary.plannerSelectedUnsafeNewlyFrozenCount = diagnostics.selectedUnsafeNewlyFrozenCount || 0;
+    summary.plannerSelectedCandidateMinY = diagnostics.selectedCandidateMinY ?? null;
+    summary.plannerSelectedCandidateMaxY = diagnostics.selectedCandidateMaxY ?? null;
+    summary.plannerSelectedCandidateMeanY = diagnostics.selectedCandidateMeanY ?? null;
+    summary.plannerSelectedCandidateUpperHalfNodeCount = diagnostics.selectedCandidateUpperHalfNodeCount || 0;
+    summary.plannerSelectedCandidateLowerHalfNodeCount = diagnostics.selectedCandidateLowerHalfNodeCount || 0;
+    summary.plannerActiveInflowMinY = diagnostics.activeInflowMinY ?? null;
+    summary.plannerActiveInflowMaxY = diagnostics.activeInflowMaxY ?? null;
+    summary.plannerActiveInflowMeanY = diagnostics.activeInflowMeanY ?? null;
+    summary.plannerActiveInflowUpperHalfNodeCount = diagnostics.activeInflowUpperHalfNodeCount || 0;
+    summary.plannerActiveInflowLowerHalfNodeCount = diagnostics.activeInflowLowerHalfNodeCount || 0;
     summary.plannerTerminalEffectiveClear = diagnostics.terminalEffectiveClear || 0;
     summary.plannerTerminalPredictedRawCoins = diagnostics.terminalPredictedRawCoins || 0;
   }
 
   recordStrongestModeCoronationElsaPlannerDecision(plan) {
     if (!plan) return;
+    if (plan.waitReason === STRONGEST_MODE_CORONATION_ELSA_SETTLE_OPPORTUNITY_WAIT_REASON) return;
     if (plan.action === "wait") {
       if (!Number.isFinite(this.strongestModeCoronationElsaInflowWaitStartedAt)) {
         this.strongestModeCoronationElsaInflowWaitStartedAt = this.elapsed;
@@ -7778,6 +7866,53 @@ class Game {
     });
     this.strongestModeCoronationElsaInflowWaitStartedAt = null;
     this.strongestModeCoronationElsaInflowWaitReason = null;
+  }
+
+  recordStrongestModeCoronationElsaOpportunityDecision(result, basePlan) {
+    if (!result) return;
+    const summary = this.getStrongestModeCoronationElsaSkillSummary();
+    if (result.suppressedSameWave) {
+      const waveId = this.strongestModeCoronationElsaSettleWaveId;
+      if (this.strongestModeCoronationElsaOpportunitySuppressionRecordedWaveId !== waveId) {
+        this.strongestModeCoronationElsaOpportunitySuppressionRecordedWaveId = waveId;
+        if (summary) summary.opportunityWaitSameWaveSuppressedCount += 1;
+      }
+    }
+    if (!result.event) return;
+    if (result.event.type === "start") {
+      this.strongestModeCoronationElsaOpportunitySuppressionRecordedWaveId = null;
+      if (summary) summary.opportunityWaitCount += 1;
+      this.logCodexCoronationPayload("[CODEXLOG CORONATION SETTLE OPPORTUNITY]", {
+        event: "start",
+        elapsed: this.elapsed,
+        ...result.event,
+        ...(basePlan?.diagnostics || {})
+      });
+      return;
+    }
+    if (result.event.type !== "release") return;
+    if (summary) {
+      const durationMs = Math.max(0, result.event.durationMs || 0);
+      summary.opportunityWaitCompletedCount += 1;
+      summary.opportunityWaitTotalDurationMs += durationMs;
+      summary.opportunityWaitMinDurationMs = summary.opportunityWaitMinDurationMs == null
+        ? durationMs
+        : Math.min(summary.opportunityWaitMinDurationMs, durationMs);
+      summary.opportunityWaitMaxDurationMs = Math.max(summary.opportunityWaitMaxDurationMs, durationMs);
+      summary.opportunityWaitReleaseReasonCounts[result.event.releaseReason] = (
+        summary.opportunityWaitReleaseReasonCounts[result.event.releaseReason] || 0
+      ) + 1;
+      if (result.event.rootCandidateCountIncreased) summary.opportunityWaitRootCandidateIncreasedCount += 1;
+      if (result.event.rootSafeCandidateCountIncreased) summary.opportunityWaitRootSafeCandidateIncreasedCount += 1;
+      if (result.event.maxAdditionalTracesIncreased) summary.opportunityWaitMaxAdditionalTracesIncreasedCount += 1;
+    }
+    this.logCodexCoronationPayload("[CODEXLOG CORONATION SETTLE OPPORTUNITY]", {
+      event: "release",
+      elapsed: this.elapsed,
+      releasedTo: result.plan?.action || null,
+      ...result.event,
+      ...(basePlan?.diagnostics || {})
+    });
   }
 
   recordStrongestModeCoronationElsaIceTapActual(stats = {}) {
@@ -7917,6 +8052,16 @@ class Game {
       plannerSelectedFirstChainLength: summary.plannerSelectedFirstChainLength,
       plannerSelectedNextFrozenCount: summary.plannerSelectedNextFrozenCount,
       plannerSelectedUnsafeNewlyFrozenCount: summary.plannerSelectedUnsafeNewlyFrozenCount,
+      plannerSelectedCandidateMinY: summary.plannerSelectedCandidateMinY,
+      plannerSelectedCandidateMaxY: summary.plannerSelectedCandidateMaxY,
+      plannerSelectedCandidateMeanY: summary.plannerSelectedCandidateMeanY,
+      plannerSelectedCandidateUpperHalfNodeCount: summary.plannerSelectedCandidateUpperHalfNodeCount,
+      plannerSelectedCandidateLowerHalfNodeCount: summary.plannerSelectedCandidateLowerHalfNodeCount,
+      plannerActiveInflowMinY: summary.plannerActiveInflowMinY,
+      plannerActiveInflowMaxY: summary.plannerActiveInflowMaxY,
+      plannerActiveInflowMeanY: summary.plannerActiveInflowMeanY,
+      plannerActiveInflowUpperHalfNodeCount: summary.plannerActiveInflowUpperHalfNodeCount,
+      plannerActiveInflowLowerHalfNodeCount: summary.plannerActiveInflowLowerHalfNodeCount,
       waitForInflowCount: summary.waitForInflowCount,
       waitForBoardRefillCount: summary.waitForBoardRefillCount,
       waitForInflowAverageDurationSec: (summary.waitForInflowCount + summary.waitForBoardRefillCount) > 0
@@ -7927,6 +8072,26 @@ class Game {
       waitForInflowMinDurationSec: summary.waitForInflowMinDurationSec,
       waitForInflowMaxDurationSec: summary.waitForInflowMaxDurationSec,
       waitForInflowToSafeTraceCount: summary.waitForInflowToSafeTraceCount,
+      opportunityWaitCount: summary.opportunityWaitCount,
+      opportunityWaitCompletedCount: summary.opportunityWaitCompletedCount,
+      opportunityWaitAverageDurationMs: summary.opportunityWaitCompletedCount > 0
+        ? Number((summary.opportunityWaitTotalDurationMs / summary.opportunityWaitCompletedCount).toFixed(3))
+        : 0,
+      opportunityWaitMinDurationMs: summary.opportunityWaitMinDurationMs,
+      opportunityWaitMaxDurationMs: Number(summary.opportunityWaitMaxDurationMs.toFixed(3)),
+      opportunityWaitReleaseReasonCounts: { ...summary.opportunityWaitReleaseReasonCounts },
+      opportunityWaitRootCandidateIncreaseRate: summary.opportunityWaitCompletedCount > 0
+        ? Number((summary.opportunityWaitRootCandidateIncreasedCount / summary.opportunityWaitCompletedCount).toFixed(3))
+        : 0,
+      opportunityWaitRootSafeCandidateIncreaseRate: summary.opportunityWaitCompletedCount > 0
+        ? Number((summary.opportunityWaitRootSafeCandidateIncreasedCount / summary.opportunityWaitCompletedCount).toFixed(3))
+        : 0,
+      opportunityWaitMaxAdditionalTracesIncreaseRate: summary.opportunityWaitCompletedCount > 0
+        ? Number((summary.opportunityWaitMaxAdditionalTracesIncreasedCount / summary.opportunityWaitCompletedCount).toFixed(3))
+        : 0,
+      opportunityWaitSameWaveSuppressedCount: summary.opportunityWaitSameWaveSuppressedCount,
+      executedUnsafeTransitionCount: summary.executedUnsafeTransitionCount,
+      opportunityWaitMaxConfiguredMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs,
       plannerTerminalEffectiveClear: summary.plannerTerminalEffectiveClear,
       plannerTerminalPredictedRawCoins: summary.plannerTerminalPredictedRawCoins,
       actualTraceCount: summary.chainCount,
@@ -8278,11 +8443,13 @@ class Game {
     if (!Array.isArray(chain) || chain.length < 3 || !canAttemptChain) {
       return false;
     }
-    if (
-      chain.strongestModeCoronationElsaSource === "planner" &&
-      !this.isStrongestModeCoronationElsaPlannedChainValid(chain)
-    ) {
-      return false;
+    if (chain.strongestModeCoronationElsaSource === "planner") {
+      const validation = this.validateStrongestModeCoronationElsaPlannedChain(chain);
+      if (!validation.valid) return false;
+      const summary = this.getStrongestModeCoronationElsaSkillSummary();
+      if (summary && validation.unsafeNewlyFrozenCount > 0) {
+        summary.executedUnsafeTransitionCount += 1;
+      }
     }
     const coronationElsaPlan = chain.strongestModeCoronationElsaPlan || null;
     const shouldLogCoronationElsaCommit = !!(
@@ -8694,6 +8861,16 @@ class Game {
       }
       spawnIndex += 1;
       deficit = Math.max(0, targetOccupancy - this.getLiveBodyOccupancy());
+    }
+    if (
+      spawnIndex > 0
+      && this.strongestModeEnabled
+      && this.myTsum?.id === "coronationElsa"
+      && this.getActiveSkillSession("coronationElsa")
+    ) {
+      this.beginStrongestModeCoronationElsaSettleWave({
+        force: this.strongestModeCoronationElsaForceNextSpawnWave
+      });
     }
   }
 
@@ -11157,6 +11334,8 @@ export const coronationElsaSkillHandler = {
     ctx.game.strongestModeCoronationElsaPendingTapPrediction = null;
     ctx.game.strongestModeCoronationElsaInflowWaitStartedAt = null;
     ctx.game.strongestModeCoronationElsaInflowWaitReason = null;
+    ctx.game.resetStrongestModeCoronationElsaSettleOpportunityState();
+    ctx.game.beginStrongestModeCoronationElsaSettleWave({ force: true });
     ctx.game.resetStrongestModeCoronationElsaTracePlan();
     const session = ctx.createSession({
       remainingMs: skillValue("coronationElsa", "durationSec", ctx.level) * 1000,
@@ -11222,6 +11401,7 @@ export const coronationElsaSkillHandler = {
       ctx.game.strongestModeCoronationElsaPendingTapPrediction = null;
       ctx.game.strongestModeCoronationElsaInflowWaitStartedAt = null;
       ctx.game.strongestModeCoronationElsaInflowWaitReason = null;
+      ctx.game.resetStrongestModeCoronationElsaSettleOpportunityState();
     }
     ctx?.game?.resetStrongestModeCoronationElsaTracePlan();
   },

@@ -491,6 +491,16 @@ test("safe lower trace remains selectable while unrelated upper inflow is fallin
   assert.equal(plan.action, "trace");
   assert.deepEqual(new Set(plan.chainIds), new Set(["safe-a", "safe-b", "safe-c"]));
   assert.equal(plan.diagnostics.selectedUnsafeNewlyFrozenCount, 0);
+  assert.equal(plan.diagnostics.selectedCandidateMinY, 410);
+  assert.equal(plan.diagnostics.selectedCandidateMaxY, 410);
+  assert.equal(plan.diagnostics.selectedCandidateMeanY, 410);
+  assert.equal(plan.diagnostics.selectedCandidateUpperHalfNodeCount, 0);
+  assert.equal(plan.diagnostics.selectedCandidateLowerHalfNodeCount, 3);
+  assert.equal(plan.diagnostics.activeInflowMinY, 165);
+  assert.equal(plan.diagnostics.activeInflowMaxY, 165);
+  assert.equal(plan.diagnostics.activeInflowMeanY, 165);
+  assert.equal(plan.diagnostics.activeInflowUpperHalfNodeCount, 1);
+  assert.equal(plan.diagnostics.activeInflowLowerHalfNodeCount, 0);
 });
 
 test("moving lower chain on stable support remains freeze-flow safe", () => {
@@ -864,6 +874,7 @@ test("hard-budget timeout switches to deterministic adaptive beam mode", () => {
 });
 
 test("adaptive beam configuration covers depths 1 through 15 and all three rollouts", () => {
+  assert.equal(CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs, 1000 / 15);
   assert.deepEqual(CORONATION_ELSA_PLANNER_CONFIG.beamWidths, [
     { minDepth: 1, maxDepth: 6, width: 48 },
     { minDepth: 7, maxDepth: 10, width: 24 },

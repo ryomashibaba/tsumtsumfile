@@ -5,12 +5,194 @@ import { FIELD_BOTTOM, FIELD_LEFT, FIELD_RIGHT, TSUM_RADIUS } from "./config.js"
 import { Game } from "./game.js";
 import {
   FEVER_ENTRY_CLEAR_COUNT,
+  STRONGEST_MODE_CORONATION_ELSA_SETTLE_OPPORTUNITY_WAIT_REASON,
+  evaluateCoronationElsaSettleOpportunity,
   getFeverClearsRemaining,
   shouldTapStrongestModeCoronationElsaCompletedIce,
   shouldUseStrongestModeFeverBombCancel
 } from "./strongestModeLogic.js";
+import { CORONATION_ELSA_PLANNER_CONFIG } from "./coronationElsaPlanner.js";
 
 const gaugeAfterClears = (count) => (count / FEVER_ENTRY_CLEAR_COUNT) * 100;
+
+const makeOpportunityPlan = (overrides = {}) => Object.freeze({
+  mode: "exact",
+  action: "trace",
+  chainIds: Object.freeze(["lower-a", "lower-b", "lower-c"]),
+  tapNodeId: null,
+  maxAdditionalTraces: overrides.maxAdditionalTraces ?? 1,
+  diagnostics: Object.freeze({
+    rootLegalTraceCandidateCount: 2,
+    rootSafeTraceCandidateCount: 1,
+    rootFlowBlockedTraceCandidateCount: 1,
+    recentSpawnCount: 3,
+    activeInflowNodeCount: 3,
+    upperInflowNodeCount: 3,
+    selectedUnsafeNewlyFrozenCount: 0,
+    selectedCandidateMeanY: 410,
+    selectedCandidateUpperHalfNodeCount: 0,
+    selectedCandidateLowerHalfNodeCount: 3,
+    activeInflowMeanY: 170,
+    ...(overrides.diagnostics || {})
+  }),
+  ...overrides,
+  diagnostics: Object.freeze({
+    rootLegalTraceCandidateCount: 2,
+    rootSafeTraceCandidateCount: 1,
+    rootFlowBlockedTraceCandidateCount: 1,
+    recentSpawnCount: 3,
+    activeInflowNodeCount: 3,
+    upperInflowNodeCount: 3,
+    selectedUnsafeNewlyFrozenCount: 0,
+    selectedCandidateMeanY: 410,
+    selectedCandidateUpperHalfNodeCount: 0,
+    selectedCandidateLowerHalfNodeCount: 3,
+    activeInflowMeanY: 170,
+    ...(overrides.diagnostics || {})
+  })
+});
+
+test("Coronation Elsa opportunity wait starts on a lower safe trace and releases when the upper route improves", () => {
+  const frame0 = evaluateCoronationElsaSettleOpportunity({
+    plan: makeOpportunityPlan(), waveId: 1, nowMs: 0,
+    maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs
+  });
+  assert.equal(frame0.plan.action, "wait");
+  assert.equal(frame0.plan.waitReason, STRONGEST_MODE_CORONATION_ELSA_SETTLE_OPPORTUNITY_WAIT_REASON);
+  assert.equal(frame0.event.type, "start");
+
+  const frame2 = evaluateCoronationElsaSettleOpportunity({
+    plan: makeOpportunityPlan({
+      maxAdditionalTraces: 2,
+      diagnostics: { rootSafeTraceCandidateCount: 2, activeInflowNodeCount: 1 }
+    }),
+    episode: frame0.episode,
+    waveId: 1,
+    consumedWaveId: frame0.consumedWaveId,
+    nowMs: 1000 / 30,
+    maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs
+  });
+  assert.equal(frame2.plan.action, "trace");
+  assert.equal(frame2.event.releaseReason, "ROOT_SAFE_CANDIDATES_IMPROVED");
+  assert.equal(frame2.event.maxAdditionalTracesIncreased, true);
+});
+
+test("Coronation Elsa opportunity wait does not start without active upper inflow", () => {
+  const result = evaluateCoronationElsaSettleOpportunity({
+    plan: makeOpportunityPlan({ diagnostics: { activeInflowNodeCount: 0, upperInflowNodeCount: 0 } }),
+    waveId: 1,
+    nowMs: 0,
+    maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs
+  });
+  assert.equal(result.plan.action, "trace");
+  assert.equal(result.episode, null);
+});
+
+test("Coronation Elsa opportunity wait always releases to the fresh safe trace at 66.7 ms", () => {
+  const started = evaluateCoronationElsaSettleOpportunity({
+    plan: makeOpportunityPlan(), waveId: 7, nowMs: 100,
+    maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs
+  });
+  const beforeCap = evaluateCoronationElsaSettleOpportunity({
+    plan: makeOpportunityPlan(), episode: started.episode, waveId: 7,
+    consumedWaveId: 7, nowMs: 166,
+    maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs
+  });
+  assert.equal(beforeCap.plan.action, "wait");
+  const atCap = evaluateCoronationElsaSettleOpportunity({
+    plan: makeOpportunityPlan(), episode: started.episode, waveId: 7,
+    consumedWaveId: 7, nowMs: 100 + CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs,
+    maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs
+  });
+  assert.equal(atCap.plan.action, "trace");
+  assert.deepEqual(atCap.plan.chainIds, ["lower-a", "lower-b", "lower-c"]);
+  assert.equal(atCap.event.releaseReason, "MAX_WAIT_REACHED");
+});
+
+test("Coronation Elsa opportunity timeout never promotes the still-unsafe upper route", () => {
+  const started = evaluateCoronationElsaSettleOpportunity({
+    plan: makeOpportunityPlan(), waveId: 3, nowMs: 0,
+    maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs
+  });
+  const freshSafeOnly = makeOpportunityPlan({
+    chainIds: Object.freeze(["safe-lower-a", "safe-lower-b", "safe-lower-c"]),
+    diagnostics: { selectedUnsafeNewlyFrozenCount: 0, rootFlowBlockedTraceCandidateCount: 2 }
+  });
+  const released = evaluateCoronationElsaSettleOpportunity({
+    plan: freshSafeOnly, episode: started.episode, waveId: 3, consumedWaveId: 3,
+    nowMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs,
+    maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs
+  });
+  assert.equal(released.plan.action, "trace");
+  assert.deepEqual(released.plan.chainIds, ["safe-lower-a", "safe-lower-b", "safe-lower-c"]);
+  assert.equal(released.plan.diagnostics.selectedUnsafeNewlyFrozenCount, 0);
+});
+
+test("Coronation Elsa consumes one opportunity episode per settle wave and rearms for a forced spawn wave", () => {
+  const first = evaluateCoronationElsaSettleOpportunity({
+    plan: makeOpportunityPlan(), waveId: 1, nowMs: 0,
+    maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs
+  });
+  const sameWave = evaluateCoronationElsaSettleOpportunity({
+    plan: makeOpportunityPlan(), waveId: 1, consumedWaveId: first.consumedWaveId, nowMs: 200,
+    maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs
+  });
+  assert.equal(sameWave.plan.action, "trace");
+  assert.equal(sameWave.suppressedSameWave, true);
+
+  const harness = {};
+  Game.prototype.resetStrongestModeCoronationElsaSettleOpportunityState.call(harness);
+  Game.prototype.beginStrongestModeCoronationElsaSettleWave.call(harness, { force: true });
+  const firstWaveId = harness.strongestModeCoronationElsaSettleWaveId;
+  Object.assign(harness, {
+    strongestModeEnabled: true,
+    myTsum: { id: "coronationElsa" },
+    pendingLargeTsumTypes: [],
+    bombs: [],
+    occupancy: 0,
+    isCoingainSpawnPaused: () => false,
+    getTargetBodyCount: () => 1,
+    getLiveBodyOccupancy() { return this.occupancy; },
+    getLiveNaturalLargeTsumCount: () => 0,
+    randomTsumType: () => ({ id: "red" }),
+    createSpawnTsum() { this.occupancy += 1; return { isBomb: false }; },
+    getActiveSkillSession: () => ({}),
+    beginStrongestModeCoronationElsaSettleWave(options) {
+      return Game.prototype.beginStrongestModeCoronationElsaSettleWave.call(this, options);
+    }
+  });
+  const tapHarness = {
+    ...harness,
+    inputRouter: { handleTap: () => true },
+    strongestModeCoronationElsaNoChainFrames: 0,
+    strongestModeCoronationElsaNoTraceDurationSec: 0,
+    strongestModeCoronationElsaStopLogged: false,
+    strongestModeCoronationElsaPendingExtraFreezeTap: false,
+    strongestModeCoronationElsaSuppressRelaxedFallback: false,
+    strongestModeCoronationElsaSuppressSpecialTapFrames: 0,
+    strongestModeCoronationElsaNoFreezeTargetWaitFrames: 0,
+    strongestModeCoronationElsaEarlyFreezeTapWaitFrames: 0,
+    strongestModeCoronationElsaUnsafeFreezeTapWaitFrames: 0
+  };
+  assert.equal(Game.prototype.tryTapStrongestModeCoronationElsaFreezeTarget.call(
+    tapHarness,
+    { type: "freeze", x: 10, y: 10 },
+    { planValidated: true }
+  ), true);
+  assert.equal(tapHarness.strongestModeCoronationElsaForceNextSpawnWave, true);
+  harness.strongestModeCoronationElsaForceNextSpawnWave = tapHarness.strongestModeCoronationElsaForceNextSpawnWave;
+  Game.prototype.spawnReplacementTsums.call(harness);
+  assert.equal(harness.strongestModeCoronationElsaSettleWaveId, firstWaveId + 1);
+  const newWave = evaluateCoronationElsaSettleOpportunity({
+    plan: makeOpportunityPlan(),
+    waveId: harness.strongestModeCoronationElsaSettleWaveId,
+    consumedWaveId: first.consumedWaveId,
+    nowMs: 250,
+    maxWaitMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityWaitMaxMs
+  });
+  assert.equal(newWave.plan.action, "wait");
+  assert.equal(newWave.event.type, "start");
+});
 
 test("fever remaining clear count includes five and excludes four or fewer", () => {
   assert.equal(getFeverClearsRemaining(gaugeAfterClears(23)), 6);
@@ -245,7 +427,7 @@ test("Coronation Elsa planner always traces before attempting remaining ice", ()
   assert.equal(iceGuardCalled, false);
 });
 
-test("Coronation Elsa WAIT performs no trace or ice tap and retries on the next frame", () => {
+test("Coronation Elsa settle opportunity WAIT performs no trace or ice tap and retries on the next frame", () => {
   let planCalls = 0;
   let chainCalls = 0;
   let tapCalls = 0;
@@ -254,7 +436,7 @@ test("Coronation Elsa WAIT performs no trace or ice tap and retries on the next 
     planStrongestModeCoronationElsaAction() {
       planCalls += 1;
       return {
-        plan: { action: "wait", waitReason: "WAIT_FOR_INFLOW" },
+        plan: { action: "wait", waitReason: STRONGEST_MODE_CORONATION_ELSA_SETTLE_OPPORTUNITY_WAIT_REASON },
         chain: [],
         tapTarget: { id: "ice", x: 20, y: 30 }
       };
@@ -375,6 +557,63 @@ test("Coronation Elsa records one WAIT episode and releases it to a safe trace",
   assert.equal(harness.strongestModeCoronationElsaInflowWaitStartedAt, null);
   assert.deepEqual(logs.map((entry) => entry.payload.event), ["start", "release"]);
   assert.equal(logs[1].payload.releasedTo, "trace");
+});
+
+test("Coronation Elsa records opportunity telemetry separately from inflow waits", () => {
+  const summary = {
+    opportunityWaitCount: 0,
+    opportunityWaitCompletedCount: 0,
+    opportunityWaitTotalDurationMs: 0,
+    opportunityWaitMinDurationMs: null,
+    opportunityWaitMaxDurationMs: 0,
+    opportunityWaitReleaseReasonCounts: {},
+    opportunityWaitRootCandidateIncreasedCount: 0,
+    opportunityWaitRootSafeCandidateIncreasedCount: 0,
+    opportunityWaitMaxAdditionalTracesIncreasedCount: 0,
+    opportunityWaitSameWaveSuppressedCount: 0
+  };
+  const harness = {
+    elapsed: 5,
+    strongestModeCoronationElsaSettleWaveId: 2,
+    strongestModeCoronationElsaOpportunitySuppressionRecordedWaveId: null,
+    strongestModeCoronationElsaInflowWaitStartedAt: null,
+    strongestModeCoronationElsaInflowWaitReason: null,
+    getStrongestModeCoronationElsaSkillSummary: () => summary,
+    logCodexCoronationPayload() {}
+  };
+  Game.prototype.recordStrongestModeCoronationElsaOpportunityDecision.call(harness, {
+    event: { type: "start", waveId: 2 },
+    plan: { action: "wait" },
+    suppressedSameWave: false
+  }, { diagnostics: {} });
+  Game.prototype.recordStrongestModeCoronationElsaPlannerDecision.call(harness, {
+    action: "wait",
+    waitReason: STRONGEST_MODE_CORONATION_ELSA_SETTLE_OPPORTUNITY_WAIT_REASON,
+    diagnostics: {}
+  });
+  assert.equal(harness.strongestModeCoronationElsaInflowWaitStartedAt, null);
+
+  Game.prototype.recordStrongestModeCoronationElsaOpportunityDecision.call(harness, {
+    event: {
+      type: "release",
+      releaseReason: "MAX_ADDITIONAL_TRACES_IMPROVED",
+      durationMs: 50,
+      rootCandidateCountIncreased: true,
+      rootSafeCandidateCountIncreased: true,
+      maxAdditionalTracesIncreased: true
+    },
+    plan: { action: "trace" },
+    suppressedSameWave: false
+  }, { diagnostics: {} });
+  assert.equal(summary.opportunityWaitCount, 1);
+  assert.equal(summary.opportunityWaitCompletedCount, 1);
+  assert.equal(summary.opportunityWaitTotalDurationMs, 50);
+  assert.equal(summary.opportunityWaitMinDurationMs, 50);
+  assert.equal(summary.opportunityWaitMaxDurationMs, 50);
+  assert.equal(summary.opportunityWaitReleaseReasonCounts.MAX_ADDITIONAL_TRACES_IMPROVED, 1);
+  assert.equal(summary.opportunityWaitRootCandidateIncreasedCount, 1);
+  assert.equal(summary.opportunityWaitRootSafeCandidateIncreasedCount, 1);
+  assert.equal(summary.opportunityWaitMaxAdditionalTracesIncreasedCount, 1);
 });
 
 test("Coronation Elsa replans the second trace in the same step and stops after two", () => {
