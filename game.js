@@ -86,13 +86,14 @@ import {
   CORONATION_ELSA_PLANNER_CONFIG,
   buildCoronationElsaPlannerAdjacency,
   buildCoronationElsaPlannerSnapshot,
+  evaluateCoronationElsaIceTapReadiness,
   evaluateCoronationElsaTapComponents,
   evaluateCoronationElsaFreezeTransitionSafety,
   getCoronationElsaPlannerNodeIndex,
   profileCoronationElsaPlanner,
   solveCoronationElsaStrongestModePlan,
   simulateCoronationElsaFreeze
-} from './coronationElsaPlanner.js?v=coronation-elsa-planner-perf-1';
+} from './coronationElsaPlanner.js?v=coronation-elsa-ice-tap-ready-1';
 import {
   STRONGEST_MODE_CORONATION_ELSA_BOARD_TRACE_READINESS_WAIT_REASON,
   STRONGEST_MODE_CORONATION_ELSA_PRE_TAP_SETTLE_WAIT_REASON,
@@ -2343,6 +2344,21 @@ class InputRouter {
     if (frozen) {
       const frozenEntry = this.board.getFrozenEntry(frozen);
       const isCoronationElsaFrozenTap = frozenEntry?.freezeKind === "coronationElsa";
+      if (
+        isCoronationElsaFrozenTap &&
+        this.game.strongestModeEnabled &&
+        this.game.myTsum?.id === "coronationElsa"
+      ) {
+        const readiness = this.game.evaluateStrongestModeCoronationElsaIceTapReadiness?.({
+          type: "freeze",
+          x: frozen.x,
+          y: frozen.y,
+          target: frozen
+        });
+        if (!readiness?.ready) {
+          return false;
+        }
+      }
       const coronationFrozenCountBeforeTap = isCoronationElsaFrozenTap
         ? this.board.getFrozenNodesByKind("coronationElsa").length
         : 0;
@@ -2577,6 +2593,7 @@ class Game {
     this.strongestModeCoronationElsaLastSearchDiagnostics = null;
     this.strongestModeCoronationElsaPlannerProfileKey = null;
     this.strongestModeCoronationElsaPendingTapPrediction = null;
+    this.strongestModeCoronationElsaIceTapReadinessState = null;
     this.strongestModeCoronationElsaPlannerFrameRevision = 0;
     this.strongestModeCoronationElsaFreezeRevision = 0;
     this.strongestModeCoronationElsaAdjacencyCache = null;
@@ -4454,6 +4471,7 @@ class Game {
     this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
     this.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
     this.resetStrongestModeCoronationElsaSettleOpportunityState();
+    this.resetStrongestModeCoronationElsaIceTapReadiness();
     this.resetStrongestModeCoronationElsaTracePlan();
   }
 
@@ -4563,6 +4581,7 @@ class Game {
         this.strongestModeCoronationElsaEarlyFreezeTapWaitFrames = 0;
         this.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
         this.resetStrongestModeCoronationElsaSettleOpportunityState();
+        this.resetStrongestModeCoronationElsaIceTapReadiness();
         this.resetStrongestModeCoronationElsaTracePlan();
       }
       this.noteAction();
@@ -5826,6 +5845,125 @@ class Game {
     });
   }
 
+  resetStrongestModeCoronationElsaIceTapReadiness() {
+    this.strongestModeCoronationElsaIceTapReadinessState = null;
+  }
+
+  evaluateStrongestModeCoronationElsaIceTapReadiness(specialTarget) {
+    const target = specialTarget?.target || (
+      Number.isFinite(specialTarget?.x) && Number.isFinite(specialTarget?.y)
+        ? this.boardState.findFrozenGroupAt?.({ x: specialTarget.x, y: specialTarget.y })
+        : null
+    );
+    if (!target || !this.boardState.hasFreezeKind?.(target, "coronationElsa")) {
+      const result = Object.freeze({
+        ready: false,
+        physicallyReady: false,
+        blockReason: "NO_CORONATION_ICE_TARGET",
+        stablePhysicsTicks: 0,
+        requiredStablePhysicsTicks: CORONATION_ELSA_PLANNER_CONFIG.iceTapStablePhysicsTicks,
+        physicsStepCount: this.strongestModeCoronationElsaPhysicsStepCount || 0
+      });
+      this.strongestModeCoronationElsaIceTapReadinessState = Object.freeze({
+        key: "",
+        blockedEver: true,
+        stablePhysicsTicks: 0,
+        lastPhysicsStepCount: result.physicsStepCount,
+        lastStableTapImpactSignature: null,
+        lastResult: result
+      });
+      return result;
+    }
+
+    const flowContext = this.getStrongestModeCoronationElsaFlowSafetyContext();
+    const snapshot = buildCoronationElsaPlannerSnapshot(this, this.selectedSkillLevel, {
+      flowContext,
+      temporalPositions: this.strongestModeCoronationElsaTemporalPositions
+    });
+    const physical = evaluateCoronationElsaIceTapReadiness(snapshot, target.id, snapshot.initialState);
+    const sessionId = this.getActiveSkillSession?.("coronationElsa")?.id || "no-session";
+    const key = `${sessionId}:${this.strongestModeCoronationElsaFreezeRevision || 0}:${physical.componentSignature}`;
+    const physicsStepCount = this.strongestModeCoronationElsaPhysicsStepCount || 0;
+    const requiredStablePhysicsTicks = CORONATION_ELSA_PLANNER_CONFIG.iceTapStablePhysicsTicks;
+    const previous = this.strongestModeCoronationElsaIceTapReadinessState?.key === key
+      ? this.strongestModeCoronationElsaIceTapReadinessState
+      : null;
+
+    if (
+      previous &&
+      previous.lastPhysicsStepCount === physicsStepCount &&
+      previous.lastResult?.tapImpactSignature === physical.tapImpactSignature &&
+      previous.lastResult?.physicallyReady === physical.physicallyReady
+    ) {
+      return previous.lastResult;
+    }
+
+    let blockedEver = previous?.blockedEver || false;
+    let stablePhysicsTicks = previous?.stablePhysicsTicks || 0;
+    let lastStableTapImpactSignature = previous?.lastStableTapImpactSignature || null;
+    let ready = false;
+    let blockReason = physical.blockReason;
+    let initiallyStable = false;
+    if (!physical.physicallyReady) {
+      blockedEver = true;
+      stablePhysicsTicks = 0;
+      lastStableTapImpactSignature = null;
+    } else if (!blockedEver) {
+      ready = true;
+      initiallyStable = true;
+      blockReason = null;
+    } else {
+      const advancedPhysics = !previous || physicsStepCount > previous.lastPhysicsStepCount;
+      if (advancedPhysics) {
+        stablePhysicsTicks = lastStableTapImpactSignature === physical.tapImpactSignature
+          ? stablePhysicsTicks + 1
+          : 1;
+        lastStableTapImpactSignature = physical.tapImpactSignature;
+      }
+      ready = stablePhysicsTicks >= requiredStablePhysicsTicks;
+      blockReason = ready ? null : "WAIT_FOR_STABLE_PHYSICS_TICKS";
+    }
+
+    const result = Object.freeze({
+      ...physical,
+      ready,
+      blockReason,
+      initiallyStable,
+      blockedEver,
+      stablePhysicsTicks,
+      requiredStablePhysicsTicks,
+      physicsStepCount
+    });
+    this.strongestModeCoronationElsaIceTapReadinessState = Object.freeze({
+      key,
+      blockedEver,
+      stablePhysicsTicks,
+      lastPhysicsStepCount: physicsStepCount,
+      lastStableTapImpactSignature,
+      lastResult: result
+    });
+    const summary = this.getStrongestModeCoronationElsaSkillSummary?.();
+    if (summary) {
+      summary.iceTapReady = ready;
+      summary.iceTapBlockReason = blockReason;
+      summary.iceTapStablePhysicsTicks = stablePhysicsTicks;
+      summary.iceTapRequiredStablePhysicsTicks = requiredStablePhysicsTicks;
+      summary.iceTapPhysicsStepCount = physicsStepCount;
+      summary.iceTapRelevantUnstableCount = physical.relevantUnstableCount;
+      summary.iceTapPendingGeometryCount = physical.pendingGeometryCount;
+      summary.iceTapActiveInflowCount = physical.activeInflowCount;
+      summary.iceTapRecentSpawnCount = physical.recentSpawnCount;
+      summary.iceTapMeaningfulMotionCount = physical.meaningfulMotionCount;
+      summary.iceTapPositionDeltaCount = physical.positionDeltaCount;
+      summary.iceTapComponentNodeCount = physical.componentNodeCount;
+      summary.iceTapImpactNodeCount = physical.tapImpactNodeCount;
+    }
+    if (!ready && this.coronationElsaDebug) {
+      this.logCodexCoronationPayload("[CODEXLOG CORONATION ICE TAP WAIT]", result);
+    }
+    return result;
+  }
+
   beginStrongestModeCoronationElsaSettleWave({ force = false } = {}) {
     if (force || !this.strongestModeCoronationElsaSettleWaveOpen) {
       this.strongestModeCoronationElsaSettleWaveId += 1;
@@ -6221,6 +6359,7 @@ class Game {
       this.strongestModeCoronationElsaInflowWaitStartedAt = null;
       this.strongestModeCoronationElsaInflowWaitReason = null;
       this.resetStrongestModeCoronationElsaSettleOpportunityState();
+      this.resetStrongestModeCoronationElsaIceTapReadiness();
       this.resetStrongestModeCoronationElsaTracePlan();
     }
     if (this.tryTapStrongestModeJudyNickJudyBubble()) {
@@ -6266,6 +6405,7 @@ class Game {
             });
           }
           if (chained && this.strongestModeCoronationElsaSettleOpportunityCycle) {
+            this.resetStrongestModeCoronationElsaIceTapReadiness?.();
             this.strongestModeCoronationElsaSettleOpportunityCycle = Object.freeze({
               ...this.strongestModeCoronationElsaSettleOpportunityCycle,
               traceCount: this.strongestModeCoronationElsaSettleOpportunityCycle.traceCount + traceStats.performedLengths.length
@@ -7697,6 +7837,13 @@ class Game {
     if (!specialTarget || specialTarget.type !== "freeze") {
       return false;
     }
+    const readiness = this.evaluateStrongestModeCoronationElsaIceTapReadiness?.(specialTarget);
+    if (!readiness?.ready) {
+      if (options.planValidated) {
+        this.strongestModeCoronationElsaPendingTapPrediction = null;
+      }
+      return false;
+    }
     const tapped = this.inputRouter.handleTap({ x: specialTarget.x, y: specialTarget.y });
     if (!tapped) {
       if (options.planValidated) {
@@ -7721,6 +7868,7 @@ class Game {
     this.strongestModeCoronationElsaUnsafeFreezeTapWaitFrames = 0;
     this.strongestModeCoronationElsaForceNextSpawnWave = true;
     this.resetStrongestModeCoronationElsaSettleOpportunityState?.();
+    this.resetStrongestModeCoronationElsaIceTapReadiness?.();
     return true;
   }
 
@@ -8019,6 +8167,19 @@ class Game {
       waitBudgetRemainingMs: CORONATION_ELSA_PLANNER_CONFIG.opportunityCycleWaitBudgetMs,
       tapPendingGeometryCount: 0,
       tracesBeforeTap: 0,
+      iceTapReady: false,
+      iceTapBlockReason: null,
+      iceTapStablePhysicsTicks: 0,
+      iceTapRequiredStablePhysicsTicks: CORONATION_ELSA_PLANNER_CONFIG.iceTapStablePhysicsTicks,
+      iceTapPhysicsStepCount: 0,
+      iceTapRelevantUnstableCount: 0,
+      iceTapPendingGeometryCount: 0,
+      iceTapActiveInflowCount: 0,
+      iceTapRecentSpawnCount: 0,
+      iceTapMeaningfulMotionCount: 0,
+      iceTapPositionDeltaCount: 0,
+      iceTapComponentNodeCount: 0,
+      iceTapImpactNodeCount: 0,
       firstTraceBoardReadiness: null,
       opportunityWaitWallClockSamplesMs: [],
       opportunityWaitGameplayDeltaSamplesMs: [],
@@ -8530,6 +8691,19 @@ class Game {
       tapPendingGeometryCount: summary.tapPendingGeometryCount,
       tracesBeforeTap: summary.tracesBeforeTap,
       tapFutureTraceRelevantPendingCount: summary.tapFutureTraceRelevantPendingCount,
+      iceTapReady: summary.iceTapReady,
+      iceTapBlockReason: summary.iceTapBlockReason,
+      iceTapStablePhysicsTicks: summary.iceTapStablePhysicsTicks,
+      iceTapRequiredStablePhysicsTicks: summary.iceTapRequiredStablePhysicsTicks,
+      iceTapPhysicsStepCount: summary.iceTapPhysicsStepCount,
+      iceTapRelevantUnstableCount: summary.iceTapRelevantUnstableCount,
+      iceTapPendingGeometryCount: summary.iceTapPendingGeometryCount,
+      iceTapActiveInflowCount: summary.iceTapActiveInflowCount,
+      iceTapRecentSpawnCount: summary.iceTapRecentSpawnCount,
+      iceTapMeaningfulMotionCount: summary.iceTapMeaningfulMotionCount,
+      iceTapPositionDeltaCount: summary.iceTapPositionDeltaCount,
+      iceTapComponentNodeCount: summary.iceTapComponentNodeCount,
+      iceTapImpactNodeCount: summary.iceTapImpactNodeCount,
       firstTraceBoardReadiness: summary.firstTraceBoardReadiness,
       selectedCandidateVerticalSpan: summary.plannerSelectedCandidateVerticalSpan,
       executedUnsafeTransitionCount: summary.executedUnsafeTransitionCount,
@@ -11860,6 +12034,7 @@ export const coronationElsaSkillHandler = {
     ctx.game.strongestModeCoronationElsaInflowWaitStartedAt = null;
     ctx.game.strongestModeCoronationElsaInflowWaitReason = null;
     ctx.game.resetStrongestModeCoronationElsaSettleOpportunityState();
+    ctx.game.resetStrongestModeCoronationElsaIceTapReadiness();
     ctx.game.beginStrongestModeCoronationElsaSettleWave({ force: true });
     ctx.game.resetStrongestModeCoronationElsaTracePlan();
     const session = ctx.createSession({
@@ -11927,6 +12102,7 @@ export const coronationElsaSkillHandler = {
       ctx.game.strongestModeCoronationElsaInflowWaitStartedAt = null;
       ctx.game.strongestModeCoronationElsaInflowWaitReason = null;
       ctx.game.resetStrongestModeCoronationElsaSettleOpportunityState();
+      ctx.game.resetStrongestModeCoronationElsaIceTapReadiness();
     }
     ctx?.game?.resetStrongestModeCoronationElsaTracePlan();
   },
@@ -11984,7 +12160,7 @@ SkillRegistry.captainLightyear = {
 
 // finalize: expose SkillRegistry and export Game
 Game.SkillRegistry = SkillRegistry;
-export { Game };
+export { Game, InputRouter };
 // --- ensure namine skill exists and is selectable ---
 SkillRegistry.namine = {
   id: "namine",

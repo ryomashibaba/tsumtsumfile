@@ -39,6 +39,7 @@ export const CORONATION_ELSA_PLANNER_CONFIG = Object.freeze({
   boardTraceReadinessWaitMaxMs: 100,
   traceRecoveryWaitMaxMs: 50,
   tracePotentialStablePhysicsTicks: 2,
+  iceTapStablePhysicsTicks: 3,
   opportunityCycleWaitBudgetMs: 100,
   opportunityMinPendingAboveSelection: 1,
   opportunitySufficientTraceCount: 4,
@@ -960,6 +961,136 @@ export function evaluateCoronationElsaTapComponents(snapshot, state = snapshot.i
   return Object.freeze({
     components: freezeArray(evaluated),
     best: evaluated[0] || null
+  });
+}
+
+/**
+ * Physical safety check for a proposed Coronation Elsa ice tap. This is
+ * intentionally independent from the trace/tap strategy: a terminal TAP may
+ * only be executed when this latest-board check is also safe.
+ */
+export function evaluateCoronationElsaIceTapReadiness(
+  snapshot,
+  tapNodeId,
+  state = snapshot?.initialState
+) {
+  if (!snapshot || !Array.isArray(snapshot.nodes)) {
+    throw new TypeError("A Coronation Elsa planner snapshot is required");
+  }
+  const tapIndex = getCoronationElsaPlannerNodeIndex(snapshot, tapNodeId);
+  const tapEvaluation = evaluateCoronationElsaTapComponents(snapshot, state);
+  const component = tapEvaluation.components.find((entry) => entry.componentIndices.includes(tapIndex)) || null;
+  if (!component) {
+    return Object.freeze({
+      physicallyReady: false,
+      blockReason: "NO_CORONATION_ICE_COMPONENT",
+      componentSignature: "",
+      tapImpactSignature: "",
+      componentNodeCount: 0,
+      tapImpactNodeCount: 0,
+      relevantUnstableCount: 0,
+      pendingGeometryCount: 0,
+      activeInflowCount: 0,
+      recentSpawnCount: 0,
+      meaningfulMotionCount: 0,
+      positionDeltaCount: 0,
+      unsettledCount: 0,
+      aboveFrozenRegionCount: 0,
+      aroundFrozenComponentCount: 0
+    });
+  }
+
+  const componentNodes = component.componentIndices.map((index) => snapshot.nodes[index]).filter(Boolean);
+  const frozenMinY = componentNodes.length
+    ? Math.min(...componentNodes.map((node) => node.y))
+    : null;
+  const frozenMeanY = componentNodes.length
+    ? componentNodes.reduce((sum, node) => sum + node.y, 0) / componentNodes.length
+    : null;
+  const frozenRegionThresholdY = Number.isFinite(frozenMinY)
+    ? frozenMinY + TSUM_RADIUS * 0.25
+    : null;
+  const frozenMeanThresholdY = Number.isFinite(frozenMeanY)
+    ? frozenMeanY - TSUM_RADIUS * 0.25
+    : null;
+  const relevantUnstableNodes = [];
+  let pendingGeometryCount = 0;
+  let activeInflowCount = 0;
+  let recentSpawnCount = 0;
+  let meaningfulMotionCount = 0;
+  let positionDeltaCount = 0;
+  let unsettledCount = 0;
+  let aboveFrozenRegionCount = 0;
+  let aroundFrozenComponentCount = 0;
+
+  for (const node of snapshot.nodes) {
+    if (!node.baseTraceEligible || node.anyFrozen) continue;
+    const aboveFrozenRegion = !!(
+      (Number.isFinite(frozenRegionThresholdY) && node.y < frozenRegionThresholdY) ||
+      (Number.isFinite(frozenMeanThresholdY) && node.y < frozenMeanThresholdY)
+    );
+    const aroundFrozenComponent = componentNodes.some((frozenNode) => (
+      distanceBetween(node, frozenNode) <= (
+        node.effectiveRadius + frozenNode.effectiveRadius + TSUM_RADIUS
+      )
+    ));
+    if (!aboveFrozenRegion && !aroundFrozenComponent) continue;
+
+    const pendingGeometry = !!(node.activeInflow || node.settlingOpportunity);
+    const positionChanged = (Number(node.positionDelta) || 0) > 0.75;
+    const physicallyUnstable = !!(
+      node.activeInflow ||
+      node.recentSpawn ||
+      node.meaningfulMotion ||
+      positionChanged ||
+      node.dynamicSupport ||
+      node.genuineFallSpace
+    );
+    if (pendingGeometry) pendingGeometryCount += 1;
+    if (node.activeInflow) activeInflowCount += 1;
+    if (node.recentSpawn) recentSpawnCount += 1;
+    if (node.meaningfulMotion) meaningfulMotionCount += 1;
+    if (positionChanged) positionDeltaCount += 1;
+    if (!node.settled) unsettledCount += 1;
+    if (!physicallyUnstable) continue;
+
+    relevantUnstableNodes.push(node);
+    if (aboveFrozenRegion) aboveFrozenRegionCount += 1;
+    if (aroundFrozenComponent) aroundFrozenComponentCount += 1;
+  }
+
+  const blockReason = activeInflowCount > 0
+    ? "ACTIVE_INFLOW"
+    : (pendingGeometryCount > 0
+      ? "PENDING_GEOMETRY"
+      : (recentSpawnCount > 0
+        ? "RECENT_SPAWN"
+        : (meaningfulMotionCount > 0
+          ? "MEANINGFUL_MOTION"
+          : (positionDeltaCount > 0
+            ? "POSITION_DELTA"
+            : null))));
+  const idsFor = (indices) => indices
+    .map((index) => String(snapshot.nodes[index]?.id ?? ""))
+    .filter(Boolean)
+    .sort()
+    .join("\u001f");
+  return Object.freeze({
+    physicallyReady: relevantUnstableNodes.length === 0,
+    blockReason,
+    componentSignature: idsFor(component.componentIndices),
+    tapImpactSignature: idsFor(component.targetIndices),
+    componentNodeCount: component.componentIndices.length,
+    tapImpactNodeCount: component.targetIndices.length,
+    relevantUnstableCount: relevantUnstableNodes.length,
+    pendingGeometryCount,
+    activeInflowCount,
+    recentSpawnCount,
+    meaningfulMotionCount,
+    positionDeltaCount,
+    unsettledCount,
+    aboveFrozenRegionCount,
+    aroundFrozenComponentCount
   });
 }
 

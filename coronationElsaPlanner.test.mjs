@@ -7,6 +7,7 @@ import {
   buildCoronationElsaPlannerAdjacency,
   buildCoronationElsaPlannerSnapshot,
   enumerateCoronationElsaPlannerTraces,
+  evaluateCoronationElsaIceTapReadiness,
   evaluateCoronationElsaFreezeTransitionSafety,
   evaluateCoronationElsaTapComponents,
   getCoronationElsaPlannerNodeIndex,
@@ -562,6 +563,72 @@ test("TAP diagnostics compare pending geometry with the current Coronation ice w
   assert.equal(plan.diagnostics.coronationFrozenMeanY, 430);
   assert.equal(plan.diagnostics.pendingGeometryAboveFrozenMeanCount, 1);
   assert.equal(plan.diagnostics.settlingOpportunityAboveFrozenCount, 1);
+});
+
+test("ICE_TAP_READY blocks a falling Tsum above the ice even when it cannot form a future trace", () => {
+  const nodes = [
+    makeNode("ice-a", 120, 420, "red"),
+    makeNode("ice-b", 175, 420, "red"),
+    makeNode("falling-singleton", 150, 190, "blue", { vy: 18 })
+  ];
+  const game = makeGame(nodes, {
+    coronationLayers: { "ice-a": 1, "ice-b": 1 },
+    flowStates: {
+      "falling-singleton": {
+        settled: false,
+        recentSpawn: false,
+        activeInflow: true,
+        inflowUnsafe: true,
+        dynamicSupport: true
+      }
+    }
+  });
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6, {
+    temporalPositions: new Map([["falling-singleton", { x: 150, y: 175 }]])
+  });
+  assert.equal(snapshot.flowDiagnostics.futureTraceRelevantPendingCount, 0);
+  const readiness = evaluateCoronationElsaIceTapReadiness(snapshot, "ice-a");
+  assert.equal(readiness.physicallyReady, false);
+  assert.equal(readiness.activeInflowCount, 1);
+  assert.equal(readiness.positionDeltaCount, 1);
+  assert.equal(readiness.aboveFrozenRegionCount, 1);
+});
+
+test("ICE_TAP_READY detects motion around the ice and immediately accepts an initially stable board", () => {
+  const movingNodes = [
+    makeNode("ice", 150, 420, "red"),
+    makeNode("moving-near", 210, 430, "blue", { vx: 4 })
+  ];
+  const movingGame = makeGame(movingNodes, {
+    coronationLayers: { ice: 1 },
+    flowStates: {
+      "moving-near": { settled: false, activeInflow: false, stableSupport: true }
+    }
+  });
+  const movingSnapshot = buildCoronationElsaPlannerSnapshot(movingGame, 6, {
+    temporalPositions: new Map([["moving-near", { x: 202, y: 430 }]])
+  });
+  const blocked = evaluateCoronationElsaIceTapReadiness(movingSnapshot, "ice");
+  assert.equal(blocked.physicallyReady, false);
+  assert.equal(blocked.aroundFrozenComponentCount, 1);
+  assert.equal(blocked.meaningfulMotionCount, 1);
+
+  movingNodes[1].vx = 0;
+  movingGame.getStrongestModeCoronationElsaFlowSafetyState = () => Object.freeze({
+    spawnAgeSec: 10,
+    settled: true,
+    recentSpawn: false,
+    upperInflow: false,
+    activeInflow: false,
+    inflowUnsafe: false,
+    stableSupport: true
+  });
+  const stableSnapshot = buildCoronationElsaPlannerSnapshot(movingGame, 6, {
+    temporalPositions: new Map([["moving-near", { x: 210, y: 430 }]])
+  });
+  const ready = evaluateCoronationElsaIceTapReadiness(stableSnapshot, "ice");
+  assert.equal(ready.physicallyReady, true);
+  assert.equal(ready.relevantUnstableCount, 0);
 });
 
 test("Phase A keeps temporary unsafe nodes as future structural trace potential", () => {

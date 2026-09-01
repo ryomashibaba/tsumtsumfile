@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { FIELD_BOTTOM, FIELD_LEFT, FIELD_RIGHT, TSUM_RADIUS } from "./config.js";
-import { Game } from "./game.js";
+import { Game, InputRouter } from "./game.js";
 import {
   FEVER_ENTRY_CLEAR_COUNT,
   STRONGEST_MODE_CORONATION_ELSA_SETTLE_OPPORTUNITY_WAIT_REASON,
@@ -252,6 +252,7 @@ test("Coronation Elsa settle cycle rearms after a tap", () => {
   const tapHarness = {
     ...harness,
     inputRouter: { handleTap: () => true },
+    evaluateStrongestModeCoronationElsaIceTapReadiness: () => ({ ready: true }),
     strongestModeCoronationElsaNoChainFrames: 0,
     strongestModeCoronationElsaNoTraceDurationSec: 0,
     strongestModeCoronationElsaStopLogged: false,
@@ -419,6 +420,28 @@ test("Coronation Elsa completed ice revalidates the board before both 38-count a
   }
 });
 
+test("Coronation Elsa completed-ice path cannot bypass physical ICE_TAP_READY", () => {
+  let tapCount = 0;
+  const harness = {
+    strongestModeCoronationElsaPendingExtraFreezeTap: false,
+    strongestModeCoronationElsaNoTraceDurationSec: 0.2,
+    strongestModeCoronationElsaMinimumTraceCount: 4,
+    strongestModeCoronationElsaPendingTapPrediction: null,
+    boardState: { getFrozenNodesByKind: () => Array.from({ length: 38 }, (_, id) => ({ id })) },
+    getStrongestModeCoronationElsaSkillSummary: () => ({ chainCount: 5 }),
+    findStrongestModeCoronationElsaAnyTraceChain: () => [],
+    findStrongestSpecialTapTarget: () => ({ type: "freeze", x: 20, y: 30, target: { id: "ice" } }),
+    planStrongestModeCoronationElsaAction: () => ({ plan: { action: "tap" }, chain: [], tapTarget: { id: "ice" } }),
+    evaluateStrongestModeCoronationElsaIceTapReadiness: () => ({ ready: false }),
+    inputRouter: { handleTap: () => { tapCount += 1; return true; } },
+    tryTapStrongestModeCoronationElsaFreezeTarget(specialTarget, options) {
+      return Game.prototype.tryTapStrongestModeCoronationElsaFreezeTarget.call(this, specialTarget, options);
+    }
+  };
+  assert.equal(Game.prototype.tryTapStrongestModeCoronationElsaCompletedIce.call(harness), false);
+  assert.equal(tapCount, 0);
+});
+
 test("Coronation Elsa common ice-tap path taps only after confirming no legal trace", () => {
   const taps = [];
   const harness = {
@@ -432,6 +455,7 @@ test("Coronation Elsa common ice-tap path taps only after confirming no legal tr
     strongestModeCoronationElsaEarlyFreezeTapWaitFrames: 5,
     strongestModeCoronationElsaUnsafeFreezeTapWaitFrames: 6,
     findStrongestModeCoronationElsaAnyTraceChain: () => [],
+    evaluateStrongestModeCoronationElsaIceTapReadiness: () => ({ ready: true }),
     inputRouter: {
       handleTap(pos) {
         taps.push(pos);
@@ -451,6 +475,146 @@ test("Coronation Elsa common ice-tap path taps only after confirming no legal tr
   assert.equal(harness.strongestModeCoronationElsaNoChainFrames, 0);
   assert.equal(harness.strongestModeCoronationElsaNoTraceDurationSec, 0);
   assert.equal(harness.strongestModeCoronationElsaPendingExtraFreezeTap, false);
+});
+
+const makeCoronationElsaIceTapReadinessHarness = ({ moving = true } = {}) => {
+  const ice = { id: "ice", x: 150, y: 420, vx: 0, vy: 0, radius: 29, type: { id: "red" } };
+  const falling = { id: "falling", x: 155, y: 190, vx: 0, vy: moving ? 14 : 0, radius: 29, type: { id: "blue" } };
+  const nodes = [ice, falling];
+  const flowStates = new Map([
+    ["ice", { settled: true, stableSupport: true }],
+    ["falling", moving
+      ? { settled: false, activeInflow: true, inflowUnsafe: true, dynamicSupport: true }
+      : { settled: true, stableSupport: true }]
+  ]);
+  const frozenIds = new Set(["ice"]);
+  const boardState = {
+    hasBubble: () => false,
+    isFrozen: (node) => frozenIds.has(node.id),
+    hasFreezeKind: (node, kind) => kind === "coronationElsa" && frozenIds.has(node.id),
+    getFrozenEntriesByKind: (node, kind) => (
+      kind === "coronationElsa" && frozenIds.has(node.id)
+        ? [{ freezeKind: kind, correctionType: "correction_0" }]
+        : []
+    ),
+    getFrozenNodesByKind: () => [ice],
+    getResolvedType: (node) => node.type,
+    getEffectiveRadius: (node) => node.radius,
+    findFrozenGroupAt: () => ice
+  };
+  const harness = Object.assign(Object.create(Game.prototype), {
+    tsums: nodes,
+    boardState,
+    selectedSkillLevel: 6,
+    myTsum: { id: "coronationElsa" },
+    elapsed: 10,
+    strongestModeCoronationElsaFreezeRevision: 1,
+    strongestModeCoronationElsaPhysicsStepCount: 10,
+    strongestModeCoronationElsaTemporalPositions: new Map([["falling", { x: 155, y: moving ? 175 : 190 }]]),
+    strongestModeCoronationElsaIceTapReadinessState: null,
+    coronationElsaDebug: false,
+    isTsumInPlayArea: () => true,
+    getBodyRadius: (node) => node.radius,
+    isMyTsumTypeId: (typeId) => typeId === "red",
+    getActiveSkillSession: () => ({ id: "session-1" }),
+    getStrongestModeCoronationElsaFlowSafetyContext: () => ({
+      safePlayableY: 220,
+      lowerPlayableNodeCount: 45,
+      lowerBoardFilled: true
+    }),
+    getStrongestModeCoronationElsaFlowSafetyState(node) {
+      return {
+        spawnAgeSec: 10,
+        recentSpawn: false,
+        upperInflow: false,
+        activeInflow: false,
+        inflowUnsafe: false,
+        dynamicSupport: false,
+        genuineFallSpace: false,
+        ...(flowStates.get(node.id) || {})
+      };
+    },
+    getStrongestModeCoronationElsaSkillSummary: () => null
+  });
+  return { harness, ice, falling, flowStates };
+};
+
+test("Coronation Elsa ICE_TAP_READY blocks planValidated TAP after four traces while upper ice-relevant motion remains", () => {
+  const { harness, ice } = makeCoronationElsaIceTapReadinessHarness();
+  let tapCount = 0;
+  Object.assign(harness, {
+    strongestModeCoronationElsaSettleOpportunityCycle: { traceCount: 4 },
+    strongestModeCoronationElsaPendingTapPrediction: { effectiveClearCount: 8 },
+    inputRouter: { handleTap: () => { tapCount += 1; return true; } }
+  });
+  assert.equal(Game.prototype.tryTapStrongestModeCoronationElsaFreezeTarget.call(
+    harness,
+    { type: "freeze", x: ice.x, y: ice.y, target: ice },
+    { planValidated: true }
+  ), false);
+  assert.equal(tapCount, 0);
+  assert.equal(harness.strongestModeCoronationElsaPendingTapPrediction, null);
+  assert.equal(harness.strongestModeCoronationElsaIceTapReadinessState.lastResult.activeInflowCount, 1);
+});
+
+test("Coronation Elsa ICE_TAP_READY requires three distinct stable physics ticks after motion", () => {
+  const { harness, ice, falling, flowStates } = makeCoronationElsaIceTapReadinessHarness();
+  const target = { type: "freeze", x: ice.x, y: ice.y, target: ice };
+  const blocked = Game.prototype.evaluateStrongestModeCoronationElsaIceTapReadiness.call(harness, target);
+  assert.equal(blocked.ready, false);
+  harness.strongestModeCoronationElsaPhysicsStepCount += 1;
+  const stillMoving = Game.prototype.evaluateStrongestModeCoronationElsaIceTapReadiness.call(harness, target);
+  assert.equal(stillMoving.ready, false);
+  assert.equal(stillMoving.stablePhysicsTicks, 0);
+
+  falling.vy = 0;
+  flowStates.set("falling", { settled: true, stableSupport: true });
+  harness.strongestModeCoronationElsaTemporalPositions = new Map([["falling", { x: falling.x, y: falling.y }]]);
+  for (const expectedTicks of [1, 2]) {
+    harness.strongestModeCoronationElsaPhysicsStepCount += 1;
+    const waiting = Game.prototype.evaluateStrongestModeCoronationElsaIceTapReadiness.call(harness, target);
+    assert.equal(waiting.ready, false);
+    assert.equal(waiting.stablePhysicsTicks, expectedTicks);
+    const duplicate = Game.prototype.evaluateStrongestModeCoronationElsaIceTapReadiness.call(harness, target);
+    assert.equal(duplicate.stablePhysicsTicks, expectedTicks);
+  }
+  harness.strongestModeCoronationElsaPhysicsStepCount += 1;
+  const ready = Game.prototype.evaluateStrongestModeCoronationElsaIceTapReadiness.call(harness, target);
+  assert.equal(ready.ready, true);
+  assert.equal(ready.stablePhysicsTicks, 3);
+});
+
+test("Coronation Elsa ICE_TAP_READY adds no fixed wait to an initially stable board", () => {
+  const { harness, ice } = makeCoronationElsaIceTapReadinessHarness({ moving: false });
+  const ready = Game.prototype.evaluateStrongestModeCoronationElsaIceTapReadiness.call(harness, {
+    type: "freeze", x: ice.x, y: ice.y, target: ice
+  });
+  assert.equal(ready.ready, true);
+  assert.equal(ready.initiallyStable, true);
+  assert.equal(ready.stablePhysicsTicks, 0);
+});
+
+test("Coronation Elsa InputRouter cannot bypass ICE_TAP_READY", () => {
+  const frozen = { id: "ice", x: 100, y: 400 };
+  let tapInfoRequested = false;
+  const router = Object.assign(Object.create(InputRouter.prototype), {
+    game: {
+      strongestModeEnabled: true,
+      myTsum: { id: "coronationElsa" },
+      getActiveSkillSession: () => null,
+      evaluateStrongestModeCoronationElsaIceTapReadiness: () => ({ ready: false })
+    },
+    board: {
+      findFrozenGroupAt: () => frozen,
+      getFrozenEntry: () => ({ freezeKind: "coronationElsa" }),
+      getFrozenTapInfo() {
+        tapInfoRequested = true;
+        return { targets: [frozen] };
+      }
+    }
+  });
+  assert.equal(InputRouter.prototype.handleTap.call(router, { x: 100, y: 400 }), false);
+  assert.equal(tapInfoRequested, false);
 });
 
 const makeCoronationElsaStepHarness = () => ({
@@ -560,6 +724,36 @@ test("Coronation Elsa settle opportunity WAIT performs no trace or ice tap and r
   assert.equal(planCalls, 2);
   assert.equal(chainCalls, 0);
   assert.equal(tapCalls, 0);
+});
+
+test("Coronation Elsa cancels a blocked TAP and traces when the next post-physics plan finds a safe chain", () => {
+  const chain = [{ id: "a" }, { id: "b" }, { id: "c" }];
+  let planCalls = 0;
+  let tapCalls = 0;
+  let traced = false;
+  const harness = {
+    ...makeCoronationElsaStepHarness(),
+    planStrongestModeCoronationElsaAction() {
+      planCalls += 1;
+      if (planCalls <= 2) {
+        return { plan: { action: "tap", terminal: { effectiveClearCount: 8 } }, chain: [], tapTarget: { id: "ice", x: 20, y: 30 } };
+      }
+      return { plan: { action: "trace" }, chain, tapTarget: null };
+    },
+    tryTapStrongestModeCoronationElsaFreezeTarget() {
+      tapCalls += 1;
+      return false;
+    },
+    isStrongestModeCoronationElsaPlannedChainValid: () => true,
+    performStrongestModeChains() {
+      traced = true;
+      return true;
+    }
+  };
+  assert.equal(Game.prototype.performStrongestModeStep.call(harness), false);
+  assert.equal(Game.prototype.performStrongestModeStep.call(harness), true);
+  assert.equal(tapCalls, 1);
+  assert.equal(traced, true);
 });
 
 test("Coronation Elsa planner immediately taps only after a second no-trace confirmation", () => {
