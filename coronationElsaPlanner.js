@@ -36,6 +36,9 @@ export const CORONATION_ELSA_PLANNER_CONFIG = Object.freeze({
   opportunitySecondaryWaitMaxMs: 1000 / 60,
   opportunityPreTapWaitMaxMs: 1000 / 30,
   opportunityPreTapWaitReserveMs: 1000 / 30,
+  boardTraceReadinessWaitMaxMs: 100,
+  traceRecoveryWaitMaxMs: 50,
+  tracePotentialStablePhysicsTicks: 2,
   opportunityCycleWaitBudgetMs: 100,
   opportunityMinPendingAboveSelection: 1,
   opportunitySufficientTraceCount: 4,
@@ -199,6 +202,8 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
   let dynamicSupportMask = 0n;
   let genuineFallSpaceMask = 0n;
   let settlingOpportunityMask = 0n;
+  let futureTraceRelevantPendingMask = 0n;
+  const temporalPositions = options.temporalPositions || null;
   const fallbackCoronationFrozenIds = new Set(
     (game.boardState.getFrozenNodesByKind?.(CORONATION_ELSA_FREEZE_KIND) || [])
       .map((tsum) => String(tsum?.id))
@@ -272,6 +277,16 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
     // Opportunity is temporal evidence only; it must never become a hard
     // transition reject like active inflow.
     const settlingOpportunity = !!(baseTraceEligible && !anyFrozen && stableSupport && !settled);
+    const previous = temporalPositions?.get?.(String(tsum?.id)) || null;
+    const positionDelta = previous
+      ? Math.hypot((Number(tsum?.x) || 0) - previous.x, (Number(tsum?.y) || 0) - previous.y)
+      : 0;
+    const meaningfulMotion = Math.hypot(Number(tsum?.vx) || 0, Number(tsum?.vy) || 0) > 1 || positionDelta > 0.75;
+    const futureTracePendingCandidate = !!(
+      baseTraceEligible && !anyFrozen && !settled && (
+        recentSpawn || activeInflow || settlingOpportunity || meaningfulMotion
+      )
+    );
     if (activeInflow) activeInflowMask |= bitForIndex(index);
     if (inflowUnsafe) inflowUnsafeMask |= bitForIndex(index);
     if (baseTraceEligible && !anyFrozen && upperInflow) upperInflowMask |= bitForIndex(index);
@@ -301,6 +316,9 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
       activeInflow,
       inflowUnsafe,
       settlingOpportunity,
+      meaningfulMotion,
+      positionDelta,
+      futureTracePendingCandidate,
       resolvedTypeId: resolvedType?.id || null,
       effectiveRadius: Number(effectiveRadius) || 0,
       baseRadius: Number(tsum?.baseRadius ?? tsum?.radius) || 0,
@@ -325,6 +343,15 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
   const indexById = Object.freeze(Object.fromEntries(
     nodes.map((node) => [String(node.id), node.index])
   ));
+  const traceEligibleTypeCounts = new Map();
+  for (const node of nodes) {
+    if (!node.traceEligible || !node.resolvedTypeId) continue;
+    traceEligibleTypeCounts.set(node.resolvedTypeId, (traceEligibleTypeCounts.get(node.resolvedTypeId) || 0) + 1);
+  }
+  const futureTraceRelevantNodeIndices = nodes
+    .filter((node) => node.futureTracePendingCandidate && (traceEligibleTypeCounts.get(node.resolvedTypeId) || 0) >= 3)
+    .map((node) => node.index);
+  for (const index of futureTraceRelevantNodeIndices) futureTraceRelevantPendingMask |= bitForIndex(index);
   const freezeLayerCounts = freezeArray(nodes.map((node) => node.coronationFreezeLayerCount));
   const initialState = Object.freeze({
     frozenMask: coronationFrozenMask,
@@ -346,6 +373,7 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
     freezeProtectedMask: inflowUnsafeMask,
     settlingOpportunityMask,
     pendingGeometryMask: activeInflowMask | settlingOpportunityMask,
+    futureTraceRelevantPendingMask,
     upperInflowMask,
     recentSpawnMask,
     unsettledMask,
@@ -370,6 +398,7 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
       settlingOpportunityNodeCount: popcountMask(settlingOpportunityMask),
       pendingGeometryNodeCount: popcountMask(activeInflowMask | settlingOpportunityMask),
       stableSupportButUnsettledCount: popcountMask(settlingOpportunityMask),
+      futureTraceRelevantPendingCount: popcountMask(futureTraceRelevantPendingMask),
       lowerPlayableNodeCount: Number.isFinite(flowContext?.lowerPlayableNodeCount)
         ? flowContext.lowerPlayableNodeCount
         : 0
@@ -1335,6 +1364,7 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
         genuineFallSpaceNodeCount: snapshot.flowDiagnostics?.genuineFallSpaceNodeCount || 0,
         settlingOpportunityNodeCount: snapshot.flowDiagnostics?.settlingOpportunityNodeCount || 0,
         pendingGeometryNodeCount: snapshot.flowDiagnostics?.pendingGeometryNodeCount || 0,
+        futureTraceRelevantPendingCount: snapshot.flowDiagnostics?.futureTraceRelevantPendingCount || 0,
         coronationFrozenNodeCount: popcountMask(snapshot.coronationFrozenMask || 0n),
         coronationFrozenMinY: coronationFrozenY.minY,
         coronationFrozenMaxY: coronationFrozenY.maxY,

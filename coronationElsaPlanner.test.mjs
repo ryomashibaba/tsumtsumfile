@@ -532,6 +532,7 @@ test("moving lower chain on stable support remains freeze-flow safe", () => {
   assert.equal(snapshot.flowDiagnostics.stableSupportNodeCount, 3);
   assert.equal(snapshot.flowDiagnostics.settlingOpportunityNodeCount, 3);
   assert.equal(snapshot.flowDiagnostics.pendingGeometryNodeCount, 3);
+  assert.equal(snapshot.flowDiagnostics.futureTraceRelevantPendingCount, 3);
   assert.equal(snapshot.inflowUnsafeMask, 0n);
   assert.notEqual(snapshot.settlingOpportunityMask, 0n);
   assert.equal(snapshot.flowDiagnostics.activeInflowNodeCount, 0);
