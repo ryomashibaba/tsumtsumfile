@@ -171,3 +171,193 @@ canvas {
     box-shadow: none;
   }
 }
+
+.cheat-dialog {
+  width: min(390px, calc(100vw - 24px));
+  max-height: min(680px, calc(100dvh - 24px));
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  color: #fff;
+  background: linear-gradient(180deg, #20265a 0%, #111936 100%);
+  border: 2px solid rgba(231, 183, 255, 0.85);
+  border-radius: 24px;
+  box-shadow: 0 24px 70px rgba(8, 4, 30, 0.72), 0 0 28px rgba(207, 95, 255, 0.35);
+  touch-action: pan-y;
+}
+
+.cheat-dialog::backdrop {
+  background: rgba(4, 9, 24, 0.74);
+  backdrop-filter: blur(4px);
+}
+
+.cheat-dialog__header,
+.cheat-dialog__footer,
+.cheat-control__row,
+.cheat-auto-row {
+  display: flex;
+  align-items: center;
+}
+
+.cheat-dialog__header {
+  justify-content: space-between;
+  padding: 18px 18px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.cheat-dialog__title {
+  margin: 0;
+  font-size: 24px;
+}
+
+.cheat-dialog__subtitle {
+  margin: 3px 0 0;
+  color: #d9c9ff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cheat-dialog__close {
+  width: 42px;
+  height: 42px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  font-size: 28px;
+  cursor: pointer;
+}
+
+.cheat-dialog__body {
+  max-height: calc(100dvh - 190px);
+  padding: 14px 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+.cheat-control {
+  margin: 0 0 14px;
+  padding: 10px 12px 11px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 15px;
+}
+
+.cheat-control__legend {
+  padding: 0 5px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.cheat-control__range {
+  width: 100%;
+  accent-color: #d85cff;
+  touch-action: pan-x;
+}
+
+.cheat-control__row {
+  gap: 8px;
+  margin-top: 7px;
+}
+
+.cheat-control__number,
+.cheat-special-button,
+.cheat-reset-button,
+.cheat-done-button {
+  min-height: 40px;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 11px;
+  font: 800 14px "Trebuchet MS", "Yu Gothic", sans-serif;
+}
+
+.cheat-control__number {
+  width: 0;
+  flex: 1;
+  padding: 7px 10px;
+  background: rgba(4, 10, 30, 0.72);
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.cheat-control__unit {
+  min-width: 42px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cheat-special-button {
+  min-width: 98px;
+  padding: 7px 11px;
+  background: #59657c;
+  cursor: pointer;
+}
+
+.cheat-special-button[aria-pressed="true"] {
+  color: #321047;
+  background: #edb4ff;
+  border-color: #fff;
+}
+
+.cheat-control__hint {
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 10px;
+}
+
+.cheat-auto-row {
+  gap: 12px;
+  margin: 2px 0 8px;
+  padding: 13px;
+  background: rgba(216, 92, 255, 0.13);
+  border: 1px solid rgba(235, 178, 255, 0.35);
+  border-radius: 15px;
+  cursor: pointer;
+}
+
+.cheat-auto-row__input {
+  width: 24px;
+  height: 24px;
+  accent-color: #d85cff;
+}
+
+.cheat-auto-row__copy {
+  display: grid;
+  gap: 3px;
+}
+
+.cheat-auto-row__copy small {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.cheat-dialog__footer {
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.cheat-reset-button,
+.cheat-done-button {
+  flex: 1;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.cheat-reset-button {
+  background: #4d5870;
+}
+
+.cheat-done-button {
+  color: #311043;
+  background: linear-gradient(180deg, #f1c2ff, #d777f2);
+}
+
+.cheat-dialog button:focus-visible,
+.cheat-dialog input:focus-visible {
+  outline: 3px solid #fff27a;
+  outline-offset: 2px;
+}

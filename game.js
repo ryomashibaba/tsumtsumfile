@@ -47,7 +47,7 @@ import {
 } from './config.js?v=tsum-images-5';
 
 import { UIRenderer } from './ui.js?v=tsum-images-5';
-import { JudyNickGaugeManager, registerJudyNickSkill } from './judyNick.js?v=tsum-images-5';
+import { JudyNickGaugeManager, registerJudyNickSkill, resolveJudyNickActivationMode } from './judyNick.js?v=skill-visuals-1';
 import {
   LILIA_CHAIN_TYPE,
   LILIA_COIN_CORRECTION,
@@ -60,6 +60,17 @@ import {
 } from './lilia.js?v=tsum-images-8';
 import { drawTsumArtwork } from './tsumImages.js?v=tsum-images-5';
 import { areBoardTypesColorCompatible } from './boardTypeSelection.js?v=tsum-images-5';
+import {
+  CHEAT_SPECIAL,
+  DEFAULT_CHEAT_SETTINGS,
+  advanceSpawnSchedule,
+  getCoinCorrectionKey,
+  getSkillCostKey,
+  normalizeCheatSettings,
+  parseCoinCorrectionType,
+  reconcileGaugeCharge,
+  resolveSkillCost
+} from './cheatSettings.js?v=cheat-settings-2';
 import {
   DEFAULT_LARGE_TSUM_SPAWN_CHANCE,
   LARGE_TSUM_CLEAR_WEIGHT,
@@ -716,6 +727,7 @@ class Tsum {
           this.level = 3;
           this.charge = 0;
           this.maxCharge = 10;
+          this.lastFiniteChargeRatio = 0;
           this.activationFlash = 0;
         }
 
@@ -725,23 +737,45 @@ class Tsum {
           this.level = clamp(level, 1, 6);
           this.charge = 0;
           const table = SKILL_TABLES[this.type];
-          this.maxCharge = table ? table.cost[this.level - 1] : 10;
+          const defaultCost = table ? table.cost[this.level - 1] : 10;
+          this.maxCharge = this.game.getEffectiveSkillCost(this.owner.id, null, defaultCost);
+          this.lastFiniteChargeRatio = this.maxCharge === 0 ? 1 : 0;
           this.activationFlash = 0;
+        }
+
+        refreshMaxCharge(preserveRatio = true) {
+          const table = SKILL_TABLES[this.type];
+          const defaultCost = table ? table.cost[this.level - 1] : 10;
+          const nextMaxCharge = this.game.getEffectiveSkillCost(this.owner.id, null, defaultCost);
+          if (nextMaxCharge === this.maxCharge) {
+            return;
+          }
+          const next = reconcileGaugeCharge(this, nextMaxCharge, preserveRatio);
+          this.charge = next.charge;
+          this.maxCharge = next.maxCharge;
+          this.lastFiniteChargeRatio = next.lastFiniteRatio;
         }
 
         addCharge(amount) {
           if (amount <= 0) {
             return;
           }
+          if (this.maxCharge === Infinity) {
+            return;
+          }
           this.charge = clamp(this.charge + amount, 0, this.maxCharge);
+          if (this.maxCharge > 0) {
+            this.lastFiniteChargeRatio = clamp(this.charge / this.maxCharge, 0, 1);
+          }
         }
 
         get ready() {
-          return this.charge >= this.maxCharge;
+          return this.maxCharge !== Infinity && (this.maxCharge === 0 || this.charge >= this.maxCharge);
         }
 
         consume() {
           this.charge = 0;
+          this.lastFiniteChargeRatio = this.maxCharge === 0 ? 1 : 0;
           this.activationFlash = 1;
         }
 
@@ -1177,6 +1211,7 @@ class BoardStateService {
     return {
       targets,
       correctionType: sample?.correctionType,
+      coinCheatRoute: sample?.coinCheatRoute,
       chargeMultiplier: sample?.chargeMultiplier,
       scoreMultiplier: sample?.scoreMultiplier,
       additionalClearCount: sample?.additionalClearCount || 0,
@@ -1551,6 +1586,7 @@ class SkillRuntimeManager {
     this.board = board;
     this.sessions = [];
     this.nextSessionId = 0;
+    this.nextVisualSequenceId = 0;
     this.pendingActivation = null;
     this.timingPauses = [];
   }
@@ -1562,11 +1598,17 @@ class SkillRuntimeManager {
       this.endSession(session, "replaced", { skipEndPause: true });
     }
     this.nextSessionId = 0;
+    this.nextVisualSequenceId = 0;
   }
 
   createSessionId(handlerId) {
     this.nextSessionId += 1;
     return `${handlerId}_${this.nextSessionId}`;
+  }
+
+  createVisualSequenceId() {
+    this.nextVisualSequenceId += 1;
+    return this.nextVisualSequenceId;
   }
 
   createContext(handler, level, existingSession = null, activationData = null) {
@@ -1621,11 +1663,23 @@ class SkillRuntimeManager {
       return false;
     }
     const presentation = SKILL_TIMING_TABLE[skillId]?.presentation;
-    if (presentation && presentation.durationMs > 0) {
+    if (this.game?.skillVisualsEnabled !== false && presentation && presentation.durationMs > 0) {
+      const currentJudyNickMode = skillId === "judyNick"
+        ? this.getSessionsByHandlerId("judyNick")[0]?.data?.currentMode || null
+        : null;
+      const presentationData = skillId === "judyNick"
+        ? {
+            ...(activationData || {}),
+            judyNickMode: resolveJudyNickActivationMode(currentJudyNickMode, activationData?.judyNickMode),
+            judyNickExistingMode: currentJudyNickMode
+          }
+        : activationData;
       this.pendingActivation = {
         skillId,
         level,
         activationData,
+        presentationData,
+        sequenceId: this.createVisualSequenceId(),
         remainingMs: presentation.durationMs,
         durationMs: presentation.durationMs,
         pauseClock: presentation.pauseClock === true,
@@ -1656,6 +1710,11 @@ class SkillRuntimeManager {
     return this.pendingActivation ? { ...this.pendingActivation } : null;
   }
 
+  getVisualTimingState() {
+    const pause = this.timingPauses[this.timingPauses.length - 1];
+    return pause ? { ...pause } : null;
+  }
+
   isPresentationActive() {
     return !!this.pendingActivation;
   }
@@ -1678,8 +1737,15 @@ class SkillRuntimeManager {
     if (!spec || !(spec.durationMs > 0)) {
       return null;
     }
+    if (metadata.skillId && this.game?.skillVisualsEnabled === false) {
+      if (typeof metadata.onComplete === "function") {
+        metadata.onComplete();
+      }
+      return null;
+    }
     const pause = {
       ...metadata,
+      sequenceId: metadata.sequenceId ?? this.createVisualSequenceId(),
       remainingMs: spec.durationMs,
       durationMs: spec.durationMs,
       pauseClock: spec.pauseClock === true,
@@ -1687,6 +1753,20 @@ class SkillRuntimeManager {
     };
     this.timingPauses.push(pause);
     return pause;
+  }
+
+  skipSkillVisualTiming() {
+    const activation = this.pendingActivation;
+    this.pendingActivation = null;
+    const pauses = this.timingPauses.splice(0);
+    if (activation) {
+      this.activateNow(activation.skillId, activation.level, activation.activationData);
+    }
+    for (const pause of pauses) {
+      if (typeof pause.onComplete === "function") {
+        pause.onComplete();
+      }
+    }
   }
 
   updateRaw(dtMs) {
@@ -2116,6 +2196,12 @@ class ClearPipeline {
       timer: spec.timer ?? (spec.source === "chain" ? 0.18 : 0.16),
       ...spec
     };
+    if (request.visual && !(request.visual.durationMs > 0)) {
+      request.visual = {
+        ...request.visual,
+        durationMs: request.timer * 1000
+      };
+    }
     request.targets = this.uniqueTargets(request.targets || []);
     if (!request.targets.length) {
       return null;
@@ -2178,6 +2264,7 @@ class ClearPipeline {
       if (!request.correctionType && primaryBubbleEntry?.correctionType) {
         request.correctionType = primaryBubbleEntry.correctionType;
       }
+      request.coinCheatRoute = request.coinCheatRoute || primaryBubbleEntry?.coinCheatRoute;
       if (typeof request.chargeMultiplier !== "number" && typeof primaryBubbleEntry?.chargeMultiplier === "number") {
         request.chargeMultiplier = primaryBubbleEntry.chargeMultiplier;
       }
@@ -2507,6 +2594,7 @@ class InputRouter {
         allowBomb: false,
         type: frozenInfo.type || this.game.myTsum,
         correctionType: frozenInfo.correctionType,
+        coinCheatRoute: frozenInfo.coinCheatRoute,
         chargeMultiplier: frozenInfo.chargeMultiplier,
         scoreMultiplier: frozenInfo.scoreMultiplier,
         effectiveClearCountOverride: frozenInfo.effectiveClearCountOverride,
@@ -2600,6 +2688,9 @@ class Game {
     this.persistenceEnabled = options.persistenceEnabled !== false;
     this.managedLoop = !!options.managedLoop;
     this.onRunFinished = typeof options.onRunFinished === "function" ? options.onRunFinished : null;
+    this.onCheatSettingsRequested = typeof options.onCheatSettingsRequested === "function"
+      ? options.onCheatSettingsRequested
+      : null;
     this.battleController = null;
     this.battleContext = null;
     this.battleStats = null;
@@ -2627,6 +2718,9 @@ class Game {
     const save = this.persistenceEnabled ? this.loadSave() : { coins: 0, plays: 0 };
     this.coins = save.coins;
     this.plays = save.plays;
+    this.skillVisualsEnabled = save.skillVisualsEnabled !== false;
+    this.cheatSettings = normalizeCheatSettings(save.cheatSettings || DEFAULT_CHEAT_SETTINGS);
+    this.cheatSpawnAccumulator = 0;
 
     this.selectedMyTsumIndex = 0;
     this.selectedSkillLevel = 3;
@@ -2920,10 +3014,12 @@ class Game {
       const parsed = JSON.parse(raw);
       return {
         coins: Number.isFinite(parsed.coins) ? parsed.coins : 5000,
-        plays: Number.isFinite(parsed.plays) ? parsed.plays : 0
+        plays: Number.isFinite(parsed.plays) ? parsed.plays : 0,
+        skillVisualsEnabled: parsed.skillVisualsEnabled !== false,
+        cheatSettings: normalizeCheatSettings(parsed.cheatSettings)
       };
     } catch (error) {
-      return { coins: 5000, plays: 0 };
+      return { coins: 5000, plays: 0, cheatSettings: normalizeCheatSettings() };
     }
   }
 
@@ -4444,7 +4540,9 @@ class Game {
     try {
       const payload = {
         coins: Number.isFinite(this.coins) ? this.coins : 0,
-        plays: Number.isFinite(this.plays) ? this.plays : 0
+        plays: Number.isFinite(this.plays) ? this.plays : 0,
+        skillVisualsEnabled: this.skillVisualsEnabled !== false,
+        cheatSettings: normalizeCheatSettings(this.cheatSettings)
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (err) {
@@ -4458,7 +4556,123 @@ class Game {
     const s = this.loadSave ? this.loadSave() : { coins: 0, plays: 0 };
     this.coins = Number.isFinite(s.coins) ? s.coins : 0;
     this.plays = Number.isFinite(s.plays) ? s.plays : 0;
+    this.skillVisualsEnabled = s.skillVisualsEnabled !== false;
+    this.cheatSettings = normalizeCheatSettings(s.cheatSettings);
+    this.refreshCheatSkillRequirements(true);
     return s;
+  }
+
+  isCheatActive() {
+    return this.role === "player" && this.cheatSettings?.enabled === true;
+  }
+
+  getDefaultSkillCost(characterId = this.myTsum?.id, level = this.selectedSkillLevel) {
+    const type = TSUM_TYPES.find((entry) => entry.id === characterId) || this.myTsum;
+    const table = type ? SKILL_TABLES[type.skillType] : null;
+    return table?.cost?.[clamp(Number(level) || 1, 1, 6) - 1] ?? 10;
+  }
+
+  getEffectiveSkillCost(characterId = this.myTsum?.id, pairMode = null, defaultCost = null) {
+    const fallback = defaultCost ?? this.getDefaultSkillCost(characterId);
+    return resolveSkillCost(this.cheatSettings, characterId, pairMode, fallback);
+  }
+
+  refreshCheatSkillRequirements(preserveRatio = true) {
+    this.skillSystem?.refreshMaxCharge?.(preserveRatio);
+    this.judyNickGaugeManager?.syncMaxCharge?.(preserveRatio);
+  }
+
+  updateCheatSettings(patch = {}, options = {}) {
+    const previousEnabled = this.cheatSettings?.enabled === true;
+    this.cheatSettings = normalizeCheatSettings({
+      ...this.cheatSettings,
+      ...patch,
+      skillCosts: patch.skillCosts ?? this.cheatSettings?.skillCosts,
+      coinCorrections: patch.coinCorrections ?? this.cheatSettings?.coinCorrections
+    });
+    this.cheatSpawnAccumulator = 0;
+    this.refreshCheatSkillRequirements(options.preserveRatio !== false);
+    if (previousEnabled !== this.cheatSettings.enabled && this.state === "playing") {
+      this.spawnReplacementTsums();
+    }
+    this.saveProgress();
+    return this.cheatSettings;
+  }
+
+  setCheatSkillCost(characterId, pairMode, value) {
+    const key = getSkillCostKey(characterId, pairMode);
+    if (!key) return this.cheatSettings;
+    return this.updateCheatSettings({
+      skillCosts: {
+        ...(this.cheatSettings?.skillCosts || {}),
+        [key]: value
+      }
+    });
+  }
+
+  setCheatCoinCorrection(characterId, kind, route, value) {
+    const key = getCoinCorrectionKey(characterId, kind, route);
+    return this.updateCheatSettings({
+      coinCorrections: {
+        ...(this.cheatSettings?.coinCorrections || {}),
+        [key]: value
+      }
+    });
+  }
+
+  getCheatCoinCorrection(kind, route, fallback = 0) {
+    if (!this.isCheatActive()) return fallback;
+    const key = getCoinCorrectionKey(this.myTsum?.id, kind, route);
+    return Object.prototype.hasOwnProperty.call(this.cheatSettings.coinCorrections || {}, key)
+      ? this.cheatSettings.coinCorrections[key]
+      : fallback;
+  }
+
+  getCoinCorrectionControls() {
+    const characterId = this.myTsum?.id || "";
+    const levelIndex = clamp(Number(this.selectedSkillLevel) || 1, 1, 6) - 1;
+    if (characterId === "coingain") {
+      return [{ route: "coingainBase", label: "スキル中（0～+30）", defaultValue: 0, hint: "入力値を0～+30の全段階に加算" }];
+    }
+    const table = SKILL_TABLES[this.myTsum?.skillType] || {};
+    const types = [];
+    if (characterId === "judyNick") {
+      const countTypes = table.countCoinCorrectionTypes?.[levelIndex] || [];
+      const controls = countTypes.map((type, index) => ({
+        route: `count${index + 1}`,
+        label: `スキル中 カウント${index + 1}`,
+        defaultValue: parseCoinCorrectionType(type)
+      }));
+      controls.push({
+        route: "overlay",
+        label: "スキル中 重ね消去",
+        defaultValue: parseCoinCorrectionType(table.overlayCoinCorrectionType?.[levelIndex])
+      });
+      return controls;
+    } else {
+      for (const field of ["coinCorrectionType", "specialBombCoinCorrectionType"]) {
+        if (table[field]?.[levelIndex]) types.push(table[field][levelIndex]);
+      }
+    }
+    return types.slice(0, 1).map((type) => ({
+      route: "default",
+      label: `スキル中（既定 ${parseCoinCorrectionType(type)}）`,
+      defaultValue: parseCoinCorrectionType(type)
+    }));
+  }
+
+  toggleCheat() {
+    return this.updateCheatSettings({ enabled: !this.cheatSettings?.enabled }).enabled;
+  }
+
+  resetCheatSettings() {
+    return this.updateCheatSettings(normalizeCheatSettings(), { preserveRatio: true });
+  }
+
+  requestCheatSettings() {
+    if (!this.isCheatActive()) return false;
+    this.onCheatSettingsRequested?.();
+    return true;
   }
 
   // Reset minimal game state (used by menu flows)
@@ -4652,6 +4866,13 @@ class Game {
       return;
     }
     if (this.paused) {
+      if (rectContains(this.getPauseSkillVisualToggleRect(), pos.x, pos.y)) {
+        this.toggleSkillVisuals();
+      } else if (rectContains(this.getPauseCheatToggleRect(), pos.x, pos.y)) {
+        this.toggleCheat();
+      } else if (rectContains(this.getPauseCheatSettingsRect(), pos.x, pos.y)) {
+        this.requestCheatSettings();
+      }
       return;
     }
     if (rectContains(SELECT_TSUM_BUTTON_RECT, pos.x, pos.y)) {
@@ -4930,6 +5151,18 @@ class Game {
       this.battleController?.setMode("battle");
       return;
     }
+    if (rectContains(this.getTitleSkillVisualToggleRect(), pos.x, pos.y)) {
+      this.toggleSkillVisuals();
+      return;
+    }
+    if (rectContains(this.getTitleCheatToggleRect(), pos.x, pos.y)) {
+      this.toggleCheat();
+      return;
+    }
+    if (rectContains(this.getTitleCheatSettingsRect(), pos.x, pos.y)) {
+      this.requestCheatSettings();
+      return;
+    }
     const selectable = this.getTitleCharacterPageTypes();
     const charRects = this.getTitleCharacterRects();
     for (let i = 0; i < charRects.length; i += 1) {
@@ -5082,6 +5315,30 @@ class Game {
 
   getTitlePlayRect() {
     return { x: 93, y: 644, w: 228, h: 64 };
+  }
+
+  getTitleSkillVisualToggleRect() {
+    return { x: 92, y: 542, w: 230, h: 34 };
+  }
+
+  getTitleCheatToggleRect() {
+    return { x: 48, y: 582, w: 160, h: 38 };
+  }
+
+  getTitleCheatSettingsRect() {
+    return { x: 216, y: 582, w: 150, h: 38 };
+  }
+
+  getPauseSkillVisualToggleRect() {
+    return { x: 92, y: 278, w: 230, h: 48 };
+  }
+
+  getPauseCheatToggleRect() {
+    return { x: 48, y: 344, w: 160, h: 48 };
+  }
+
+  getPauseCheatSettingsRect() {
+    return { x: 216, y: 344, w: 150, h: 48 };
   }
 
   getTitleModeRects() {
@@ -5359,6 +5616,11 @@ class Game {
   }
 
   getTargetBodyCount() {
+    if (this.isCheatActive?.()) {
+      return this.cheatSettings.boardTarget === CHEAT_SPECIAL.UNLIMITED
+        ? Infinity
+        : this.cheatSettings.boardTarget;
+    }
     const data = this.getCoingainData();
     if (data?.miniActive) {
       return skillValue("coingain", "miniTargetCount", data.level || this.selectedSkillLevel) || 90;
@@ -5556,6 +5818,54 @@ class Game {
 
   getSkillPresentationState() {
     return this.skillRuntime?.getPresentationState?.() || null;
+  }
+
+  getSkillVisualState() {
+    const presentation = this.skillRuntime?.getPresentationState?.();
+    if (presentation) {
+      const durationMs = Math.max(0, presentation.durationMs || 0);
+      return {
+        skillId: presentation.skillId,
+        kind: "presentation",
+        elapsedMs: clamp(durationMs - Math.max(0, presentation.remainingMs || 0), 0, durationMs),
+        durationMs,
+        activationData: presentation.presentationData ?? presentation.activationData ?? null,
+        sequenceId: presentation.sequenceId || 0,
+        centers: [],
+        targetIds: []
+      };
+    }
+
+    const clearVisual = this.pendingClear?.visual;
+    if (clearVisual?.skillId && clearVisual.durationMs > 0) {
+      const durationMs = clearVisual.durationMs;
+      const remainingMs = Math.max(0, (this.pendingClear.timer || 0) * 1000);
+      return {
+        skillId: clearVisual.skillId,
+        kind: clearVisual.kind,
+        elapsedMs: clamp(durationMs - remainingMs, 0, durationMs),
+        durationMs,
+        activationData: clearVisual.activationData || null,
+        sequenceId: clearVisual.sequenceId || 0,
+        centers: (clearVisual.centers || []).map((center) => ({ ...center })),
+        targetIds: (clearVisual.targetIds || []).slice()
+      };
+    }
+
+    const pause = this.skillRuntime?.getVisualTimingState?.();
+    if (!pause?.skillId || !(pause.durationMs > 0)) {
+      return null;
+    }
+    return {
+      skillId: pause.skillId,
+      kind: pause.kind,
+      elapsedMs: clamp(pause.durationMs - Math.max(0, pause.remainingMs || 0), 0, pause.durationMs),
+      durationMs: pause.durationMs,
+      activationData: pause.activationData || null,
+      sequenceId: pause.sequenceId || 0,
+      centers: (pause.centers || []).map((center) => ({ ...center })),
+      targetIds: (pause.targetIds || []).slice()
+    };
   }
 
   isGameplayInputLocked({ ignoreActionLock = false } = {}) {
@@ -9547,6 +9857,7 @@ class Game {
     this.pendingChainClearQueue = [];
     this.skillChargeFlights = [];
     this.tempLockTimer = 0;
+    this.cheatSpawnAccumulator = 0;
     this.runFinished = false;
 
     this.score = 0;
@@ -9583,7 +9894,9 @@ class Game {
     this.currentWeights = this.getBoardWeights(this.availableTypes.length);
     console.log('board types:', this.availableTypes.map((type) => type.id), 'count:', this.availableTypes.length);
 
-    this.populateField();
+    if (!this.isCheatActive()) {
+      this.populateField();
+    }
     this.refreshRenderBodies();
     if (this.aiAutoPlay && this.aiTrainingMode && !this.aiLearningMode) {
       this.pickAiStrategyForNextRun();
@@ -9712,7 +10025,10 @@ class Game {
 
   queueNaturalLargeTsum(clearEvent) {
     const effectiveClearCount = clearEvent?.effectiveClearCount || 0;
-    if (!shouldSpawnLargeTsum(effectiveClearCount, this.random, this.largeTsumSpawnChance)) {
+    const largeTsumChance = this.isCheatActive()
+      ? this.cheatSettings.largeTsumChance / 100
+      : this.largeTsumSpawnChance;
+    if (!shouldSpawnLargeTsum(effectiveClearCount, this.random, largeTsumChance)) {
       return false;
     }
     const candidates = Array.isArray(clearEvent?.clearedTypeCandidates)
@@ -9729,35 +10045,44 @@ class Game {
 
   spawnReplacementTsums() {
     if (this.isCoingainSpawnPaused()) {
-      return;
+      return 0;
+    }
+    if (this.isCheatActive?.()) {
+      return 0;
     }
     const targetOccupancy = this.getTargetBodyCount();
     let deficit = Math.max(0, targetOccupancy - this.getLiveBodyOccupancy());
+    return Game.prototype.spawnTsumBatch.call(this, Math.ceil(deficit), targetOccupancy);
+  }
+
+  spawnTsumBatch(requestedCount, targetHint = requestedCount) {
+    let remaining = Math.max(0, Math.floor(Number(requestedCount) || 0));
     let spawnIndex = 0;
-    const maxSpawns = Math.max(1, targetOccupancy * 2);
-    while (deficit >= 1 && spawnIndex < maxSpawns) {
+    const maxSpawns = Math.max(0, remaining);
+    while (remaining > 0 && spawnIndex < maxSpawns) {
       const pendingLargeType = this.pendingLargeTsumTypes.length > 0
         ? this.pendingLargeTsumTypes.shift()
         : null;
       const canSpawnLarge = canSpawnNaturalLargeTsum({
         hasPendingReservation: !!pendingLargeType,
         liveNaturalLargeCount: this.getLiveNaturalLargeTsumCount(),
-        availableBodySlots: deficit
+        availableBodySlots: remaining
       });
       const type = canSpawnLarge ? pendingLargeType : this.randomTsumType();
-      const body = this.createSpawnTsum(type, spawnIndex, Math.ceil(deficit), {
+      const body = this.createSpawnTsum(type, spawnIndex, Math.max(1, Math.ceil(targetHint)), {
         isLarge: canSpawnLarge,
         largeSpawnSource: canSpawnLarge ? "natural" : null
       });
       if (!body) {
         spawnIndex += 1;
+        remaining -= 1;
         continue;
       }
       if (body.isBomb) {
         this.bombs.push(body);
       }
       spawnIndex += 1;
-      deficit = Math.max(0, targetOccupancy - this.getLiveBodyOccupancy());
+      remaining -= 1;
     }
     if (
       spawnIndex > 0
@@ -9769,6 +10094,28 @@ class Game {
         force: this.strongestModeCoronationElsaForceNextSpawnWave
       });
     }
+    return spawnIndex;
+  }
+
+  updateCheatSpawnScheduler(dt) {
+    if (!this.isCheatActive() || this.isCoingainSpawnPaused() || this.timeUp) {
+      return 0;
+    }
+    const schedule = advanceSpawnSchedule({
+      settings: this.cheatSettings,
+      occupancy: this.getLiveBodyOccupancy(),
+      accumulator: this.cheatSpawnAccumulator,
+      dt,
+      defaultTarget: TARGET_TSUM_COUNT
+    });
+    this.cheatSpawnAccumulator = schedule.accumulator;
+    if (schedule.spawnCount <= 0) {
+      return 0;
+    }
+    const targetHint = this.cheatSettings.boardTarget === CHEAT_SPECIAL.UNLIMITED
+      ? Math.max(TARGET_TSUM_COUNT, schedule.spawnCount)
+      : this.cheatSettings.boardTarget;
+    return this.spawnTsumBatch(schedule.spawnCount, targetHint);
   }
 
   randomTsumType() {
@@ -9955,6 +10302,29 @@ class Game {
     return used;
   }
 
+  updateCheatAutoSkill() {
+    if (
+      !this.isCheatActive()
+      || !this.cheatSettings.autoSkill
+      || this.state !== "playing"
+      || this.paused
+      || this.timeUp
+      || !this.isSkillReadyForActivation()
+    ) {
+      return false;
+    }
+    if (
+      this.skillRuntime?.isPresentationActive?.()
+      || this.skillRuntime?.sessions?.length > 0
+      || this.skillRuntime?.timingPauses?.length > 0
+      || this.actionLock
+      || this.pendingClear
+    ) {
+      return false;
+    }
+    return this.attemptSkillActivation(false);
+  }
+
   triggerSkillButtonFeedback(mode) {
     this.skillButtonFeedback = {
       mode,
@@ -9986,6 +10356,20 @@ class Game {
     this.noteAction();
     this.addFloatingText(PAUSE_BUTTON_RECT.x + PAUSE_BUTTON_RECT.w * 0.5, PAUSE_BUTTON_RECT.y + PAUSE_BUTTON_RECT.h + 18, this.paused ? "PAUSE" : "GO!", "#ffffff", 16, 0.4);
     return true;
+  }
+
+  toggleSkillVisuals() {
+    this.skillVisualsEnabled = this.skillVisualsEnabled === false;
+    if (!this.skillVisualsEnabled) {
+      this.skillRuntime?.skipSkillVisualTiming?.();
+      if (this.pendingClear?.visual?.skillId) {
+        this.pendingClear.timer = 0;
+        this.pendingClear.pauseClock = false;
+        this.pendingClear.pausePhysics = false;
+      }
+    }
+    this.saveProgress();
+    return this.skillVisualsEnabled;
   }
 
   triggerFan() {
@@ -10973,12 +11357,23 @@ class Game {
       return;
     }
     let bombsToExplode = [bomb];
+    let specialBombVisual = null;
+    const skillTimingEnabled = this.skillVisualsEnabled !== false;
     if (bomb.bombType === "moanaSpecial") {
       bombsToExplode = this.bombs.filter((entry) => !entry.dead && entry.bombType === "moanaSpecial");
-      this.skillRuntime.startTimingPause(SKILL_TIMING_TABLE.guidingMoana.specialBombClear, {
+      const centers = bombsToExplode.map((entry) => ({ x: entry.x, y: entry.y }));
+      const visualPause = this.skillRuntime.startTimingPause(SKILL_TIMING_TABLE.guidingMoana.specialBombClear, {
         kind: "specialBombClear",
-        skillId: "guidingMoana"
+        skillId: "guidingMoana",
+        centers
       });
+      specialBombVisual = {
+        skillId: "guidingMoana",
+        kind: "specialBombClear",
+        durationMs: SKILL_TIMING_TABLE.guidingMoana.specialBombClear.durationMs,
+        sequenceId: visualPause?.sequenceId || 0,
+        centers
+      };
     }
     bombsToExplode.forEach((entry) => { entry.dead = true; });
     this.bombs = this.bombs.filter((entry) => !entry.dead);
@@ -11062,9 +11457,13 @@ class Game {
         correctionType: bomb.correctionType || null
       };
       if (bomb.bombType === "moanaSpecial") {
-        bombSpec.timer = SKILL_TIMING_TABLE.guidingMoana.specialBombClear.durationMs / 1000;
-        bombSpec.pauseClock = SKILL_TIMING_TABLE.guidingMoana.specialBombClear.pauseClock;
-        bombSpec.pausePhysics = SKILL_TIMING_TABLE.guidingMoana.specialBombClear.pausePhysics;
+        bombSpec.timer = skillTimingEnabled ? SKILL_TIMING_TABLE.guidingMoana.specialBombClear.durationMs / 1000 : 0;
+        bombSpec.pauseClock = skillTimingEnabled && SKILL_TIMING_TABLE.guidingMoana.specialBombClear.pauseClock;
+        bombSpec.pausePhysics = skillTimingEnabled && SKILL_TIMING_TABLE.guidingMoana.specialBombClear.pausePhysics;
+        bombSpec.visual = {
+          ...specialBombVisual,
+          targetIds: bombOnlyAffected.map((target) => target.id)
+        };
       }
       if (canBombCancel && this.pendingClear?.sequentialChain) {
         const bombPrepared = this.clearPipeline.buildPreparedClear(bombSpec);
@@ -11207,7 +11606,8 @@ class Game {
       }
 
       if (!this.isBodySettled(body, occupyingBodies)) {
-        body.vy += GRAVITY;
+        const gravityMultiplier = this.isCheatActive() ? this.cheatSettings.gravityMultiplier : 1;
+        body.vy += GRAVITY * gravityMultiplier;
         body.vx *= body.damping;
         body.vy *= body.damping;
         body.x += body.vx;
@@ -11428,10 +11828,16 @@ class Game {
       return 0;
     }
     const correctionType = correctionTypeOverride || tsumType.coinCorrectionType || DEFAULT_COIN_CORRECTION_TYPE;
+    const defaultCorrection = parseCoinCorrectionType(correctionType);
+    const correctionRoute = clearEvent?.coinCheatRoute || "default";
+    const requestedCorrection = correctionTypeOverride && tsumType.id === "coingain"
+      ? defaultCorrection + this.getCheatCoinCorrection("skill", "coingainBase", 0)
+      : this.getCheatCoinCorrection(correctionTypeOverride ? "skill" : "normal", correctionRoute, defaultCorrection);
     const clampedCount = clamp(clearCount, 0, 317);
-    const table = COIN_CORRECTION_TABLE[correctionType];
+    const table = COIN_CORRECTION_TABLE[`correction_${requestedCorrection}`]
+      || this.createCoinCorrectionTable(requestedCorrection);
     if (!table) {
-      console.error(`[COIN] Correction table not found for type: ${correctionType}`);
+      console.error(`[COIN] Correction table not found for type: correction_${requestedCorrection}`);
       return 0;
     }
     if (!table.hasOwnProperty(clampedCount)) {
@@ -11451,6 +11857,16 @@ class Game {
     const baseCoins = COIN_CORRECTION_TABLE['correction_0'][clampedCount] || 0;
     console.log(`[COIN] Tsum=${tsumType.id} Clears=${clearCount} Type=${correctionType} → Coins=${coins} (base=${baseCoins})`);
     return coins;
+  }
+
+  createCoinCorrectionTable(correction) {
+    const base = COIN_CORRECTION_TABLE[DEFAULT_COIN_CORRECTION_TYPE];
+    const table = { 0: 0 };
+    for (let count = 1; count <= 317; count += 1) {
+      const marginal = (Number(base[count]) || 0) - (Number(base[count - 1]) || 0);
+      table[count] = table[count - 1] + (count < 4 ? marginal : Math.max(1, marginal + correction));
+    }
+    return table;
   }
 
   addScore(amount) {
@@ -11896,6 +12312,8 @@ class Game {
       }
     }
 
+    this.updateCheatSpawnScheduler?.(gameplayDt);
+
     if (!gameplayPauseState.physicsPaused) {
       this.strongestModeCoronationElsaTemporalPositions = new Map(this.tsums.map((tsum) => [String(tsum.id), {
         x: Number(tsum.x) || 0,
@@ -11929,6 +12347,7 @@ class Game {
     this.updateSkillChargeFlights(gameplayDt * 1000);
     this.skillRuntime.update(gameplayDt * 1000);
     this.skillSystem.update(dt);
+    this.updateCheatAutoSkill?.();
     this.feverSystem.update(gameplayDt);
     this.comboSystem.update(gameplayDt);
     this.refreshRenderBodies();
@@ -12376,6 +12795,7 @@ SkillRegistry.captainLightyear = {
     const targets = getLiveTsums(ctx.game, (tsum) => distance(tsum.x, tsum.y, pos.x, pos.y) <= radius);
     session.data.remainingShots -= 1;
     const isFinalShot = session.data.remainingShots <= 0;
+    const skillTimingEnabled = ctx.game.skillVisualsEnabled !== false;
     ctx.game.createShockwave(pos.x, pos.y, "rgba(255,230,140,0.7)", 5, 16, 0.28, 180);
     if (targets.length) {
       ctx.clear.beginClear({
@@ -12385,9 +12805,17 @@ SkillRegistry.captainLightyear = {
         y: pos.y,
         allowBomb: false,
         ...(isFinalShot ? {
-          timer: SKILL_TIMING_TABLE.captainLightyear.finalClear.durationMs / 1000,
-          pauseClock: SKILL_TIMING_TABLE.captainLightyear.finalClear.pauseClock,
-          pausePhysics: SKILL_TIMING_TABLE.captainLightyear.finalClear.pausePhysics
+          timer: skillTimingEnabled ? SKILL_TIMING_TABLE.captainLightyear.finalClear.durationMs / 1000 : 0,
+          pauseClock: skillTimingEnabled && SKILL_TIMING_TABLE.captainLightyear.finalClear.pauseClock,
+          pausePhysics: skillTimingEnabled && SKILL_TIMING_TABLE.captainLightyear.finalClear.pausePhysics,
+          visual: {
+            skillId: "captainLightyear",
+            kind: "finalClear",
+            durationMs: SKILL_TIMING_TABLE.captainLightyear.finalClear.durationMs,
+            sequenceId: ctx.runtime?.createVisualSequenceId?.() || 0,
+            centers: [{ x: pos.x, y: pos.y }],
+            targetIds: targets.map((target) => target.id)
+          }
         } : {}),
         correctionType: skillValue("captainLightyear", "coinCorrectionType", ctx.level),
         scoreMultiplier: skillValue("captainLightyear", "scoreMultiplier", ctx.level),
@@ -12398,7 +12826,8 @@ SkillRegistry.captainLightyear = {
       if (isFinalShot) {
         ctx.runtime.startTimingPause(SKILL_TIMING_TABLE.captainLightyear.finalClear, {
           kind: "finalClear",
-          skillId: "captainLightyear"
+          skillId: "captainLightyear",
+          centers: [{ x: pos.x, y: pos.y }]
         });
       }
     }
@@ -12539,14 +12968,23 @@ SkillRegistry.gaston = {
       ctx.game.pushCenterMessage("GASTON!", "#ffe6d7", 0.9);
     };
     if (targets.length) {
+      const skillTimingEnabled = ctx.game.skillVisualsEnabled !== false;
       ctx.clear.beginClear({
         source: "skill",
         targets,
         x: WIDTH * 0.5,
         y: FIELD_CENTER_Y,
         allowBomb: false,
-        pauseClock: SKILL_TIMING_TABLE.gaston.initialClear.pauseClock,
-        pausePhysics: true,
+        timer: skillTimingEnabled ? undefined : 0,
+        pauseClock: skillTimingEnabled && SKILL_TIMING_TABLE.gaston.initialClear.pauseClock,
+        pausePhysics: skillTimingEnabled,
+        visual: {
+          skillId: "gaston",
+          kind: "initialClear",
+          sequenceId: ctx.runtime?.createVisualSequenceId?.() || 0,
+          centers: [{ x: WIDTH * 0.5, y: FIELD_CENTER_Y }],
+          targetIds: targets.map((target) => target.id)
+        },
         correctionType: skillValue("gaston", "coinCorrectionType", ctx.level),
         onFinalize: activateLoop
       });
@@ -12596,15 +13034,24 @@ SkillRegistry.guidingMoana = {
       }
       const targets = getLiveTsums(ctx.game, (tsum) => ctx.board.getResolvedType(tsum).id === removedType.id);
       if (targets.length) {
+        const skillTimingEnabled = ctx.game.skillVisualsEnabled !== false;
         ctx.clear.beginClear({
           source: "skill",
           targets,
           x: WIDTH * 0.5,
           y: FIELD_TOP + 72,
           allowBomb: false,
-          timer: SKILL_TIMING_TABLE.guidingMoana.initialClear.durationMs / 1000,
-          pauseClock: SKILL_TIMING_TABLE.guidingMoana.initialClear.pauseClock,
-          pausePhysics: SKILL_TIMING_TABLE.guidingMoana.initialClear.pausePhysics,
+          timer: skillTimingEnabled ? SKILL_TIMING_TABLE.guidingMoana.initialClear.durationMs / 1000 : 0,
+          pauseClock: skillTimingEnabled && SKILL_TIMING_TABLE.guidingMoana.initialClear.pauseClock,
+          pausePhysics: skillTimingEnabled && SKILL_TIMING_TABLE.guidingMoana.initialClear.pausePhysics,
+          visual: {
+            skillId: "guidingMoana",
+            kind: "initialClear",
+            durationMs: SKILL_TIMING_TABLE.guidingMoana.initialClear.durationMs,
+            sequenceId: ctx.runtime?.createVisualSequenceId?.() || 0,
+            centers: [{ x: WIDTH * 0.5, y: FIELD_CENTER_Y }],
+            targetIds: targets.map((target) => target.id)
+          },
           onFinalize: spawnCenterBomb
         });
       } else {

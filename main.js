@@ -89,6 +89,7 @@ async function bootGame() {
     : "./game.js?v=coronation-elsa-final-trace-settle-3";
   const { Game } = await import(gameModuleUrl);
   const { BattleController } = await import("./battle.js?v=tsum-images-5");
+  const { CheatSettingsPanel } = await import("./cheatSettingsPanel.js?v=cheat-settings-2");
   const game = new Game(canvas, {
     role: "player",
     inputEnabled: true,
@@ -108,9 +109,12 @@ async function bootGame() {
     return cpuGame;
   };
   const battleController = new BattleController(game, null, arena, { createCpuGame });
+  const playerStation = arena.querySelector(".player-station") || document.body;
+  const cheatSettingsPanel = new CheatSettingsPanel(game, playerStation);
   window.game = game;
   window.cpuGame = null;
   window.battleController = battleController;
+  window.cheatSettingsPanel = cheatSettingsPanel;
   game.render();
   const bootStatus = document.getElementById("bootStatus");
   if (bootStatus) {

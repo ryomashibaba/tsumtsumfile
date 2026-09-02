@@ -1,10 +1,12 @@
 import { SKILL_TABLES, TSUM_TYPES, clamp } from "./config.js?v=tsum-images-5";
+import { reconcileGaugeCharge } from "./cheatSettings.js?v=cheat-settings-1";
 
 export class DualGaugeSystem {
   constructor() {
     this.judy = {
       charge: 0,
       maxCharge: 25,
+      lastFiniteChargeRatio: 0,
       isReady: false,
       isActive: false
     };
@@ -12,6 +14,7 @@ export class DualGaugeSystem {
     this.nick = {
       charge: 0,
       maxCharge: 25,
+      lastFiniteChargeRatio: 0,
       isReady: false,
       isActive: false
     };
@@ -21,22 +24,29 @@ export class DualGaugeSystem {
     this.nickChargeBlocked = false;
   }
 
-  setMaxCharge(maxCharge) {
-    const nextMaxCharge = Math.max(1, Number.isFinite(maxCharge) ? maxCharge : 25);
-    this.judy.maxCharge = nextMaxCharge;
-    this.nick.maxCharge = nextMaxCharge;
-    this.judy.charge = Math.min(this.judy.charge, nextMaxCharge);
-    this.nick.charge = Math.min(this.nick.charge, nextMaxCharge);
-    this.judy.isReady = this.judy.charge >= nextMaxCharge;
-    this.nick.isReady = this.nick.charge >= nextMaxCharge;
+  setMaxCharge(maxCharge, preserveRatio = false) {
+    this.setMaxCharges(maxCharge, maxCharge, preserveRatio);
+  }
+
+  setMaxCharges(judyMaxCharge, nickMaxCharge, preserveRatio = false) {
+    const apply = (gauge, nextMaxCharge) => {
+      if (gauge.maxCharge === nextMaxCharge) return;
+      const next = reconcileGaugeCharge(gauge, nextMaxCharge, preserveRatio);
+      gauge.charge = next.charge;
+      gauge.maxCharge = next.maxCharge;
+      gauge.lastFiniteChargeRatio = next.lastFiniteRatio;
+      gauge.isReady = next.isReady;
+    };
+    apply(this.judy, judyMaxCharge);
+    apply(this.nick, nickMaxCharge);
   }
 
   reset() {
     this.judy.charge = 0;
-    this.judy.isReady = false;
+    this.judy.isReady = this.judy.maxCharge === 0;
     this.judy.isActive = false;
     this.nick.charge = 0;
-    this.nick.isReady = false;
+    this.nick.isReady = this.nick.maxCharge === 0;
     this.nick.isActive = false;
     this.activeMode = "judy";
     this.judyChargeBlocked = false;
@@ -45,13 +55,21 @@ export class DualGaugeSystem {
 
   addCharge(typeId, amount) {
     if (typeId === "judyNickJudy" && !this.judyChargeBlocked) {
+      if (this.judy.maxCharge === Infinity) return;
       this.judy.charge = Math.min(this.judy.charge + amount, this.judy.maxCharge);
       this.judy.isReady = this.judy.charge >= this.judy.maxCharge;
+      this.judy.lastFiniteChargeRatio = this.judy.maxCharge > 0
+        ? Math.min(1, this.judy.charge / this.judy.maxCharge)
+        : 1;
     }
 
     if (typeId === "judyNickNickMate" && !this.nickChargeBlocked) {
+      if (this.nick.maxCharge === Infinity) return;
       this.nick.charge = Math.min(this.nick.charge + amount, this.nick.maxCharge);
       this.nick.isReady = this.nick.charge >= this.nick.maxCharge;
+      this.nick.lastFiniteChargeRatio = this.nick.maxCharge > 0
+        ? Math.min(1, this.nick.charge / this.nick.maxCharge)
+        : 1;
     }
   }
 
@@ -68,10 +86,12 @@ export class DualGaugeSystem {
   consumeSkill(mode) {
     if (mode === "judy") {
       this.judy.charge = 0;
-      this.judy.isReady = false;
+      this.judy.isReady = this.judy.maxCharge === 0;
+      this.judy.lastFiniteChargeRatio = this.judy.maxCharge === 0 ? 1 : 0;
     } else if (mode === "nick") {
       this.nick.charge = 0;
-      this.nick.isReady = false;
+      this.nick.isReady = this.nick.maxCharge === 0;
+      this.nick.lastFiniteChargeRatio = this.nick.maxCharge === 0 ? 1 : 0;
     }
   }
 
@@ -97,9 +117,11 @@ export class DualGaugeSystem {
     if (mode === "judy") {
       this.judy.isActive = false;
       this.judyChargeBlocked = false;
+      this.judy.isReady = this.judy.maxCharge === 0 || this.judy.charge >= this.judy.maxCharge;
     } else if (mode === "nick") {
       this.nick.isActive = false;
       this.nickChargeBlocked = false;
+      this.nick.isReady = this.nick.maxCharge === 0 || this.nick.charge >= this.nick.maxCharge;
     }
   }
 
@@ -109,7 +131,7 @@ export class DualGaugeSystem {
       maxCharge: this.judy.maxCharge,
       isReady: this.judy.isReady,
       isActive: this.judy.isActive,
-      ratio: this.judy.charge / this.judy.maxCharge
+      ratio: this.judy.maxCharge === 0 ? 1 : (this.judy.maxCharge === Infinity ? 0 : this.judy.charge / this.judy.maxCharge)
     };
   }
 
@@ -119,7 +141,7 @@ export class DualGaugeSystem {
       maxCharge: this.nick.maxCharge,
       isReady: this.nick.isReady,
       isActive: this.nick.isActive,
-      ratio: this.nick.charge / this.nick.maxCharge
+      ratio: this.nick.maxCharge === 0 ? 1 : (this.nick.maxCharge === Infinity ? 0 : this.nick.charge / this.nick.maxCharge)
     };
   }
 
@@ -285,13 +307,18 @@ export class JudyNickGaugeManager {
     return (baseCharge + chainBonus) * multiplier;
   }
 
-  getRequiredCharge() {
+  getRequiredCharge(mode = null) {
     const level = clamp(Number(this.game?.selectedSkillLevel) || 1, 1, 6);
-    return SKILL_TABLES.judyNick.cost[level - 1] || 25;
+    const defaultCost = SKILL_TABLES.judyNick.cost[level - 1] || 25;
+    return this.game?.getEffectiveSkillCost?.("judyNick", mode, defaultCost) ?? defaultCost;
   }
 
-  syncMaxCharge() {
-    this.dualGauge.setMaxCharge(this.getRequiredCharge());
+  syncMaxCharge(preserveRatio = false) {
+    this.dualGauge.setMaxCharges(
+      this.getRequiredCharge("judy"),
+      this.getRequiredCharge("nick"),
+      preserveRatio
+    );
   }
 
   activateSkill() {
@@ -334,6 +361,16 @@ export class JudyNickGaugeManager {
       oneReady: this.dualGauge.oneReady()
     };
   }
+}
+
+export function resolveJudyNickActivationMode(currentMode = null, preparedMode = "judy") {
+  if (currentMode === "judy") {
+    return "nick";
+  }
+  if (currentMode === "nick") {
+    return "judy";
+  }
+  return preparedMode === "nick" ? "nick" : "judy";
 }
 
 export function registerJudyNickSkill({
@@ -422,6 +459,7 @@ export function registerJudyNickSkill({
       persist: false,
       bombImmune: true,
       correctionType: getJudyNickCountCorrectionType(ctx.level, countStage),
+      coinCheatRoute: `count${countStage}`,
       chargeMultiplier: getJudyNickChargeRate(countStage)
     });
     session.data.nickLayerIds.push(groupId);
@@ -445,6 +483,7 @@ export function registerJudyNickSkill({
           bubbleId: groupId,
           radius: skillValue("judyNick", "bubbleRadius", ctx.level),
           correctionType,
+          coinCheatRoute: `count${countStage}`,
           chargeMultiplier
         });
         session.data.judyLayerIds.push(groupId);
@@ -485,6 +524,7 @@ export function registerJudyNickSkill({
       y: center.y / targets.length,
       allowBomb: false,
       correctionType: overlayCorrectionType,
+      coinCheatRoute: "overlay",
       chargeMultiplier: overlayChargeMultiplier,
       meta: {
         judyNickSuppressGaugeCharge: true
@@ -503,7 +543,7 @@ export function registerJudyNickSkill({
       let session = existing;
       if (session) {
         const previousMode = session.data.currentMode || "judy";
-        const nextMode = previousMode === "judy" ? "nick" : "judy";
+        const nextMode = resolveJudyNickActivationMode(previousMode, preparedMode);
         session.level = ctx.level;
         session.remainingMs = durationMs;
         session.data.countStage = Math.min(10, (session.data.countStage || 1) + 1);
@@ -546,6 +586,7 @@ export function registerJudyNickSkill({
             bubbleId: groupId,
             radius: skillValue("judyNick", "bubbleRadius", ctx.level),
             correctionType: getJudyNickCountCorrectionType(ctx.level, session.data.countStage || 1),
+            coinCheatRoute: `count${session.data.countStage || 1}`,
             chargeMultiplier: getJudyNickChargeRate(session.data.countStage || 1)
           });
           session.data.judyLayerIds.push(groupId);
@@ -574,6 +615,7 @@ export function registerJudyNickSkill({
     onAugmentClear(ctx, session, request) {
       const countStage = clamp(session.data.countStage || 1, 1, 10);
       request.correctionType = request.correctionType || getJudyNickCountCorrectionType(ctx.level, countStage);
+      request.coinCheatRoute = request.coinCheatRoute || `count${countStage}`;
       if (typeof request.chargeMultiplier !== "number" || request.chargeMultiplier === 1) {
         request.chargeMultiplier = getJudyNickChargeRate(countStage);
       }

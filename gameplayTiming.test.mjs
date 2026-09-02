@@ -159,6 +159,122 @@ test("a skill presentation freezes gameplay while its raw timer still advances",
   assert.equal(observed.physicsSteps, 0);
 });
 
+test("skill visual state derives elapsed time without exposing mutable runtime arrays", () => {
+  const presentationGame = {
+    skillRuntime: {
+      getPresentationState: () => ({
+        skillId: "judyNick",
+        durationMs: 2920,
+        remainingMs: 1920,
+        sequenceId: 4,
+        activationData: { judyNickMode: "judy" },
+        presentationData: { judyNickMode: "nick", judyNickExistingMode: "judy" }
+      })
+    }
+  };
+  assert.deepEqual(Game.prototype.getSkillVisualState.call(presentationGame), {
+    skillId: "judyNick",
+    kind: "presentation",
+    elapsedMs: 1000,
+    durationMs: 2920,
+    activationData: { judyNickMode: "nick", judyNickExistingMode: "judy" },
+    sequenceId: 4,
+    centers: [],
+    targetIds: []
+  });
+
+  const centers = [{ x: 100, y: 200 }];
+  const targetIds = ["a", "b"];
+  const clearGame = {
+    pendingClear: {
+      timer: 0.37,
+      visual: { skillId: "captainLightyear", kind: "finalClear", durationMs: 570, sequenceId: 8, centers, targetIds }
+    },
+    skillRuntime: { getPresentationState: () => null }
+  };
+  const visual = Game.prototype.getSkillVisualState.call(clearGame);
+  assert.equal(visual.elapsedMs, 200);
+  visual.centers[0].x = 999;
+  visual.targetIds.push("c");
+  assert.equal(centers[0].x, 100);
+  assert.deepEqual(targetIds, ["a", "b"]);
+});
+
+test("the global skill visual toggle persists and releases active skill timing when disabled", () => {
+  let saves = 0;
+  let skips = 0;
+  const game = {
+    skillVisualsEnabled: true,
+    skillRuntime: { skipSkillVisualTiming() { skips += 1; } },
+    pendingClear: {
+      timer: 0.57,
+      pauseClock: true,
+      pausePhysics: true,
+      visual: { skillId: "captainLightyear" }
+    },
+    saveProgress() { saves += 1; }
+  };
+  assert.equal(Game.prototype.toggleSkillVisuals.call(game), false);
+  assert.equal(skips, 1);
+  assert.equal(game.pendingClear.timer, 0);
+  assert.equal(game.pendingClear.pauseClock, false);
+  assert.equal(game.pendingClear.pausePhysics, false);
+  assert.equal(Game.prototype.toggleSkillVisuals.call(game), true);
+  assert.equal(skips, 1);
+  assert.equal(saves, 2);
+
+  const oldStorage = globalThis.localStorage;
+  let stored = null;
+  globalThis.localStorage = {
+    getItem: () => JSON.stringify({ coins: 25, plays: 3 }),
+    setItem: (_key, value) => { stored = JSON.parse(value); }
+  };
+  try {
+    assert.deepEqual(Game.prototype.loadSave.call({}), {
+      coins: 25,
+      plays: 3,
+      skillVisualsEnabled: true,
+      cheatSettings: {
+        enabled: false,
+        boardTarget: 45,
+        spawnRate: "instant",
+        largeTsumChance: 1,
+        gravityMultiplier: 1,
+        autoSkill: false,
+        skillCosts: {},
+        coinCorrections: {}
+      }
+    });
+    Game.prototype.saveProgress.call({
+      persistenceEnabled: true,
+      coins: 25,
+      plays: 3,
+      skillVisualsEnabled: false
+    });
+    assert.deepEqual(stored, {
+      coins: 25,
+      plays: 3,
+      skillVisualsEnabled: false,
+      cheatSettings: {
+        enabled: false,
+        boardTarget: 45,
+        spawnRate: "instant",
+        largeTsumChance: 1,
+        gravityMultiplier: 1,
+        autoSkill: false,
+        skillCosts: {},
+        coinCorrections: {}
+      }
+    });
+  } finally {
+    if (oldStorage === undefined) {
+      delete globalThis.localStorage;
+    } else {
+      globalThis.localStorage = oldStorage;
+    }
+  }
+});
+
 test("gameplay clocks and physics resume without catch-up after the initial clear", () => {
   const { game, observed } = makeUpdateHarness({
     pendingClear: { pauseClock: true, pausePhysics: true, timer: 1 }
@@ -179,12 +295,13 @@ test("gameplay clocks and physics resume without catch-up after the initial clea
   assert.ok(game.physicsAccumulator < 1e-9);
 });
 
-function captureInitialClear(skillId, myTsumId, boardTypeId) {
+function captureInitialClear(skillId, myTsumId, boardTypeId, skillVisualsEnabled = true) {
   let clearSpec = null;
   const type = { id: boardTypeId };
   const game = {
     tsums: [{ id: "target", type, x: 207, y: 360, dead: false, removing: false }],
     myTsum: { id: myTsumId },
+    skillVisualsEnabled,
     isTsumInPlayArea: () => true,
     boardState: { getResolvedType: (node) => node.type },
     pushCenterMessage() {},
@@ -219,6 +336,17 @@ test("Gaston runs the clock while Moana pauses both axes for the full initial cl
   assert.equal(moanaClear.timer, 0.79);
 });
 
+test("disabled skill visuals make Gaston and Moana initial clears non-pausing and immediate", () => {
+  const gastonClear = captureInitialClear("gaston", "gaston", "gaston", false);
+  const moanaClear = captureInitialClear("guidingMoana", "guidingMoana", "pumbaa", false);
+
+  for (const clear of [gastonClear, moanaClear]) {
+    assert.equal(clear.timer, 0);
+    assert.equal(clear.pauseClock, false);
+    assert.equal(clear.pausePhysics, false);
+  }
+});
+
 test("SkillRuntimeManager defers activation to the exact raw presentation boundary", () => {
   const original = Game.SkillRegistry.coronationElsa;
   const activationData = { marker: "accepted-state" };
@@ -249,6 +377,57 @@ test("SkillRuntimeManager defers activation to the exact raw presentation bounda
     assert.equal(runtime.sessions.length, 1);
     runtime.updateRaw(1000);
     assert.equal(activationCount, 1, "raw time must not activate the handler twice");
+  } finally {
+    Game.SkillRegistry.coronationElsa = original;
+  }
+});
+
+test("disabled skill visuals activate immediately and skip secondary timing callbacks exactly once", () => {
+  const original = Game.SkillRegistry.coronationElsa;
+  let activations = 0;
+  let completions = 0;
+  Game.SkillRegistry.coronationElsa = {
+    id: "coronationElsa",
+    onActivate(ctx) {
+      activations += 1;
+      return ctx.createSession({ remainingMs: 1000, cleanupOnEnd: false });
+    }
+  };
+  try {
+    const runtime = new SkillRuntimeManager({ clearPipeline: {}, skillVisualsEnabled: false }, {});
+    assert.equal(runtime.activate("coronationElsa", 1), true);
+    assert.equal(activations, 1);
+    assert.equal(runtime.isPresentationActive(), false);
+    assert.equal(runtime.startTimingPause({ durationMs: 500, pauseClock: true, pausePhysics: true }, {
+      skillId: "coronationElsa",
+      onComplete() { completions += 1; }
+    }), null);
+    assert.equal(completions, 1);
+    assert.equal(runtime.isInputLocked(), false);
+  } finally {
+    Game.SkillRegistry.coronationElsa = original;
+  }
+});
+
+test("turning visuals off during a presentation completes activation immediately", () => {
+  const original = Game.SkillRegistry.coronationElsa;
+  let activations = 0;
+  Game.SkillRegistry.coronationElsa = {
+    id: "coronationElsa",
+    onActivate(ctx) {
+      activations += 1;
+      return ctx.createSession({ remainingMs: 1000, cleanupOnEnd: false });
+    }
+  };
+  try {
+    const game = { clearPipeline: {}, skillVisualsEnabled: true };
+    const runtime = new SkillRuntimeManager(game, {});
+    runtime.activate("coronationElsa", 1);
+    game.skillVisualsEnabled = false;
+    runtime.skipSkillVisualTiming();
+    runtime.updateRaw(2000);
+    assert.equal(activations, 1);
+    assert.equal(runtime.isInputLocked(), false);
   } finally {
     Game.SkillRegistry.coronationElsa = original;
   }
@@ -359,6 +538,29 @@ test("Captain Lightyear final clear replaces the normal clear delay with 570 ms"
   assert.equal(clearSpec.pauseClock, true);
   assert.equal(clearSpec.pausePhysics, true);
   assert.equal(ended, 1);
+});
+
+test("Captain Lightyear final clear has zero skill delay when visuals are disabled", () => {
+  let clearSpec = null;
+  const target = { id: "target", x: 100, y: 100, dead: false, removing: false };
+  const session = { id: "captain-1", handlerId: "captainLightyear", level: 1, data: { remainingShots: 1 } };
+  Game.SkillRegistry.captainLightyear.onTap({
+    level: 1,
+    game: {
+      skillVisualsEnabled: false,
+      actionLock: false,
+      tsums: [target],
+      isTsumInPlayArea: () => true,
+      createShockwave() {},
+      addFloatingText() {}
+    },
+    clear: { beginClear(spec) { clearSpec = spec; return true; } },
+    runtime: { endSession() {}, startTimingPause() {} }
+  }, session, { x: 100, y: 100 });
+
+  assert.equal(clearSpec.timer, 0);
+  assert.equal(clearSpec.pauseClock, false);
+  assert.equal(clearSpec.pausePhysics, false);
 });
 
 test("one Moana special-bomb action creates one 670 ms pause even for multiple bombs", () => {

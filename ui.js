@@ -36,6 +36,7 @@ import {
 } from './config.js?v=tsum-images-5';
 import { drawLiliaBat } from './lilia.js?v=tsum-images-8';
 import { drawTsumArtwork, preloadTsumImages } from './tsumImages.js?v=tsum-images-5';
+import { drawSkillPresentation, drawSkillSecondaryVisual } from './skillPresentationVisuals.js?v=skill-visuals-1';
 
 let sharedFeltTexture = null;
 
@@ -1347,13 +1348,25 @@ export class UIRenderer {
       glow: battleMode ? "#ff9cb0" : "#5f7894",
       size: 13
     });
-    ctx.save();
-    ctx.fillStyle = "#fff0a0";
-    ctx.font = '800 12px "Trebuchet MS", "Yu Gothic", sans-serif';
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(battleMode ? "最強CPUと対戦します" : "選んだキャラでアイテム画面へ", WIDTH * 0.5, 600);
-    ctx.restore();
+    const visualToggleRect = this.game.getTitleSkillVisualToggleRect();
+    const visualsEnabled = this.game.skillVisualsEnabled !== false;
+    this.drawButton(ctx, visualToggleRect, `全スキル演出 ${visualsEnabled ? "ON" : "OFF"}`, {
+      fill: visualsEnabled ? "#14a89b" : "#4c5f76",
+      glow: visualsEnabled ? "#7fffe9" : "#71849a",
+      size: 14
+    });
+    const cheatEnabled = this.game.isCheatActive?.() === true;
+    this.drawButton(ctx, this.game.getTitleCheatToggleRect(), `チート ${cheatEnabled ? "ON" : "OFF"}`, {
+      fill: cheatEnabled ? "#d64cff" : "#4c5f76",
+      glow: cheatEnabled ? "#f1a6ff" : "#71849a",
+      size: 14
+    });
+    this.drawButton(ctx, this.game.getTitleCheatSettingsRect(), "チート設定", {
+      fill: cheatEnabled ? "#7f55d9" : "#39495d",
+      glow: cheatEnabled ? "#cbb7ff" : "#516277",
+      size: 13,
+      disabled: !cheatEnabled
+    });
 
     this.drawButton(ctx, this.game.getTitlePlayRect(), "決定", {
       fill: "#f24e70",
@@ -1491,6 +1504,7 @@ export class UIRenderer {
     this.drawDisneyLogo(ctx);
     this.drawFieldShell(ctx);
     this.drawFieldContents(ctx);
+    this.drawSkillVisualLayer(ctx);
     if (this.game.role === "cpu") {
       this.drawCpuStatusFooter(ctx);
     } else {
@@ -1502,7 +1516,6 @@ export class UIRenderer {
     this.drawFloatingTexts(ctx);
     this.drawFeverBanner(ctx);
     this.drawCenterMessages(ctx);
-    this.drawSkillPresentationOverlay(ctx);
     this.drawCoingainLotteryOverlay(ctx);
     this.drawCoingainLotteryRoulette(ctx);
     this.drawCoingainFloorGauge(ctx);
@@ -1700,6 +1713,28 @@ export class UIRenderer {
     ctx.strokeText("Tap the pause button to resume", WIDTH * 0.5, FIELD_CENTER_X + 28);
     ctx.fillText("Tap the pause button to resume", WIDTH * 0.5, FIELD_CENTER_X + 28);
     ctx.restore();
+    const rect = this.game.getPauseSkillVisualToggleRect();
+    const enabled = this.game.skillVisualsEnabled !== false;
+    this.drawButton(ctx, rect, `全スキル演出 ${enabled ? "ON" : "OFF"}`, {
+      fill: enabled ? "#14a89b" : "#4c5f76",
+      glow: enabled ? "#7fffe9" : "#71849a",
+      subtitle: enabled ? "タップでOFF" : "タップでON",
+      size: 15
+    });
+    const cheatEnabled = this.game.isCheatActive?.() === true;
+    this.drawButton(ctx, this.game.getPauseCheatToggleRect(), `チート ${cheatEnabled ? "ON" : "OFF"}`, {
+      fill: cheatEnabled ? "#d64cff" : "#4c5f76",
+      glow: cheatEnabled ? "#f1a6ff" : "#71849a",
+      subtitle: "タップで切替",
+      size: 14
+    });
+    this.drawButton(ctx, this.game.getPauseCheatSettingsRect(), "チート設定", {
+      fill: cheatEnabled ? "#7f55d9" : "#39495d",
+      glow: cheatEnabled ? "#cbb7ff" : "#516277",
+      subtitle: cheatEnabled ? "項目を変更" : "ONで設定可能",
+      size: 13,
+      disabled: !cheatEnabled
+    });
   }
 
   drawGameBoard(ctx) {
@@ -1907,8 +1942,14 @@ export class UIRenderer {
     const pipsY = 43;
     const pipGap = 11;
     if (!this.getJudyNickGaugeInfo()) {
-      for (let i = 0; i < this.game.skillSystem.maxCharge; i += 1) {
-        const filled = i < this.game.skillSystem.charge;
+      const pipCount = Number.isFinite(this.game.skillSystem.maxCharge)
+        ? Math.min(20, Math.max(0, Math.ceil(this.game.skillSystem.maxCharge)))
+        : 0;
+      const filledPips = pipCount > 0 && this.game.skillSystem.maxCharge > 0
+        ? Math.round(pipCount * clamp(this.game.skillSystem.charge / this.game.skillSystem.maxCharge, 0, 1))
+        : 0;
+      for (let i = 0; i < pipCount; i += 1) {
+        const filled = i < filledPips;
         ctx.save();
         ctx.fillStyle = filled ? "#ffe07d" : "rgba(255,255,255,0.18)";
         ctx.beginPath();
@@ -2182,27 +2223,15 @@ export class UIRenderer {
     });
   }
 
-  drawSkillPresentationOverlay(ctx) {
-    const presentation = this.game.getSkillPresentationState?.();
-    if (!presentation) {
-      return;
+  drawSkillVisualLayer(ctx) {
+    if (this.game.skillVisualsEnabled === false) return;
+    const state = this.game.getSkillVisualState?.();
+    if (!state) return;
+    if (state.kind === "presentation") {
+      drawSkillPresentation(ctx, this.game, state);
+    } else {
+      drawSkillSecondaryVisual(ctx, this.game, state);
     }
-    const tsum = TSUM_TYPES.find((entry) => entry.id === presentation.skillId) || this.game.myTsum;
-    ctx.save();
-    ctx.fillStyle = "rgba(4, 14, 38, 0.68)";
-    ctx.fillRect(0, FIELD_TOP, WIDTH, FIELD_BOTTOM - FIELD_TOP);
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.shadowBlur = 18;
-    ctx.shadowColor = tsum?.accent || "#ffffff";
-    ctx.fillStyle = tsum?.accent || "#ffffff";
-    ctx.font = '900 50px "Trebuchet MS", sans-serif';
-    ctx.fillText("SKILL", WIDTH * 0.5, 315);
-    ctx.shadowBlur = 8;
-    ctx.fillStyle = "#ffffff";
-    ctx.font = '800 25px "Trebuchet MS", "Yu Gothic", sans-serif';
-    ctx.fillText(tsum?.name || presentation.skillId, WIDTH * 0.5, 370);
-    ctx.restore();
   }
 
   drawBattleResultScreen(ctx) {
