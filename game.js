@@ -75,7 +75,7 @@ import {
   resolveBombGeneration,
   shouldSpawnLargeTsum
 } from './bombLogic.js?v=tsum-images-5';
-import { getGameplayClockDelta, resolveGameplayPauseState } from './gameplayTiming.js?v=skill-timing-1';
+import { SKILL_TIMING_TABLE, getGameplayClockDelta, resolveGameplayPauseState } from './gameplayTiming.js?v=skill-timing-2';
 import {
   beginBodyRemovalState,
   isBodyOccupying,
@@ -1551,11 +1551,15 @@ class SkillRuntimeManager {
     this.board = board;
     this.sessions = [];
     this.nextSessionId = 0;
+    this.pendingActivation = null;
+    this.timingPauses = [];
   }
 
   reset() {
+    this.pendingActivation = null;
+    this.timingPauses = [];
     for (const session of this.sessions.slice()) {
-      this.endSession(session, "replaced");
+      this.endSession(session, "replaced", { skipEndPause: true });
     }
     this.nextSessionId = 0;
   }
@@ -1565,10 +1569,11 @@ class SkillRuntimeManager {
     return `${handlerId}_${this.nextSessionId}`;
   }
 
-  createContext(handler, level, existingSession = null) {
+  createContext(handler, level, existingSession = null, activationData = null) {
     let createdSession = existingSession;
     return {
       level,
+      activationData,
       game: this.game,
       board: this.board,
       clear: this.game.clearPipeline,
@@ -1610,12 +1615,33 @@ class SkillRuntimeManager {
     };
   }
 
-  activate(skillId, level) {
+  activate(skillId, level, activationData = null) {
+    const handler = SkillRegistry[skillId];
+    if (!handler || this.pendingActivation || this.isInputLocked()) {
+      return false;
+    }
+    const presentation = SKILL_TIMING_TABLE[skillId]?.presentation;
+    if (presentation && presentation.durationMs > 0) {
+      this.pendingActivation = {
+        skillId,
+        level,
+        activationData,
+        remainingMs: presentation.durationMs,
+        durationMs: presentation.durationMs,
+        pauseClock: presentation.pauseClock === true,
+        pausePhysics: presentation.pausePhysics === true
+      };
+      return true;
+    }
+    return this.activateNow(skillId, level, activationData);
+  }
+
+  activateNow(skillId, level, activationData = null) {
     const handler = SkillRegistry[skillId];
     if (!handler) {
       return false;
     }
-    const ctx = this.createContext(handler, level);
+    const ctx = this.createContext(handler, level, null, activationData);
     const session = handler.onActivate(ctx);
     if (!session) {
       return false;
@@ -1626,12 +1652,75 @@ class SkillRuntimeManager {
     return true;
   }
 
+  getPresentationState() {
+    return this.pendingActivation ? { ...this.pendingActivation } : null;
+  }
+
+  isPresentationActive() {
+    return !!this.pendingActivation;
+  }
+
+  isInputLocked() {
+    return !!this.pendingActivation || this.timingPauses.length > 0;
+  }
+
+  getTimingPauseState() {
+    const phases = this.pendingActivation
+      ? [this.pendingActivation, ...this.timingPauses]
+      : this.timingPauses;
+    return {
+      pauseClock: phases.some((phase) => phase.pauseClock === true),
+      pausePhysics: phases.some((phase) => phase.pausePhysics === true)
+    };
+  }
+
+  startTimingPause(spec, metadata = {}) {
+    if (!spec || !(spec.durationMs > 0)) {
+      return null;
+    }
+    const pause = {
+      ...metadata,
+      remainingMs: spec.durationMs,
+      durationMs: spec.durationMs,
+      pauseClock: spec.pauseClock === true,
+      pausePhysics: spec.pausePhysics === true
+    };
+    this.timingPauses.push(pause);
+    return pause;
+  }
+
+  updateRaw(dtMs) {
+    const rawDtMs = Math.max(0, Number(dtMs) || 0);
+    if (this.pendingActivation) {
+      this.pendingActivation.remainingMs -= rawDtMs;
+      if (this.pendingActivation.remainingMs <= 0) {
+        const activation = this.pendingActivation;
+        this.pendingActivation = null;
+        this.activateNow(activation.skillId, activation.level, activation.activationData);
+      }
+    }
+    for (const pause of this.timingPauses) {
+      pause.remainingMs -= rawDtMs;
+    }
+    const completedPauses = this.timingPauses.filter((pause) => pause.remainingMs <= 0);
+    this.timingPauses = this.timingPauses.filter((pause) => pause.remainingMs > 0);
+    for (const pause of completedPauses) {
+      if (typeof pause.onComplete === "function") {
+        pause.onComplete();
+      }
+    }
+  }
+
   getSessionsByHandlerId(handlerId) {
     return this.sessions.filter((session) => session.handlerId === handlerId);
   }
 
-  endSession(session, reason = "timeout") {
+  endSession(session, reason = "timeout", { skipEndPause = false } = {}) {
+    if (!session || session._ending || !this.sessions.some((entry) => entry.id === session.id)) {
+      return;
+    }
     const handler = SkillRegistry[session.handlerId];
+    session._ending = true;
     if (handler && handler.onEnd) {
       handler.onEnd(this.createContext(handler, session.level, session), session, reason);
     }
@@ -1639,6 +1728,12 @@ class SkillRuntimeManager {
       handler.cleanupBySession(this.createContext(handler, session.level, session), session.id);
     }
     this.sessions = this.sessions.filter((entry) => entry.id !== session.id);
+    if (!skipEndPause && reason === "timeout") {
+      this.startTimingPause(SKILL_TIMING_TABLE[session.handlerId]?.endPause, {
+        kind: "skillEnd",
+        skillId: session.handlerId
+      });
+    }
   }
 
   update(dtMs) {
@@ -2341,6 +2436,9 @@ class InputRouter {
   }
 
   handleTap(pos) {
+    if (this.game.isGameplayInputLocked?.({ ignoreActionLock: true })) {
+      return false;
+    }
     const frozen = this.board.findFrozenGroupAt(pos);
     if (frozen) {
       const frozenEntry = this.board.getFrozenEntry(frozen);
@@ -2435,14 +2533,23 @@ class InputRouter {
   }
 
   handleChainStart(pos) {
+    if (this.game.isGameplayInputLocked?.({ ignoreActionLock: true })) {
+      return false;
+    }
     return this.runtime.dispatchChainStart(pos);
   }
 
   handleDrag(pos) {
+    if (this.game.isGameplayInputLocked?.({ ignoreActionLock: true })) {
+      return false;
+    }
     return this.runtime.dispatchDrag(pos);
   }
 
   handlePointerUp(pos) {
+    if (this.game.isGameplayInputLocked?.({ ignoreActionLock: true })) {
+      return false;
+    }
     return this.runtime.dispatchPointerUp(pos);
   }
 
@@ -4623,6 +4730,9 @@ class Game {
       this.cancelActiveInputForCoingainLock();
       return;
     }
+    if (this.isGameplayInputLocked({ ignoreActionLock: true })) {
+      return;
+    }
     if (!this.actionLock && pointInCircle(SKILL_BUTTON_RECT.x + SKILL_BUTTON_RECT.w * 0.5, SKILL_BUTTON_RECT.y + SKILL_BUTTON_RECT.h * 0.5, SKILL_BUTTON_RECT.w * 0.5, pos.x, pos.y)) {
       this.noteAction();
       this.attemptSkillActivation(false);
@@ -5431,12 +5541,25 @@ class Game {
     return resolveGameplayPauseState({
       pendingClear: this.pendingClear,
       coingainClockPaused: this.isCoingainTimerPaused(),
-      coingainPhysicsPaused: this.isCoingainPhysicsPaused()
+      coingainPhysicsPaused: this.isCoingainPhysicsPaused(),
+      skillTimingState: this.skillRuntime?.getTimingPauseState?.() || null
     });
   }
 
   getCurrentGameplayDelta(dt, pauseState = this.getCurrentGameplayPauseState()) {
     return getGameplayClockDelta(dt, pauseState);
+  }
+
+  isSkillPresentationActive() {
+    return !!this.skillRuntime?.isPresentationActive?.();
+  }
+
+  getSkillPresentationState() {
+    return this.skillRuntime?.getPresentationState?.() || null;
+  }
+
+  isGameplayInputLocked({ ignoreActionLock = false } = {}) {
+    return (!ignoreActionLock && !!this.actionLock) || !!this.skillRuntime?.isInputLocked?.();
   }
 
   getLiliaSession() {
@@ -6156,6 +6279,7 @@ class Game {
       this.state !== "playing" ||
       this.paused ||
       this.isCoingainInputLocked() ||
+      this.isGameplayInputLocked({ ignoreActionLock: true }) ||
       this.timeUp ||
       this.actionLock ||
       this.dragging ||
@@ -9787,7 +9911,7 @@ class Game {
   }
 
   attemptSkillActivation(fromKeyboard) {
-    if (this.state !== "playing" || this.actionLock || this.dragging) {
+    if (this.state !== "playing" || this.isGameplayInputLocked() || this.dragging) {
       return false;
     }
     if (this.paused || this.isCoingainInputLocked()) {
@@ -9801,7 +9925,7 @@ class Game {
         return false;
       }
       this.judyNickPreparedMode = mode;
-      const used = this.executeSkill(this.myTsum.id, this.selectedSkillLevel);
+      const used = this.executeSkill(this.myTsum.id, this.selectedSkillLevel, { judyNickMode: mode });
       if (used) {
         this.judyNickGaugeManager.consumeSkill(mode);
         this.skillSystem.consume();
@@ -9865,7 +9989,7 @@ class Game {
   }
 
   triggerFan() {
-    if (this.state !== "playing" || this.paused || this.isCoingainInputLocked() || this.actionLock || this.fanCooldown > 0) {
+    if (this.state !== "playing" || this.paused || this.isCoingainInputLocked() || this.isGameplayInputLocked() || this.fanCooldown > 0) {
       return false;
     }
     const bodies = this.getPhysicsBodies();
@@ -9887,6 +10011,9 @@ class Game {
   }
 
   startChain(tsum, pos) {
+    if (this.isGameplayInputLocked()) {
+      return false;
+    }
     const chainRule = this.getChainBehaviorForStart(tsum);
     if (!chainRule) {
       return false;
@@ -10007,7 +10134,7 @@ class Game {
       this.aiAutoPlayTimer = 0;
       return;
     }
-    if (this.state !== "playing" || this.paused || this.timeUp) {
+    if (this.state !== "playing" || this.paused || this.timeUp || this.isGameplayInputLocked({ ignoreActionLock: true })) {
       this.cancelAiChainAnimation();
       this.aiAutoPlayTimer = 0;
       return;
@@ -10186,7 +10313,7 @@ class Game {
   }
 
   performAiAutoPlayStep() {
-    if (this.state !== "playing" || this.paused || this.isCoingainInputLocked() || this.timeUp || this.actionLock || this.dragging || this.pendingClear || this.aiChainAnimating) {
+    if (this.state !== "playing" || this.paused || this.isCoingainInputLocked() || this.timeUp || this.isGameplayInputLocked() || this.dragging || this.pendingClear || this.aiChainAnimating) {
       return false;
     }
     if (this.aiLearningMode) {
@@ -10815,6 +10942,9 @@ class Game {
   }
 
   explodeBomb(bomb) {
+    if (this.isGameplayInputLocked({ ignoreActionLock: true })) {
+      return false;
+    }
     const canBombCancel = this.canBombCancelActiveChain();
     this.logAiBombCancelDebug("explodeBomb-called", {
       actionType: "bomb",
@@ -10845,6 +10975,10 @@ class Game {
     let bombsToExplode = [bomb];
     if (bomb.bombType === "moanaSpecial") {
       bombsToExplode = this.bombs.filter((entry) => !entry.dead && entry.bombType === "moanaSpecial");
+      this.skillRuntime.startTimingPause(SKILL_TIMING_TABLE.guidingMoana.specialBombClear, {
+        kind: "specialBombClear",
+        skillId: "guidingMoana"
+      });
     }
     bombsToExplode.forEach((entry) => { entry.dead = true; });
     this.bombs = this.bombs.filter((entry) => !entry.dead);
@@ -10927,6 +11061,11 @@ class Game {
         coingainBombCount: coingainBombCountBonus,
         correctionType: bomb.correctionType || null
       };
+      if (bomb.bombType === "moanaSpecial") {
+        bombSpec.timer = SKILL_TIMING_TABLE.guidingMoana.specialBombClear.durationMs / 1000;
+        bombSpec.pauseClock = SKILL_TIMING_TABLE.guidingMoana.specialBombClear.pauseClock;
+        bombSpec.pausePhysics = SKILL_TIMING_TABLE.guidingMoana.specialBombClear.pausePhysics;
+      }
       if (canBombCancel && this.pendingClear?.sequentialChain) {
         const bombPrepared = this.clearPipeline.buildPreparedClear(bombSpec);
         if (bombPrepared) {
@@ -10977,12 +11116,12 @@ class Game {
     }
   }
 
-  executeSkill(type, level) {
-    if (this.actionLock) {
+  executeSkill(type, level, activationData = null) {
+    if (this.isGameplayInputLocked()) {
       return false;
     }
     this.noteAction();
-    return this.skillRuntime.activate(type, level);
+    return this.skillRuntime.activate(type, level, activationData);
   }
 
   chooseTransformTarget(level) {
@@ -11726,6 +11865,7 @@ class Game {
     this.fanPulse = Math.max(0, this.fanPulse - dt * 2.4);
     const gameplayPauseState = this.getCurrentGameplayPauseState();
     const gameplayDt = this.getCurrentGameplayDelta(dt, gameplayPauseState);
+    this.skillRuntime.updateRaw(dt * 1000);
     this.strongestModeCoronationElsaGameplayDeltaTotalSec += Math.max(0, gameplayDt || 0);
     if (this.isCoingainInputLocked()) {
       this.cancelActiveInputForCoingainLock();
@@ -11786,7 +11926,7 @@ class Game {
     if (this.pendingClear) {
       this.clearPipeline.queueMyTsumSkillChargeFlights(this.pendingClear);
     }
-    this.updateSkillChargeFlights();
+    this.updateSkillChargeFlights(gameplayDt * 1000);
     this.skillRuntime.update(gameplayDt * 1000);
     this.skillSystem.update(dt);
     this.feverSystem.update(gameplayDt);
@@ -11860,7 +12000,7 @@ class Game {
       startY,
       targetX: target.x,
       targetY: target.y,
-      startTime: this.elapsed * 1000,
+      elapsedMs: 0,
       duration: 700,
       destination,
       tsumType,
@@ -11870,13 +12010,13 @@ class Game {
     });
   }
 
-  updateSkillChargeFlights() {
+  updateSkillChargeFlights(dtMs = 0) {
     if (!this.skillChargeFlights.length) {
       return;
     }
-    const nowMs = this.elapsed * 1000;
     this.skillChargeFlights = this.skillChargeFlights.filter((flight) => {
-      const progress = clamp((nowMs - flight.startTime) / flight.duration, 0, 1);
+      flight.elapsedMs = Math.max(0, (flight.elapsedMs || 0) + Math.max(0, dtMs || 0));
+      const progress = clamp(flight.elapsedMs / flight.duration, 0, 1);
       if (progress >= 1 && !flight.applied) {
         if (flight.destination === "skill" && !this.skillSystem.ready) {
           this.skillSystem.addCharge(flight.chargeMultiplier || 1);
@@ -12235,6 +12375,7 @@ SkillRegistry.captainLightyear = {
     const radius = skillValue("captainLightyear", "eraseRadius", ctx.level);
     const targets = getLiveTsums(ctx.game, (tsum) => distance(tsum.x, tsum.y, pos.x, pos.y) <= radius);
     session.data.remainingShots -= 1;
+    const isFinalShot = session.data.remainingShots <= 0;
     ctx.game.createShockwave(pos.x, pos.y, "rgba(255,230,140,0.7)", 5, 16, 0.28, 180);
     if (targets.length) {
       ctx.clear.beginClear({
@@ -12243,14 +12384,25 @@ SkillRegistry.captainLightyear = {
         x: pos.x,
         y: pos.y,
         allowBomb: false,
+        ...(isFinalShot ? {
+          timer: SKILL_TIMING_TABLE.captainLightyear.finalClear.durationMs / 1000,
+          pauseClock: SKILL_TIMING_TABLE.captainLightyear.finalClear.pauseClock,
+          pausePhysics: SKILL_TIMING_TABLE.captainLightyear.finalClear.pausePhysics
+        } : {}),
         correctionType: skillValue("captainLightyear", "coinCorrectionType", ctx.level),
         scoreMultiplier: skillValue("captainLightyear", "scoreMultiplier", ctx.level),
         chargeMultiplier: skillValue("captainLightyear", "chargeMultiplier", ctx.level)
       });
     } else {
       ctx.game.addFloatingText(pos.x, pos.y - 18, "MISS", "#ffffff", 18, 0.45);
+      if (isFinalShot) {
+        ctx.runtime.startTimingPause(SKILL_TIMING_TABLE.captainLightyear.finalClear, {
+          kind: "finalClear",
+          skillId: "captainLightyear"
+        });
+      }
     }
-    if (session.data.remainingShots <= 0) {
+    if (isFinalShot) {
       ctx.runtime.endSession(session, "manual");
     }
     return true;
@@ -12263,7 +12415,7 @@ SkillRegistry.captainLightyear = {
 
 // finalize: expose SkillRegistry and export Game
 Game.SkillRegistry = SkillRegistry;
-export { Game, InputRouter };
+export { Game, InputRouter, SkillRuntimeManager };
 // --- ensure namine skill exists and is selectable ---
 SkillRegistry.namine = {
   id: "namine",
@@ -12393,7 +12545,7 @@ SkillRegistry.gaston = {
         x: WIDTH * 0.5,
         y: FIELD_CENTER_Y,
         allowBomb: false,
-        pauseClock: true,
+        pauseClock: SKILL_TIMING_TABLE.gaston.initialClear.pauseClock,
         pausePhysics: true,
         correctionType: skillValue("gaston", "coinCorrectionType", ctx.level),
         onFinalize: activateLoop
@@ -12450,15 +12602,24 @@ SkillRegistry.guidingMoana = {
           x: WIDTH * 0.5,
           y: FIELD_TOP + 72,
           allowBomb: false,
-          pauseClock: true,
-          pausePhysics: true,
+          timer: SKILL_TIMING_TABLE.guidingMoana.initialClear.durationMs / 1000,
+          pauseClock: SKILL_TIMING_TABLE.guidingMoana.initialClear.pauseClock,
+          pausePhysics: SKILL_TIMING_TABLE.guidingMoana.initialClear.pausePhysics,
           onFinalize: spawnCenterBomb
         });
       } else {
-        spawnCenterBomb();
+        ctx.runtime.startTimingPause(SKILL_TIMING_TABLE.guidingMoana.initialClear, {
+          kind: "initialClear",
+          skillId: "guidingMoana",
+          onComplete: spawnCenterBomb
+        });
       }
     } else {
-      spawnCenterBomb();
+      ctx.runtime.startTimingPause(SKILL_TIMING_TABLE.guidingMoana.initialClear, {
+        kind: "initialClear",
+        skillId: "guidingMoana",
+        onComplete: spawnCenterBomb
+      });
     }
     ctx.game.pushCenterMessage("MOANA!", "#bdf5ff", 0.9);
     return session;

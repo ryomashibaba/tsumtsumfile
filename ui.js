@@ -1145,9 +1145,8 @@ export class UIRenderer {
     if (!Array.isArray(this.game.skillChargeFlights) || this.game.skillChargeFlights.length === 0) {
       return;
     }
-    const nowMs = this.game.elapsed * 1000;
     for (const flight of this.game.skillChargeFlights) {
-      const t = clamp((nowMs - flight.startTime) / flight.duration, 0, 1);
+      const t = clamp((flight.elapsedMs || 0) / flight.duration, 0, 1);
       const eased = 1 - ((1 - t) ** 3);
       const x = lerp(flight.startX, flight.targetX, eased);
       const y = lerp(flight.startY, flight.targetY, eased) - Math.sin(t * Math.PI) * 18;
@@ -1503,6 +1502,7 @@ export class UIRenderer {
     this.drawFloatingTexts(ctx);
     this.drawFeverBanner(ctx);
     this.drawCenterMessages(ctx);
+    this.drawSkillPresentationOverlay(ctx);
     this.drawCoingainLotteryOverlay(ctx);
     this.drawCoingainLotteryRoulette(ctx);
     this.drawCoingainFloorGauge(ctx);
@@ -2180,6 +2180,29 @@ export class UIRenderer {
       subtitle: "Character select",
       size: 22
     });
+  }
+
+  drawSkillPresentationOverlay(ctx) {
+    const presentation = this.game.getSkillPresentationState?.();
+    if (!presentation) {
+      return;
+    }
+    const tsum = TSUM_TYPES.find((entry) => entry.id === presentation.skillId) || this.game.myTsum;
+    ctx.save();
+    ctx.fillStyle = "rgba(4, 14, 38, 0.68)";
+    ctx.fillRect(0, FIELD_TOP, WIDTH, FIELD_BOTTOM - FIELD_TOP);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = tsum?.accent || "#ffffff";
+    ctx.fillStyle = tsum?.accent || "#ffffff";
+    ctx.font = '900 50px "Trebuchet MS", sans-serif';
+    ctx.fillText("SKILL", WIDTH * 0.5, 315);
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = "#ffffff";
+    ctx.font = '800 25px "Trebuchet MS", "Yu Gothic", sans-serif';
+    ctx.fillText(tsum?.name || presentation.skillId, WIDTH * 0.5, 370);
+    ctx.restore();
   }
 
   drawBattleResultScreen(ctx) {

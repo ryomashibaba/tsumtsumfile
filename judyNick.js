@@ -497,28 +497,26 @@ export function registerJudyNickSkill({
     id: "judyNick",
     tables: SKILL_TABLES.judyNick,
     onActivate(ctx) {
+      const preparedMode = ctx.activationData?.judyNickMode || ctx.game.judyNickPreparedMode || "judy";
       const existing = ctx.runtime.getSessionsByHandlerId("judyNick")[0];
       const durationMs = skillValue("judyNick", "durationSec", ctx.level) * 1000;
       let session = existing;
       if (session) {
         const previousMode = session.data.currentMode || "judy";
-        const nextMode = previousMode === "judy" ? "nick" : "judy";
+        const nextMode = preparedMode;
         session.level = ctx.level;
         session.remainingMs = durationMs;
         session.data.countStage = Math.min(10, (session.data.countStage || 1) + 1);
         session.data.currentMode = nextMode;
         const overlayRequest = buildJudyNickOverlayRequest(ctx, session, previousMode, session.data.countStage);
         if (overlayRequest) {
-          overlayRequest.onFinalize = () => {
-            ctx.clearBySource(session.id);
-            if (previousMode === "nick" && nextMode === "judy") {
-              convertJudyNickSwitchSubTsums(ctx);
-            }
-            applyJudyNickMode(ctx, session);
-          };
+          ctx.clearBySource(session.id);
+          if (previousMode === "nick" && nextMode === "judy") {
+            convertJudyNickSwitchSubTsums(ctx);
+          }
+          applyJudyNickMode(ctx, session);
           if (!ctx.clear.beginClear(overlayRequest)) {
-            ctx.clearBySource(session.id);
-            applyJudyNickMode(ctx, session);
+            return session;
           }
           return session;
         }
@@ -528,7 +526,7 @@ export function registerJudyNickSkill({
           remainingMs: durationMs,
           cleanupOnEnd: false,
           data: {
-            currentMode: ctx.game.judyNickPreparedMode || "judy",
+            currentMode: preparedMode,
             countStage: 1,
             judyLayerIds: [],
             nickLayerIds: []
