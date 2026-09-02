@@ -401,18 +401,18 @@ test("one Moana special-bomb action creates one 670 ms pause even for multiple b
   assert.equal(clearSpec.pausePhysics, true);
 });
 
-test("JudyNick activation uses the mode captured at acceptance", () => {
+function createJudyNickActivationHarness({ currentMode = null, preparedMode = "judy" } = {}) {
   const messages = [];
-  const existing = {
+  let existing = currentMode ? {
     id: "judyNick-1",
     handlerId: "judyNick",
     level: 1,
     remainingMs: 1,
-    data: { currentMode: "judy", countStage: 1, judyLayerIds: [], nickLayerIds: [] }
-  };
+    data: { currentMode, countStage: 1, judyLayerIds: [], nickLayerIds: [] }
+  } : null;
   const ctx = {
     level: 1,
-    activationData: { judyNickMode: "nick" },
+    activationData: { judyNickMode: preparedMode },
     game: {
       judyNickPreparedMode: "judy",
       tsums: [],
@@ -424,15 +424,67 @@ test("JudyNick activation uses the mode captured at acceptance", () => {
       getBubbleNodesBySession: () => [],
       getJudyNickMovingFrozenNodes: () => []
     },
-    runtime: { getSessionsByHandlerId: () => [existing] },
+    runtime: { getSessionsByHandlerId: () => existing ? [existing] : [] },
     clear: { beginClear: () => false },
     clearBySource() {},
-    applyBubble() {}
+    applyBubble() {},
+    createSession(spec) {
+      existing = {
+        id: "judyNick-1",
+        handlerId: "judyNick",
+        level: 1,
+        remainingMs: spec.remainingMs,
+        data: spec.data
+      };
+      return existing;
+    }
   };
 
-  const activated = Game.SkillRegistry.judyNick.onActivate(ctx);
+  return {
+    ctx,
+    messages,
+    activate(prepared = preparedMode) {
+      ctx.activationData = { judyNickMode: prepared };
+      return Game.SkillRegistry.judyNick.onActivate(ctx);
+    }
+  };
+}
 
-  assert.equal(activated, existing);
-  assert.equal(existing.data.currentMode, "nick");
-  assert.equal(messages.at(-1), "NICK!");
+test("JudyNick initial activation uses the mode captured at acceptance", () => {
+  const harness = createJudyNickActivationHarness({ preparedMode: "nick" });
+
+  const activated = harness.activate();
+
+  assert.equal(activated.data.currentMode, "nick");
+  assert.equal(harness.messages.at(-1), "NICK!");
+});
+
+test("JudyNick reactivation switches from Judy to Nick even when Judy was prepared", () => {
+  const harness = createJudyNickActivationHarness({ currentMode: "judy", preparedMode: "judy" });
+
+  const activated = harness.activate();
+
+  assert.equal(activated.data.currentMode, "nick");
+  assert.equal(harness.messages.at(-1), "NICK!");
+});
+
+test("JudyNick reactivation switches from Nick to Judy even when Nick was prepared", () => {
+  const harness = createJudyNickActivationHarness({ currentMode: "nick", preparedMode: "nick" });
+
+  const activated = harness.activate();
+
+  assert.equal(activated.data.currentMode, "judy");
+  assert.equal(harness.messages.at(-1), "JUDY!");
+});
+
+test("JudyNick repeated reactivation alternates Judy and Nick", () => {
+  const harness = createJudyNickActivationHarness({ preparedMode: "judy" });
+  const modes = [];
+
+  modes.push(harness.activate("judy").data.currentMode);
+  modes.push(harness.activate("judy").data.currentMode);
+  modes.push(harness.activate("nick").data.currentMode);
+  modes.push(harness.activate("nick").data.currentMode);
+
+  assert.deepEqual(modes, ["judy", "nick", "judy", "nick"]);
 });

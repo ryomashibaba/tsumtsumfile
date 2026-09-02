@@ -503,7 +503,7 @@ export function registerJudyNickSkill({
       let session = existing;
       if (session) {
         const previousMode = session.data.currentMode || "judy";
-        const nextMode = preparedMode;
+        const nextMode = previousMode === "judy" ? "nick" : "judy";
         session.level = ctx.level;
         session.remainingMs = durationMs;
         session.data.countStage = Math.min(10, (session.data.countStage || 1) + 1);
