@@ -1,4 +1,4 @@
-import { SKILL_TABLES, TSUM_TYPES, clamp } from "./config.js?v=tsum-images-5";
+import { SKILL_TABLES, TSUM_TYPES, clamp } from "./config.js?v=perfume-alice-target-1";
 import { reconcileGaugeCharge } from "./cheatSettings.js?v=cheat-settings-1";
 
 export class DualGaugeSystem {

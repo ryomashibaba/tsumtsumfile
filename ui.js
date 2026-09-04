@@ -33,7 +33,7 @@ import {
   makeEllipsePath,
   drawGlossButton,
   drawStarPath
-} from './config.js?v=tsum-images-5';
+} from './config.js?v=perfume-alice-target-1';
 import { drawLiliaBat } from './lilia.js?v=tsum-images-8';
 import { drawTsumArtwork, preloadTsumImages } from './tsumImages.js?v=tsum-images-5';
 import { drawSkillPresentation, drawSkillSecondaryVisual } from './skillPresentationVisuals.js?v=skill-visuals-1';

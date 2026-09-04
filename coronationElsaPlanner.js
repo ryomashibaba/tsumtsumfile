@@ -8,7 +8,7 @@ import {
   SKILL_TABLES,
   TSUM_RADIUS,
   clamp
-} from "./config.js?v=tsum-images-5";
+} from "./config.js?v=perfume-alice-target-1";
 import {
   calculateCorrectedClearCoins,
   calculateEffectiveClearCount,

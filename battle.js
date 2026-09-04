@@ -1,4 +1,4 @@
-import { STORAGE_KEY } from "./config.js?v=tsum-images-5";
+import { STORAGE_KEY } from "./config.js?v=perfume-alice-target-1";
 
 export const BATTLE_STORAGE_KEY = `${STORAGE_KEY}_cpu_battle_v1`;
 export const CPU_BATTLE_MODE = "strongest";

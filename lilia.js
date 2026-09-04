@@ -4,7 +4,7 @@ import {
   FIELD_RADIUS_X,
   FIELD_RADIUS_Y,
   TSUM_RADIUS
-} from "./config.js?v=tsum-images-5";
+} from "./config.js?v=perfume-alice-target-1";
 import { collectIdsAlongPolyline, collectIdsInCircles } from "./clearGeometry.js?v=tsum-images-5";
 
 export const LILIA_TYPE_ID = "liliaVanrouge";

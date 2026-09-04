@@ -44,7 +44,7 @@ import {
   rectContains,
   pointInCircle,
   drawStarPath
-} from './config.js?v=tsum-images-5';
+} from './config.js?v=perfume-alice-target-1';
 
 import { UIRenderer } from './ui.js?v=tsum-images-5';
 import { JudyNickGaugeManager, registerJudyNickSkill, resolveJudyNickActivationMode } from './judyNick.js?v=skill-visuals-1';
