@@ -9,6 +9,7 @@ export const DEFAULT_CHEAT_SETTINGS = Object.freeze({
   spawnRate: CHEAT_SPECIAL.INSTANT,
   largeTsumChance: 1,
   gravityMultiplier: 1,
+  tsumDiameter: 58,
   autoSkill: false,
   skillCosts: Object.freeze({}),
   coinCorrections: Object.freeze({})
@@ -76,6 +77,7 @@ export function normalizeCheatSettings(value = {}) {
     ),
     largeTsumChance: normalizeNumber(source.largeTsumChance, DEFAULT_CHEAT_SETTINGS.largeTsumChance, 0, 100, 1),
     gravityMultiplier: normalizeNumber(source.gravityMultiplier, DEFAULT_CHEAT_SETTINGS.gravityMultiplier, 0.1, 10, 1),
+    tsumDiameter: normalizeNumber(source.tsumDiameter, DEFAULT_CHEAT_SETTINGS.tsumDiameter, 1, 100),
     autoSkill: source.autoSkill === true,
     skillCosts,
     coinCorrections

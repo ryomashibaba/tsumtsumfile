@@ -20,6 +20,7 @@ test("cheat settings normalize old, invalid, boundary, and special values", () =
     spawnRate: "instant",
     largeTsumChance: 1,
     gravityMultiplier: 1,
+    tsumDiameter: 58,
     autoSkill: false,
     skillCosts: {},
     coinCorrections: {}
@@ -30,6 +31,7 @@ test("cheat settings normalize old, invalid, boundary, and special values", () =
     spawnRate: 5000,
     largeTsumChance: 500,
     gravityMultiplier: 0,
+    tsumDiameter: 500,
     autoSkill: true,
     skillCosts: { alice: -2, bad: "oops", "judyNick:nick": "unlimited" },
     coinCorrections: { "coingain:skill:coingainBase": -15, bad: "oops", huge: 5000 }
@@ -39,6 +41,7 @@ test("cheat settings normalize old, invalid, boundary, and special values", () =
     spawnRate: 999,
     largeTsumChance: 100,
     gravityMultiplier: 0.1,
+    tsumDiameter: 100,
     autoSkill: true,
     skillCosts: { alice: 0, "judyNick:nick": "unlimited" },
     coinCorrections: { "coingain:skill:coingainBase": -15, huge: 999 }
@@ -160,4 +163,21 @@ test("Judy and Nick expose ten independent count corrections plus the overlay", 
     "count7", "count8", "count9", "count10", "overlay"
   ]);
   assert.deepEqual(controls.map((entry) => entry.defaultValue), [-9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 0]);
+});
+
+test("Tsum diameter is clamped and updates normal and large live bodies", () => {
+  assert.equal(normalizeCheatSettings({ tsumDiameter: 0 }).tsumDiameter, 1);
+  assert.equal(normalizeCheatSettings({ tsumDiameter: 101 }).tsumDiameter, 100);
+  const normal = { radius: 29, baseRadius: 29, isLarge: false };
+  const large = { radius: 43.5, baseRadius: 43.5, isLarge: true };
+  const game = {
+    role: "player",
+    cheatSettings: normalizeCheatSettings({ enabled: true, tsumDiameter: 80 }),
+    tsums: [normal, large],
+    isCheatActive: Game.prototype.isCheatActive,
+    getConfiguredTsumRadius: Game.prototype.getConfiguredTsumRadius
+  };
+  Game.prototype.refreshCheatTsumSizes.call(game);
+  assert.equal(normal.baseRadius, 40);
+  assert.equal(large.baseRadius, 60);
 });

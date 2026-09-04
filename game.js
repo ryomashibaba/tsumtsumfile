@@ -13,11 +13,11 @@ import {
   BOMB_BLAST_RADIUS,
   MAX_CHAIN_DIST,
   NAMINE_SPLASH_RADIUS,
+  PERFUME_ALICE_TARGET_TSUM_COUNT,
   TARGET_TSUM_COUNT,
   GRAVITY,
   RESTITUTION,
   FRICTION,
-  TSUM_RESTITUTION,
   FIXED_STEP,
   STORAGE_KEY,
   PAUSE_BUTTON_RECT,
@@ -70,7 +70,7 @@ import {
   parseCoinCorrectionType,
   reconcileGaugeCharge,
   resolveSkillCost
-} from './cheatSettings.js?v=cheat-settings-2';
+} from './cheatSettings.js?v=cheat-settings-3';
 import {
   DEFAULT_LARGE_TSUM_SPAWN_CHANCE,
   LARGE_TSUM_CLEAR_WEIGHT,
@@ -115,6 +115,24 @@ import {
   shouldTapStrongestModeCoronationElsaCompletedIce,
   shouldUseStrongestModeFeverBombCancel
 } from './strongestModeLogic.js?v=coronation-elsa-final-trace-settle-2';
+import {
+  TSUM_PHYSICS_TUNING,
+  beginTsumPhysicsStep,
+  enforceEmergencyContactMinimum,
+  finalizeTsumPhysicsBody,
+  getBoundaryMaterial,
+  getFrozenOverlayRenderGeometry,
+  getNextFanResponse,
+  getPhysicsContactRadius,
+  getTsumRenderDeformation,
+  initializeTsumPhysicsState,
+  integrateTsumPhysicsBody,
+  resolveTsumBoundaryContact,
+  resolveTsumContactPair,
+  updateTsumVisualPhysicsState,
+  wakePhysicsBody,
+  wakeSupportedBodies
+} from './tsumPhysics.js?v=hybrid-physics-1';
 
 const TITLE_TSUMS_PER_PAGE = 10;
 const JUDY_NICK_MOVING_FREEZE_KIND = "judyNickMovingIce";
@@ -179,6 +197,37 @@ const coronationElsaPlannerNowMs = () => (
     ? performance.now()
     : Date.now()
 );
+
+const drawFreezeOverlay = (ctx, radius, freezeStyle = null) => {
+  const r = Math.max(0, Number(radius) || 0);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = freezeStyle?.fill || "rgba(180,235,255,0.38)";
+  ctx.beginPath();
+  ctx.arc(0, 0, Math.max(0, r - 2), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = freezeStyle?.outerStroke || "rgba(228,249,255,0.95)";
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.arc(0, 0, r + 1.5, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = freezeStyle?.lineStroke || "rgba(220,248,255,0.88)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.42, 0);
+  ctx.lineTo(r * 0.42, 0);
+  ctx.moveTo(0, -r * 0.42);
+  ctx.lineTo(0, r * 0.42);
+  ctx.moveTo(-r * 0.3, -r * 0.3);
+  ctx.lineTo(r * 0.3, r * 0.3);
+  ctx.moveTo(-r * 0.3, r * 0.3);
+  ctx.lineTo(r * 0.3, -r * 0.3);
+  ctx.stroke();
+  ctx.fillStyle = freezeStyle?.highlight || "rgba(255,255,255,0.34)";
+  ctx.beginPath();
+  ctx.arc(-r * 0.28, -r * 0.34, Math.max(2, r * 0.08), 0, Math.PI * 2);
+  ctx.arc(r * 0.2, -r * 0.2, Math.max(1.5, r * 0.05), 0, Math.PI * 2);
+  ctx.fill();
+};
 
 const buildStrongestModeCoronationElsaFlowSupportStates = (game, physicsBodies = null) => {
   const getRadius = (body) => (
@@ -333,7 +382,7 @@ class Tsum {
           this.largeSpawnSource = this.isLarge ? (options.largeSpawnSource || "skill") : null;
           this.clearWeight = this.isLarge ? LARGE_TSUM_CLEAR_WEIGHT : 1;
           this.occupancyWeight = this.isLarge ? LARGE_TSUM_OCCUPANCY_WEIGHT : 1;
-          this.radius = TSUM_RADIUS * (this.isLarge ? LARGE_TSUM_SCALE : 1);
+          this.radius = game.getConfiguredTsumRadius() * (this.isLarge ? LARGE_TSUM_SCALE : 1);
           this.baseRadius = this.radius;
           this.x = x;
           this.y = y;
@@ -354,6 +403,7 @@ class Tsum {
           this.removeDy = rand(-5.8, -2.8);
           this.bounce = 0;
           this.largeClearProgress = 0;
+          initializeTsumPhysicsState(this, { seed: this.id });
         }
 
         isSettled() {
@@ -361,6 +411,7 @@ class Tsum {
         }
 
         beginRemove() {
+          this.game.wakeBodiesSupportedBy?.(this);
           beginBodyRemovalState(this);
           this.removeTimer = 0;
           this.removeDx += this.vx * 0.3;
@@ -394,6 +445,7 @@ class Tsum {
           this.scale = lerp(this.scale, 1, clamp(dt * 14, 0, 1));
           this.alpha = lerp(this.alpha, 1, clamp(dt * 14, 0, 1));
           this.bounce = Math.max(0, this.bounce - dt * 3.4);
+          updateTsumVisualPhysicsState(this, dt);
         }
 
         draw(ctx, highlighted, time) {
@@ -406,16 +458,25 @@ class Tsum {
           const extraScale = this.game.boardState ? this.game.boardState.getVisualScale(this) : 1;
           const isMyTsum = this.game.isMyTsumTypeId(displayType.id);
           const pulse = highlighted ? 1 + Math.sin(time * 16 + this.x * 0.03) * 0.04 : 1;
-          const motionStretch = clamp(Math.abs(this.vy) * 0.015, 0, 0.12);
-          const bounceScale = 1 + this.bounce * 0.05;
-          const r = this.baseRadius * this.scale * extraScale * pulse * bounceScale;
+          const deformation = liliaBat
+            ? { angle: 0, compression: 0, contactAngle: 0, motionStretch: 0, motionAngle: 0 }
+            : getTsumRenderDeformation(this);
+          const r = this.baseRadius * this.scale * extraScale * pulse;
+          const frozenEntry = this.game.boardState?.getFrozenEntry(this) || null;
+          const drawLogicalCoronationFreeze = frozenEntry?.freezeKind === "coronationElsa";
 
           ctx.save();
           ctx.translate(renderPosition.x, renderPosition.y);
           ctx.globalAlpha = this.alpha;
           ctx.shadowBlur = highlighted ? 28 : 12;
           ctx.shadowColor = highlighted ? "rgba(255,255,255,0.95)" : "rgba(0,0,0,0.22)";
-          ctx.scale(1 - motionStretch * 0.35, 1 + motionStretch * 0.45);
+          ctx.rotate(deformation.contactAngle);
+          ctx.scale(1 - deformation.compression, 1 + deformation.compression * 0.55);
+          ctx.rotate(-deformation.contactAngle);
+          ctx.rotate(deformation.motionAngle);
+          ctx.scale(1 - deformation.motionStretch * 0.3, 1 + deformation.motionStretch);
+          ctx.rotate(-deformation.motionAngle);
+          ctx.rotate(deformation.angle);
 
           const hasArtwork = !liliaBat && drawTsumArtwork(ctx, displayType, 0, 0, r, { fit: "cover" });
           if (liliaBat) {
@@ -525,34 +586,9 @@ class Tsum {
             ctx.restore();
           }
 
-          if (this.game.boardState && this.game.boardState.isFrozen(this)) {
+          if (this.game.boardState && this.game.boardState.isFrozen(this) && !drawLogicalCoronationFreeze) {
             const freezeStyle = this.game.boardState.getFreezeVisualStyle(this);
-            ctx.fillStyle = freezeStyle?.fill || "rgba(180,235,255,0.38)";
-            ctx.beginPath();
-            ctx.arc(0, 0, r - 2, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = freezeStyle?.outerStroke || "rgba(228,249,255,0.95)";
-            ctx.lineWidth = 2.4;
-            ctx.beginPath();
-            ctx.arc(0, 0, r + 1.5, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.strokeStyle = freezeStyle?.lineStroke || "rgba(220,248,255,0.88)";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(-r * 0.42, 0);
-            ctx.lineTo(r * 0.42, 0);
-            ctx.moveTo(0, -r * 0.42);
-            ctx.lineTo(0, r * 0.42);
-            ctx.moveTo(-r * 0.3, -r * 0.3);
-            ctx.lineTo(r * 0.3, r * 0.3);
-            ctx.moveTo(-r * 0.3, r * 0.3);
-            ctx.lineTo(r * 0.3, -r * 0.3);
-            ctx.stroke();
-            ctx.fillStyle = freezeStyle?.highlight || "rgba(255,255,255,0.34)";
-            ctx.beginPath();
-            ctx.arc(-r * 0.28, -r * 0.34, Math.max(2, r * 0.08), 0, Math.PI * 2);
-            ctx.arc(r * 0.2, -r * 0.2, Math.max(1.5, r * 0.05), 0, Math.PI * 2);
-            ctx.fill();
+            drawFreezeOverlay(ctx, r, freezeStyle);
           }
 
           if (this.game.boardState && this.game.boardState.hasBubble(this)) {
@@ -568,6 +604,19 @@ class Tsum {
           }
 
           ctx.restore();
+
+          if (drawLogicalCoronationFreeze) {
+            const freezeStyle = this.game.boardState.getFreezeVisualStyle(this);
+            const geometry = getFrozenOverlayRenderGeometry(
+              this,
+              this.game.boardState.getEffectiveRadius(this)
+            );
+            ctx.save();
+            ctx.translate(geometry.x, geometry.y);
+            ctx.globalAlpha = this.alpha;
+            drawFreezeOverlay(ctx, geometry.radius, freezeStyle);
+            ctx.restore();
+          }
         }
       }
 
@@ -591,6 +640,7 @@ class Tsum {
           this.bounce = 0;
           this.life = 0;
           this.dead = false;
+          initializeTsumPhysicsState(this, { seed: this.id });
         }
 
         isSettled() {
@@ -1645,6 +1695,7 @@ class SkillRuntimeManager {
       removeSpawnModifier: (handleId) => this.board.removeSpawnModifier(handleId),
       addSpecialChainNodes: (nodeIds, spec) => this.board.addSpecialChainNodes(nodeIds, spec),
       setScaleModifier: (spec) => this.board.setScaleModifier(spec),
+      clearScaleBySource: (sessionId) => this.board.clearScaleBySource(sessionId),
       clearBySource: (sessionId) => this.board.clearBySource(sessionId),
       schedule: (intervalMs, cb) => {
         if (!createdSession) {
@@ -2902,6 +2953,7 @@ class Game {
     this.paused = false;
     this.fanCooldown = 0;
     this.fanPulse = 0;
+    this.fanResponse = { lastAt: -Infinity, stack: 0, strength: 1, cooldownSec: 0 };
     this.nextChainScoreMultiplier = 1;
     this.lastActionAt = 0;
     this.totalCleared = 0;
@@ -4591,12 +4643,27 @@ class Game {
       coinCorrections: patch.coinCorrections ?? this.cheatSettings?.coinCorrections
     });
     this.cheatSpawnAccumulator = 0;
+    this.refreshCheatTsumSizes();
     this.refreshCheatSkillRequirements(options.preserveRatio !== false);
     if (previousEnabled !== this.cheatSettings.enabled && this.state === "playing") {
       this.spawnReplacementTsums();
     }
     this.saveProgress();
     return this.cheatSettings;
+  }
+
+  getConfiguredTsumRadius() {
+    return this.isCheatActive() ? this.cheatSettings.tsumDiameter / 2 : TSUM_RADIUS;
+  }
+
+  refreshCheatTsumSizes() {
+    const radius = this.getConfiguredTsumRadius();
+    for (const tsum of this.tsums || []) {
+      if (tsum?.isBomb) continue;
+      const nextRadius = radius * (tsum.isLarge ? LARGE_TSUM_SCALE : 1);
+      tsum.baseRadius = nextRadius;
+      tsum.radius = nextRadius;
+    }
   }
 
   setCheatSkillCost(characterId, pairMode, value) {
@@ -5624,6 +5691,9 @@ class Game {
     const data = this.getCoingainData();
     if (data?.miniActive) {
       return skillValue("coingain", "miniTargetCount", data.level || this.selectedSkillLevel) || 90;
+    }
+    if (this.getActiveSkillSession?.("perfumeAlice")) {
+      return PERFUME_ALICE_TARGET_TSUM_COUNT;
     }
     return TARGET_TSUM_COUNT;
   }
@@ -9868,6 +9938,7 @@ class Game {
     this.paused = false;
     this.fanCooldown = 0;
     this.fanPulse = 0;
+    this.fanResponse = { lastAt: -Infinity, stack: 0, strength: 1, cooldownSec: 0 };
     this.nextChainScoreMultiplier = 1;
     this.lastActionAt = this.elapsed;
     this.totalCleared = 0;
@@ -9933,14 +10004,15 @@ class Game {
   populateField() {
     this.tsums.length = 0;
     const placed = [];
-    const spacingX = TSUM_RADIUS * 1.86;
-    const spacingY = TSUM_RADIUS * 1.92;
-    const usableWidth = FIELD_RIGHT - FIELD_LEFT - TSUM_RADIUS * 2;
+    const tsumRadius = this.getConfiguredTsumRadius();
+    const spacingX = tsumRadius * 1.86;
+    const spacingY = tsumRadius * 1.92;
+    const usableWidth = FIELD_RIGHT - FIELD_LEFT - tsumRadius * 2;
     const cols = Math.max(1, Math.floor(usableWidth / spacingX));
     const totalRows = Math.ceil(TARGET_TSUM_COUNT / cols);
     const boardCenterX = (FIELD_LEFT + FIELD_RIGHT) * 0.5;
     const startX = boardCenterX - ((cols - 1) * spacingX) * 0.5;
-    const bottomY = FIELD_BOTTOM - TSUM_RADIUS - 10;
+    const bottomY = FIELD_BOTTOM - tsumRadius - 10;
 
     for (let row = 0; row < totalRows; row += 1) {
       const rowCount = Math.min(cols, TARGET_TSUM_COUNT - placed.length);
@@ -9954,7 +10026,7 @@ class Game {
         }
 
         let x = rowStartX + col * spacingX;
-        x = clamp(x, FIELD_LEFT + TSUM_RADIUS + 6, FIELD_RIGHT - TSUM_RADIUS - 6);
+        x = clamp(x, FIELD_LEFT + tsumRadius + 6, FIELD_RIGHT - tsumRadius - 6);
 
         const tsum = new Tsum(
           this,
@@ -9974,13 +10046,14 @@ class Game {
   }
 
   createSpawnTsum(type, index = 0, total = TARGET_TSUM_COUNT, options = {}) {
-    const usableWidth = FIELD_RIGHT - FIELD_LEFT - TSUM_RADIUS * 2;
+    const tsumRadius = this.getConfiguredTsumRadius();
+    const usableWidth = FIELD_RIGHT - FIELD_LEFT - tsumRadius * 2;
     const lanes = Math.max(4, Math.min(7, Math.ceil(Math.sqrt(total))));
     const lane = index % lanes;
-    const laneCenter = FIELD_LEFT + TSUM_RADIUS + usableWidth * ((lane + 0.5) / lanes);
-    const x = clamp(laneCenter + rand(-12, 12), FIELD_LEFT + TSUM_RADIUS, FIELD_RIGHT - TSUM_RADIUS);
+    const laneCenter = FIELD_LEFT + tsumRadius + usableWidth * ((lane + 0.5) / lanes);
+    const x = clamp(laneCenter + rand(-12, 12), FIELD_LEFT + tsumRadius, FIELD_RIGHT - tsumRadius);
     const row = Math.floor(index / lanes);
-    const y = FIELD_TOP - TSUM_RADIUS * 1.45 - (row * TSUM_RADIUS * 2.35);
+    const y = FIELD_TOP - tsumRadius * 1.45 - (row * tsumRadius * 2.35);
     const vx = (Math.random() - 0.5) * 2.2;
     const vy = Math.random() * 2;
     const tsum = new Tsum(this, type, x, y, vx, vy, options);
@@ -10216,6 +10289,9 @@ class Game {
   }
 
   isBodySettled(body, bodies = this.getPhysicsBodies()) {
+    if (body?.physicsState) {
+      return body.physicsState.sleeping === true;
+    }
     if (Math.abs(body.vx) >= 0.1 || Math.abs(body.vy) >= 0.1) {
       return false;
     }
@@ -10376,6 +10452,8 @@ class Game {
     if (this.state !== "playing" || this.paused || this.isCoingainInputLocked() || this.isGameplayInputLocked() || this.fanCooldown > 0) {
       return false;
     }
+    this.fanResponse = getNextFanResponse(this.fanResponse, this.elapsed);
+    const strength = this.fanResponse.strength;
     const bodies = this.getPhysicsBodies();
     for (const body of bodies) {
       if (this.isBodyMotionLocked(body)) {
@@ -10383,11 +10461,19 @@ class Game {
         body.vy = 0;
         continue;
       }
-      body.vx += rand(-2.8, 2.8);
-      body.vy -= rand(1.2, 3.2);
+      wakePhysicsBody(body);
+      body.vx += rand(-2.8, 2.8) * strength;
+      body.vy -= rand(1.2, 3.2) * strength;
+      if (!body.isBomb && body.physicsState) {
+        body.physicsState.angularVelocity = clamp(
+          body.physicsState.angularVelocity + rand(-1, 1) * TSUM_PHYSICS_TUNING.fan.angularKick * strength,
+          -TSUM_PHYSICS_TUNING.maxAngularVelocity,
+          TSUM_PHYSICS_TUNING.maxAngularVelocity
+        );
+      }
       body.bounce = 1;
     }
-    this.fanCooldown = 1.2;
+    this.fanCooldown = this.fanResponse.cooldownSec;
     this.fanPulse = 0.4;
     this.noteAction();
     this.addFloatingText(DECOR_BUTTON_RECT.x + DECOR_BUTTON_RECT.w * 0.5, DECOR_BUTTON_RECT.y - 14, "FAN!", "#ffffff", 18, 0.5);
@@ -10395,7 +10481,10 @@ class Game {
   }
 
   startChain(tsum, pos) {
-    if (this.isGameplayInputLocked()) {
+    if (
+      this.isGameplayInputLocked({ ignoreActionLock: true }) ||
+      (this.actionLock && !this.canQueueChainDuringActiveClear())
+    ) {
       return false;
     }
     const chainRule = this.getChainBehaviorForStart(tsum);
@@ -11595,111 +11684,119 @@ class Game {
   stepPhysicsFrame() {
     const activeBodies = this.getPhysicsBodies();
     const occupyingBodies = this.getOccupyingBodies();
+    const isLocked = (body) => !!(
+      body.clearOccupying ||
+      body.inChain ||
+      this.isBodyMotionLocked(body)
+    );
+    const gravityMultiplier = this.isCheatActive() ? this.cheatSettings.gravityMultiplier : 1;
+    const gravity = {
+      x: TSUM_PHYSICS_TUNING.gravity.x * gravityMultiplier,
+      y: GRAVITY * gravityMultiplier
+    };
+
+    beginTsumPhysicsStep(activeBodies);
 
     for (const body of activeBodies) {
-      const bodyLocked = body.clearOccupying || body.inChain || this.isBodyMotionLocked(body);
-      if (bodyLocked) {
-        body.vx = 0;
-        body.vy = 0;
-        this.resolveFieldBoundary(body);
-        continue;
-      }
-
-      if (!this.isBodySettled(body, occupyingBodies)) {
-        const gravityMultiplier = this.isCheatActive() ? this.cheatSettings.gravityMultiplier : 1;
-        body.vy += GRAVITY * gravityMultiplier;
-        body.vx *= body.damping;
-        body.vy *= body.damping;
-        body.x += body.vx;
-        body.y += body.vy;
-      } else {
-        body.vx = 0;
-        body.vy = 0;
-      }
-
-      this.resolveFieldBoundary(body);
+      integrateTsumPhysicsBody(body, { gravity, locked: isLocked(body) });
+      this.resolveFieldBoundary(body, { soft: true, locked: isLocked(body) });
     }
 
-    for (let iter = 0; iter < 3; iter += 1) {
+    for (let iter = 0; iter < TSUM_PHYSICS_TUNING.solverIterations; iter += 1) {
       for (let i = 0; i < occupyingBodies.length; i += 1) {
         for (let j = i + 1; j < occupyingBodies.length; j += 1) {
           const a = occupyingBodies[i];
           const b = occupyingBodies[j];
-          const dx = this.getBodyCollisionX(b) - this.getBodyCollisionX(a);
-          const dy = this.getBodyCollisionY(b) - this.getBodyCollisionY(a);
-          const dist = Math.sqrt(dx * dx + dy * dy) || 0.001;
-          const minDist = this.getBodyRadius(a) + this.getBodyRadius(b);
-          if (dist >= minDist) {
-            continue;
-          }
-
-          const overlap = minDist - dist;
-          const nx = dx / dist;
-          const ny = dy / dist;
-          const aLocked = a.clearOccupying || a.inChain || this.isBodyMotionLocked(a);
-          const bLocked = b.clearOccupying || b.inChain || this.isBodyMotionLocked(b);
-
-          if (aLocked && !bLocked) {
-            b.x += nx * overlap;
-            b.y += ny * overlap;
-          } else if (!aLocked && bLocked) {
-            a.x -= nx * overlap;
-            a.y -= ny * overlap;
-          } else if (!aLocked && !bLocked) {
-            a.x -= nx * overlap * 0.5;
-            a.y -= ny * overlap * 0.5;
-            b.x += nx * overlap * 0.5;
-            b.y += ny * overlap * 0.5;
-          }
-
-          const dvx = b.vx - a.vx;
-          const dvy = b.vy - a.vy;
-          const dot = dvx * nx + dvy * ny;
-          if (dot < 0) {
-            if (!aLocked && !bLocked) {
-              const impulse = dot * (1 + TSUM_RESTITUTION) / 2;
-              a.vx += impulse * nx;
-              a.vy += impulse * ny;
-              b.vx -= impulse * nx;
-              b.vy -= impulse * ny;
-            } else if (aLocked && !bLocked) {
-              b.vx -= dot * (1 + TSUM_RESTITUTION) * nx;
-              b.vy -= dot * (1 + TSUM_RESTITUTION) * ny;
-            } else if (!aLocked && bLocked) {
-              a.vx += dot * (1 + TSUM_RESTITUTION) * nx;
-              a.vy += dot * (1 + TSUM_RESTITUTION) * ny;
-            }
+          const result = resolveTsumContactPair(a, b, {
+            getRadius: (entry) => this.getPhysicsContactRadius(entry),
+            getPosition: (entry) => ({
+              x: this.getBodyCollisionX(entry),
+              y: this.getBodyCollisionY(entry)
+            }),
+            isLocked
+          });
+          if (result && result.normalImpulse > 0.15) {
             a.bounce = 1;
             b.bounce = 1;
           }
-
-          if (!aLocked) {
-            this.resolveFieldBoundary(a);
-          }
-          if (!bLocked) {
-            this.resolveFieldBoundary(b);
-          }
         }
+      }
+      for (const body of activeBodies) {
+        this.resolveFieldBoundary(body, { soft: true, locked: isLocked(body) });
+      }
+    }
+
+    for (let iter = 0; iter < TSUM_PHYSICS_TUNING.emergencyProjectionIterations; iter += 1) {
+      for (let i = 0; i < occupyingBodies.length; i += 1) {
+        for (let j = i + 1; j < occupyingBodies.length; j += 1) {
+          enforceEmergencyContactMinimum(occupyingBodies[i], occupyingBodies[j], {
+            getRadius: (entry) => this.getPhysicsContactRadius(entry),
+            getPosition: (entry) => ({
+              x: this.getBodyCollisionX(entry),
+              y: this.getBodyCollisionY(entry)
+            }),
+            isLocked
+          });
+        }
+      }
+      for (const body of activeBodies) {
+        this.resolveFieldBoundary(body, { soft: true, locked: isLocked(body) });
       }
     }
 
     for (const body of activeBodies) {
-      if (!body.inChain) {
-        this.resolveFieldBoundary(body);
-      }
-      if (Math.abs(body.vx) < 0.1) {
-        body.vx = 0;
-      }
-      if (Math.abs(body.vy) < 0.1) {
-        body.vy = 0;
-      }
+      if (!body.inChain) this.resolveFieldBoundary(body, { soft: true, locked: isLocked(body) });
+      finalizeTsumPhysicsBody(body, { locked: isLocked(body) });
     }
   }
 
-  resolveFieldBoundary(tsum) {
-    const radius = this.getBodyRadius(tsum);
+  resolveFieldBoundary(tsum, options = {}) {
+    const radius = options.soft ? this.getPhysicsContactRadius(tsum) : this.getBodyRadius(tsum);
     if (tsum && tsum.spawnedAboveField && tsum.y - radius >= FIELD_TOP) {
       tsum.spawnedAboveField = false;
+    }
+    if (options.soft) {
+      const material = getBoundaryMaterial(tsum);
+      const targetOffset = radius * material.targetDistanceRatio;
+      const locked = options.locked === true;
+      if (tsum.x < FIELD_LEFT + targetOffset) {
+        resolveTsumBoundaryContact(tsum, {
+          normal: { x: 1, y: 0 },
+          penetration: FIELD_LEFT + targetOffset - tsum.x,
+          radius,
+          material,
+          locked
+        });
+      }
+      if (tsum.x > FIELD_RIGHT - targetOffset) {
+        resolveTsumBoundaryContact(tsum, {
+          normal: { x: -1, y: 0 },
+          penetration: tsum.x - (FIELD_RIGHT - targetOffset),
+          radius,
+          material,
+          locked
+        });
+      }
+      const floorY = this.getFieldFloorY(tsum.x);
+      if (tsum.y > floorY - targetOffset) {
+        resolveTsumBoundaryContact(tsum, {
+          normal: { x: 0, y: -1 },
+          penetration: tsum.y - (floorY - targetOffset),
+          radius,
+          material,
+          locked
+        });
+      }
+      if (!tsum.spawnedAboveField && tsum.y < FIELD_TOP + targetOffset) {
+        resolveTsumBoundaryContact(tsum, {
+          normal: { x: 0, y: 1 },
+          penetration: FIELD_TOP + targetOffset - tsum.y,
+          radius,
+          material,
+          locked
+        });
+      }
+      return;
     }
     if (tsum.x - radius < FIELD_LEFT) {
       tsum.x = FIELD_LEFT + radius;
@@ -11938,6 +12035,16 @@ class Game {
 
   getBodyRadius(body) {
     return this.boardState ? this.boardState.getEffectiveRadius(body) : body.radius;
+  }
+
+  getPhysicsContactRadius(body) {
+    return getPhysicsContactRadius(body, (entry) => this.getBodyRadius(entry));
+  }
+
+  wakeBodiesSupportedBy(body) {
+    return wakeSupportedBodies(body, this.getPhysicsBodies(), {
+      getRadius: (entry) => this.getPhysicsContactRadius(entry)
+    });
   }
 
   isIdleForGaugeDrain() {
@@ -13112,6 +13219,9 @@ SkillRegistry.perfumeAlice = {
     if (request.source !== "chain") {
       return request;
     }
+    const primaryTargets = Array.isArray(request.sequentialPrimaryTargets) && request.sequentialPrimaryTargets.length
+      ? request.sequentialPrimaryTargets.slice()
+      : request.targets.slice();
     const clearedIds = new Set(request.targets.map((target) => target.id));
     const clearedNeighbors = request.targets.filter(
       (target) => ctx.board.getResolvedType(target).id !== ctx.game.myTsum.id
@@ -13138,13 +13248,26 @@ SkillRegistry.perfumeAlice = {
     if (!adjacentAlices.length) {
       return request;
     }
+    const splashGroupsByTrigger = new Map();
+    for (const alice of adjacentAlices) {
+      const trigger = clearedNeighbors.find((neighbor) => (
+        distance(neighbor.x, neighbor.y, alice.x, alice.y) <=
+        ctx.game.getBodyRadius(neighbor) + ctx.game.getBodyRadius(alice) + CHAIN_CONNECT_MARGIN
+      ));
+      if (trigger) {
+        const group = splashGroupsByTrigger.get(trigger.id) || { triggerId: trigger.id, targets: [] };
+        group.targets.push(alice);
+        splashGroupsByTrigger.set(trigger.id, group);
+      }
+    }
     request.targets = request.targets.concat(adjacentAlices);
+    attachSequentialSplashGroups(request, primaryTargets, Array.from(splashGroupsByTrigger.values()), ctx.game, "perfumeAlice");
     request.skillBonus = (request.skillBonus || 0) + adjacentAlices.length * 40;
     request.correctionType = skillValue("perfumeAlice", "coinCorrectionType", ctx.level);
     return request;
   },
   onEnd(ctx, session) {
-    ctx.clearBySource(session.id);
+    ctx.clearScaleBySource(session.id);
   },
   cleanupBySession() {
   }

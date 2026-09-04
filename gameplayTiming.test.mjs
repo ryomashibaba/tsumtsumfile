@@ -240,6 +240,7 @@ test("the global skill visual toggle persists and releases active skill timing w
         spawnRate: "instant",
         largeTsumChance: 1,
         gravityMultiplier: 1,
+        tsumDiameter: 58,
         autoSkill: false,
         skillCosts: {},
         coinCorrections: {}
@@ -261,6 +262,7 @@ test("the global skill visual toggle persists and releases active skill timing w
         spawnRate: "instant",
         largeTsumChance: 1,
         gravityMultiplier: 1,
+        tsumDiameter: 58,
         autoSkill: false,
         skillCosts: {},
         coinCorrections: {}
@@ -513,6 +515,53 @@ test("central skill timing lock blocks user, bomb, fan, and skill entry points",
   assert.equal(Game.prototype.startChain.call(game, {}, { x: 0, y: 0 }), false);
   assert.equal(Game.prototype.explodeBomb.call(game, { bombType: "normal" }), false);
   assert.equal(activated, 0);
+});
+
+test("an active sequential chain clear still allows the next manual chain to start", () => {
+  const tsum = { id: "next-1", inChain: false };
+  const resolvedType = { id: "blue" };
+  let actionCount = 0;
+  const game = {
+    actionLock: true,
+    pendingClear: { source: "chain", sequentialChain: true },
+    dragging: false,
+    chain: [],
+    chainSet: new Set(),
+    chainTypeId: null,
+    chainRule: null,
+    skillRuntime: { isInputLocked: () => false },
+    isGameplayInputLocked: Game.prototype.isGameplayInputLocked,
+    canQueueChainDuringActiveClear: Game.prototype.canQueueChainDuringActiveClear,
+    getChainBehaviorForStart: () => ({ mode: "normal" }),
+    boardState: { getResolvedType: () => resolvedType },
+    noteAction() { actionCount += 1; }
+  };
+
+  assert.equal(Game.prototype.startChain.call(game, tsum, { x: 120, y: 240 }), true);
+  assert.equal(game.dragging, true);
+  assert.deepEqual(game.chain, [tsum]);
+  assert.deepEqual([...game.chainSet], [tsum.id]);
+  assert.equal(game.chainTypeId, resolvedType.id);
+  assert.equal(tsum.inChain, true);
+  assert.equal(actionCount, 1);
+});
+
+test("non-chain action locks still reject a new manual chain", () => {
+  let queriedChainBehavior = false;
+  const game = {
+    actionLock: true,
+    pendingClear: { source: "skill", sequentialChain: false },
+    skillRuntime: { isInputLocked: () => false },
+    isGameplayInputLocked: Game.prototype.isGameplayInputLocked,
+    canQueueChainDuringActiveClear: Game.prototype.canQueueChainDuringActiveClear,
+    getChainBehaviorForStart() {
+      queriedChainBehavior = true;
+      return { mode: "normal" };
+    }
+  };
+
+  assert.equal(Game.prototype.startChain.call(game, { id: "blocked" }, { x: 0, y: 0 }), false);
+  assert.equal(queriedChainBehavior, false);
 });
 
 test("Captain Lightyear final clear replaces the normal clear delay with 570 ms", () => {

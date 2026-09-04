@@ -3,7 +3,7 @@ import {
   displaySettingValue,
   getSkillCostKey,
   settingValueFromSlider
-} from "./cheatSettings.js?v=cheat-settings-2";
+} from "./cheatSettings.js?v=cheat-settings-3";
 
 function element(tag, className, text = "") {
   const node = document.createElement(tag);
@@ -179,6 +179,16 @@ export class CheatSettingsPanel {
       suffix: "倍",
       defaultLabel: "初期値 1倍",
       onChange: (gravityMultiplier) => this.game.updateCheatSettings({ gravityMultiplier })
+    }));
+    body.appendChild(this.createNumericRangeControl({
+      label: "ツムの直径",
+      value: this.game.cheatSettings.tsumDiameter,
+      min: 1,
+      max: 100,
+      step: 1,
+      suffix: "px",
+      defaultLabel: "初期値 58px",
+      onChange: (tsumDiameter) => this.game.updateCheatSettings({ tsumDiameter })
     }));
     body.appendChild(this.createValueControl({
       label: "ツム出現スピード",
