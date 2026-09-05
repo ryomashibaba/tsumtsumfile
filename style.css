@@ -188,6 +188,10 @@ canvas {
   touch-action: pan-y;
 }
 
+.cheat-dialog:not([open]) {
+  display: none;
+}
+
 .cheat-dialog::backdrop {
   background: rgba(4, 9, 24, 0.74);
   backdrop-filter: blur(4px);
