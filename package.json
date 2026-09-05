@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test battle.test.mjs cheatSettings.test.mjs lilia.test.mjs perfumeAlice.test.mjs gameplayTiming.test.mjs skillPresentationVisuals.test.mjs bodyLifecycle.test.mjs strongestModeLogic.test.mjs coronationElsaPlanner.test.mjs bombLogic.test.mjs boardTypeSelection.test.mjs tsumImages.test.mjs tsumPhysics.test.mjs server.test.mjs"
+    "test": "node --test battle.test.mjs cheatSettings.test.mjs lilia.test.mjs perfumeAlice.test.mjs gameplayTiming.test.mjs skillPresentationVisuals.test.mjs bodyLifecycle.test.mjs strongestModeLogic.test.mjs coronationElsaPlanner.test.mjs bombLogic.test.mjs boardTypeSelection.test.mjs tsumImages.test.mjs tsumPhysics.test.mjs renderQuality.test.mjs server.test.mjs"
   }
 }

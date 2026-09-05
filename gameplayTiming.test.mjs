@@ -234,6 +234,7 @@ test("the global skill visual toggle persists and releases active skill timing w
       coins: 25,
       plays: 3,
       skillVisualsEnabled: true,
+      renderQualityMode: "normal",
       cheatSettings: {
         enabled: false,
         boardTarget: 45,
@@ -250,12 +251,14 @@ test("the global skill visual toggle persists and releases active skill timing w
       persistenceEnabled: true,
       coins: 25,
       plays: 3,
-      skillVisualsEnabled: false
+      skillVisualsEnabled: false,
+      renderQualityMode: "minimal"
     });
     assert.deepEqual(stored, {
       coins: 25,
       plays: 3,
       skillVisualsEnabled: false,
+      renderQualityMode: "minimal",
       cheatSettings: {
         enabled: false,
         boardTarget: 45,
@@ -275,6 +278,24 @@ test("the global skill visual toggle persists and releases active skill timing w
       globalThis.localStorage = oldStorage;
     }
   }
+});
+
+test("minimal quality limits drawing to 30 fps while every update still runs", () => {
+  let updates = 0;
+  let renders = 0;
+  const game = {
+    renderQualityMode: "minimal",
+    renderAccumulatorMs: 0,
+    aiFastTrainingSimAccumulator: 0,
+    isAiFastTrainingSimulationActive: () => false,
+    update() { updates += 1; },
+    render() { renders += 1; },
+    getRenderQualityProfile: Game.prototype.getRenderQualityProfile
+  };
+  Game.prototype.tick.call(game, 1 / 60, true);
+  Game.prototype.tick.call(game, 1 / 60, true);
+  assert.equal(updates, 2);
+  assert.equal(renders, 1);
 });
 
 test("gameplay clocks and physics resume without catch-up after the initial clear", () => {

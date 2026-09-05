@@ -84,6 +84,7 @@ export class BattleController {
     this.configureCpu();
 
     this.updateArena();
+    this.arena.dataset.renderQuality = this.player.renderQualityMode || "normal";
   }
 
   configureCpu() {
@@ -161,6 +162,21 @@ export class BattleController {
     if (station) {
       station.setAttribute("aria-hidden", battleVisible ? "false" : "true");
     }
+    this.player?.updateCanvasSize?.();
+    this.cpu?.updateCanvasSize?.();
+  }
+
+  syncRenderQuality(mode, source = null) {
+    for (const game of [this.player, this.cpu]) {
+      if (!game || game === source) {
+        continue;
+      }
+      game.setRenderQualityMode?.(mode, { persist: false, sync: false });
+    }
+    if (this.arena) {
+      this.arena.dataset.renderQuality = mode;
+    }
+    return mode;
   }
 
   start() {
@@ -209,6 +225,7 @@ export class BattleController {
     this.cpu.currentSkillLevel = this.player.selectedSkillLevel;
     this.cpu.itemSelection = { ...this.player.itemSelection };
     this.cpu.myTsum = this.player.myTsum;
+    this.cpu.setRenderQualityMode?.(this.player.renderQualityMode, { persist: false, sync: false });
     this.cpu.aiAutoPlay = false;
     this.cpu.aiLearningMode = false;
     this.cpu.aiLearningAutoRepeat = false;

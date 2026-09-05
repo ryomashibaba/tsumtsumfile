@@ -54,10 +54,14 @@ test("starting a CPU battle enables strongest mode and disables regular AI", () 
     selectedSkillLevel: 6,
     itemSelection: {},
     myTsum: { id: "mickey" },
+    renderQualityMode: "minimal",
     startGame() {}
   };
   controller.cpu = {
     disableAiModesForStrongestMode() { disabledAiModes += 1; },
+    setRenderQualityMode(mode, options) {
+      this.receivedRenderQuality = { mode, options };
+    },
     startGame() { started += 1; }
   };
 
@@ -68,6 +72,22 @@ test("starting a CPU battle enables strongest mode and disables regular AI", () 
   assert.equal(controller.cpu.strongestModeEnabled, true);
   assert.equal(controller.cpu.aiAutoPlay, false);
   assert.equal(controller.cpu.battleContext.adaptiveMultiplier, 1);
+  assert.deepEqual(controller.cpu.receivedRenderQuality, {
+    mode: "minimal",
+    options: { persist: false, sync: false }
+  });
+});
+
+test("render quality synchronization updates the other board", () => {
+  const controller = Object.create(BattleController.prototype);
+  const updates = [];
+  controller.arena = { dataset: {} };
+  controller.player = { setRenderQualityMode: (...args) => updates.push(["player", ...args]) };
+  controller.cpu = { setRenderQualityMode: (...args) => updates.push(["cpu", ...args]) };
+
+  assert.equal(controller.syncRenderQuality("light", controller.player), "light");
+  assert.deepEqual(updates, [["cpu", "light", { persist: false, sync: false }]]);
+  assert.equal(controller.arena.dataset.renderQuality, "light");
 });
 
 test("finalization awards and saves the battle bonus only once", () => {

@@ -120,6 +120,23 @@ test('the same visual seed emits the same deterministic canvas command stream', 
   assert.deepEqual(first.commands, second.commands);
 });
 
+test('light quality emits fewer skill particle commands than normal quality', () => {
+  const state = {
+    skillId: 'guidingMoana',
+    kind: 'initialClear',
+    elapsedMs: 720,
+    durationMs: 790,
+    sequenceId: 21,
+    centers: [{ x: 205, y: 410 }],
+    targetIds: []
+  };
+  const normal = makeContext();
+  const light = makeContext();
+  drawSkillSecondaryVisual(normal, visualGame(), state, { particleScale: 1 });
+  drawSkillSecondaryVisual(light, visualGame(), state, { particleScale: 0.5 });
+  assert.ok(light.commands.length < normal.commands.length);
+});
+
 test('unknown visual states fail closed without drawing gameplay effects', () => {
   const ctx = makeContext();
   assert.equal(drawSkillPresentation(ctx, visualGame(), { skillId: 'unknown', kind: 'presentation', elapsedMs: 0, durationMs: 1 }), false);

@@ -46,7 +46,7 @@ import {
   drawStarPath
 } from './config.js?v=perfume-alice-target-1';
 
-import { UIRenderer } from './ui.js?v=tsum-images-5';
+import { UIRenderer } from './ui.js?v=render-quality-1';
 import { JudyNickGaugeManager, registerJudyNickSkill, resolveJudyNickActivationMode } from './judyNick.js?v=skill-visuals-1';
 import {
   LILIA_CHAIN_TYPE,
@@ -58,7 +58,14 @@ import {
   isLiliaBatNode,
   registerLiliaSkill
 } from './lilia.js?v=tsum-images-8';
-import { drawTsumArtwork } from './tsumImages.js?v=tsum-images-5';
+import { drawTsumArtwork, preloadTsumImages, releaseTsumImages } from './tsumImages.js?v=render-quality-1';
+import {
+  clampDevicePixelRatio,
+  getNextRenderQualityMode,
+  getRenderQualityProfile,
+  normalizeRenderQualityMode,
+  shouldRenderForQuality
+} from './renderQuality.js?v=render-quality-1';
 import { areBoardTypesColorCompatible } from './boardTypeSelection.js?v=tsum-images-5';
 import {
   CHEAT_SPECIAL,
@@ -458,7 +465,8 @@ class Tsum {
           const extraScale = this.game.boardState ? this.game.boardState.getVisualScale(this) : 1;
           const isMyTsum = this.game.isMyTsumTypeId(displayType.id);
           const pulse = highlighted ? 1 + Math.sin(time * 16 + this.x * 0.03) * 0.04 : 1;
-          const deformation = liliaBat
+          const renderProfile = this.game.getRenderQualityProfile();
+          const deformation = liliaBat || !renderProfile.useBodyDeformation
             ? { angle: 0, compression: 0, contactAngle: 0, motionStretch: 0, motionAngle: 0 }
             : getTsumRenderDeformation(this);
           const r = this.baseRadius * this.scale * extraScale * pulse;
@@ -468,7 +476,7 @@ class Tsum {
           ctx.save();
           ctx.translate(renderPosition.x, renderPosition.y);
           ctx.globalAlpha = this.alpha;
-          ctx.shadowBlur = highlighted ? 28 : 12;
+          ctx.shadowBlur = renderProfile.drawBodyShadows ? (highlighted ? 28 : 12) : 0;
           ctx.shadowColor = highlighted ? "rgba(255,255,255,0.95)" : "rgba(0,0,0,0.22)";
           ctx.rotate(deformation.contactAngle);
           ctx.scale(1 - deformation.compression, 1 + deformation.compression * 0.55);
@@ -478,9 +486,27 @@ class Tsum {
           ctx.rotate(-deformation.motionAngle);
           ctx.rotate(deformation.angle);
 
-          const hasArtwork = !liliaBat && drawTsumArtwork(ctx, displayType, 0, 0, r, { fit: "cover" });
+          const hasArtwork = !liliaBat && drawTsumArtwork(ctx, displayType, 0, 0, r, {
+            fit: "cover",
+            enabled: renderProfile.drawArtwork
+          });
           if (liliaBat) {
-            drawLiliaBat(ctx, r, highlighted);
+            if (renderProfile.useRichSurfaces) {
+              drawLiliaBat(ctx, r, highlighted);
+            } else {
+              ctx.fillStyle = "#7550ad";
+              ctx.beginPath();
+              ctx.arc(0, 0, r, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.strokeStyle = highlighted ? "#ffffff" : "#cbb8ef";
+              ctx.lineWidth = highlighted ? 4 : 2;
+              ctx.stroke();
+              ctx.fillStyle = "#ffffff";
+              ctx.font = `800 ${Math.round(r * 0.34)}px "Trebuchet MS", sans-serif`;
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText("BAT", 0, 1);
+            }
           } else if (hasArtwork) {
             ctx.shadowBlur = 0;
             ctx.strokeStyle = highlighted ? "rgba(255,255,255,0.98)" : "rgba(255,255,255,0.2)";
@@ -488,6 +514,19 @@ class Tsum {
             ctx.beginPath();
             ctx.arc(0, 0, r - 1, 0, Math.PI * 2);
             ctx.stroke();
+          } else if (!renderProfile.useRichSurfaces) {
+            ctx.fillStyle = displayType.color || "#67bfd0";
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = highlighted ? "#ffffff" : "rgba(255,255,255,0.55)";
+            ctx.lineWidth = highlighted ? 4 : 2;
+            ctx.stroke();
+            ctx.font = `800 ${Math.round(r * 0.62)}px "Trebuchet MS", "Yu Gothic", sans-serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = "#ffffff";
+            ctx.fillText(displayType.emoji || displayType.name?.slice(0, 1) || "?", 0, 1);
           } else if (isMyTsum) {
             const gradient = ctx.createRadialGradient(-r * 0.42, -r * 0.44, r * 0.2, 0, 0, r * 1.1);
             gradient.addColorStop(0, displayType.light);
@@ -668,8 +707,25 @@ class Tsum {
           ctx.save();
           ctx.translate(this.x, this.y);
           ctx.globalAlpha = this.alpha;
-          ctx.shadowBlur = 8 + Math.sin(this.life * 7) * 3;
+          const renderProfile = this.game.getRenderQualityProfile();
+          ctx.shadowBlur = renderProfile.drawBodyShadows ? 8 + Math.sin(this.life * 7) * 3 : 0;
           ctx.shadowColor = data.aura;
+          if (!renderProfile.useRichSurfaces) {
+            ctx.fillStyle = data.color;
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "rgba(255,255,255,0.85)";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.font = `${Math.round(r * 0.72)}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = "#ffffff";
+            ctx.fillText(data.icon, 0, 1);
+            ctx.restore();
+            return;
+          }
           const gradient = ctx.createRadialGradient(-r * 0.35, -r * 0.38, r * 0.2, 0, 0, r * 1.15);
           if (this.bombType === "normal") {
             gradient.addColorStop(0, "#a8a8a8");
@@ -2770,6 +2826,8 @@ class Game {
     this.coins = save.coins;
     this.plays = save.plays;
     this.skillVisualsEnabled = save.skillVisualsEnabled !== false;
+    this.renderQualityMode = normalizeRenderQualityMode(options.renderQualityMode ?? save.renderQualityMode);
+    this.renderAccumulatorMs = 0;
     this.cheatSettings = normalizeCheatSettings(save.cheatSettings || DEFAULT_CHEAT_SETTINGS);
     this.cheatSpawnAccumulator = 0;
 
@@ -2780,6 +2838,9 @@ class Game {
     this.activeItems = this.blankItemSelection();
 
     this.ui = new UIRenderer(this);
+    if (this.role === "player" && typeof document !== "undefined") {
+      document.documentElement.dataset.renderQuality = this.renderQualityMode;
+    }
     this.skillSystem = new SkillSystem(this);
     this.feverSystem = new FeverSystem(this);
     this.comboSystem = new ComboSystem(this);
@@ -3025,7 +3086,7 @@ class Game {
   }
 
   updateCanvasSize() {
-    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const dpr = clampDevicePixelRatio(window.devicePixelRatio || 1, this.renderQualityMode);
     const rect = this.canvas.getBoundingClientRect();
     // Determine CSS size (preserve aspect ratio WIDTH:HEIGHT)
     const cssWidth = rect.width || WIDTH;
@@ -3068,6 +3129,7 @@ class Game {
         coins: Number.isFinite(parsed.coins) ? parsed.coins : 5000,
         plays: Number.isFinite(parsed.plays) ? parsed.plays : 0,
         skillVisualsEnabled: parsed.skillVisualsEnabled !== false,
+        renderQualityMode: normalizeRenderQualityMode(parsed.renderQualityMode),
         cheatSettings: normalizeCheatSettings(parsed.cheatSettings)
       };
     } catch (error) {
@@ -4594,6 +4656,7 @@ class Game {
         coins: Number.isFinite(this.coins) ? this.coins : 0,
         plays: Number.isFinite(this.plays) ? this.plays : 0,
         skillVisualsEnabled: this.skillVisualsEnabled !== false,
+        renderQualityMode: normalizeRenderQualityMode(this.renderQualityMode),
         cheatSettings: normalizeCheatSettings(this.cheatSettings)
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -4609,6 +4672,7 @@ class Game {
     this.coins = Number.isFinite(s.coins) ? s.coins : 0;
     this.plays = Number.isFinite(s.plays) ? s.plays : 0;
     this.skillVisualsEnabled = s.skillVisualsEnabled !== false;
+    this.renderQualityMode = normalizeRenderQualityMode(s.renderQualityMode);
     this.cheatSettings = normalizeCheatSettings(s.cheatSettings);
     this.refreshCheatSkillRequirements(true);
     return s;
@@ -4820,7 +4884,15 @@ class Game {
       this.update(dt);
     }
     if (shouldRender) {
-      this.render();
+      this.renderAccumulatorMs = Math.min(
+        this.renderAccumulatorMs + Math.max(0, Number(dt) || 0) * 1000,
+        1000
+      );
+      if (shouldRenderForQuality(this.renderAccumulatorMs, this.renderQualityMode)) {
+        this.render();
+        const intervalMs = this.getRenderQualityProfile().renderIntervalMs;
+        this.renderAccumulatorMs = intervalMs > 0 ? this.renderAccumulatorMs % intervalMs : 0;
+      }
     }
   }
 
@@ -5222,6 +5294,10 @@ class Game {
       this.toggleSkillVisuals();
       return;
     }
+    if (rectContains(this.getTitleRenderQualityRect(), pos.x, pos.y)) {
+      this.cycleRenderQualityMode();
+      return;
+    }
     if (rectContains(this.getTitleCheatToggleRect(), pos.x, pos.y)) {
       this.toggleCheat();
       return;
@@ -5260,6 +5336,10 @@ class Game {
   }
 
   handleItemsPointer(pos) {
+    if (rectContains(this.getItemsRenderQualityRect(), pos.x, pos.y)) {
+      this.cycleRenderQualityMode();
+      return;
+    }
     if (rectContains(this.getItemsBackRect(), pos.x, pos.y)) {
       if (this.battleController) {
         this.battleController.returnToTitle();
@@ -5385,7 +5465,11 @@ class Game {
   }
 
   getTitleSkillVisualToggleRect() {
-    return { x: 92, y: 542, w: 230, h: 34 };
+    return { x: 48, y: 542, w: 160, h: 34 };
+  }
+
+  getTitleRenderQualityRect() {
+    return { x: 216, y: 542, w: 150, h: 34 };
   }
 
   getTitleCheatToggleRect() {
@@ -5438,6 +5522,10 @@ class Game {
 
   getItemsBackRect() {
     return { x: 28, y: 644, w: 126, h: 64 };
+  }
+
+  getItemsRenderQualityRect() {
+    return { x: 92, y: 582, w: 230, h: 38 };
   }
 
   getItemsPlayRect() {
@@ -10446,6 +10534,44 @@ class Game {
     }
     this.saveProgress();
     return this.skillVisualsEnabled;
+  }
+
+  getRenderQualityProfile() {
+    return getRenderQualityProfile(this.renderQualityMode);
+  }
+
+  setRenderQualityMode(mode, { persist = this.persistenceEnabled, sync = true } = {}) {
+    const normalized = normalizeRenderQualityMode(mode);
+    const changed = normalized !== this.renderQualityMode;
+    this.renderQualityMode = normalized;
+    const profile = this.getRenderQualityProfile();
+    this.renderAccumulatorMs = profile.renderIntervalMs;
+    if (profile.drawArtwork) {
+      preloadTsumImages(TSUM_TYPES);
+    } else {
+      releaseTsumImages();
+    }
+    this.ui?.onRenderQualityChanged?.();
+    if (this.canvas && this.ctx) {
+      this.updateCanvasSize();
+    }
+    if (this.role === "player" && typeof document !== "undefined") {
+      document.documentElement.dataset.renderQuality = normalized;
+    }
+    if (persist) {
+      this.saveProgress();
+    }
+    if (sync) {
+      this.battleController?.syncRenderQuality?.(normalized, this);
+    }
+    if (changed && this.ui) {
+      this.render();
+    }
+    return normalized;
+  }
+
+  cycleRenderQualityMode() {
+    return this.setRenderQualityMode(getNextRenderQualityMode(this.renderQualityMode));
   }
 
   triggerFan() {

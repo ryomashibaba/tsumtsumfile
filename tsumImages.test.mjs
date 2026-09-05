@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import { TSUM_TYPES } from "./config.js";
-import { getCoverSourceRect } from "./tsumImages.js";
+import { drawTsumArtwork, getCoverSourceRect, preloadTsumImages, releaseTsumImages } from "./tsumImages.js";
 
 const EXPECTED_ARTWORK_IDS = [
   "coronationElsa",
@@ -81,4 +81,31 @@ test("cover source rectangles center-crop inconsistent artwork dimensions into a
     getCoverSourceRect({ naturalWidth: 487, naturalHeight: 512 }, 64, 64),
     { x: 0, y: 12.5, width: 487, height: 487 }
   );
+});
+
+test("disabled artwork neither creates images nor issues draw calls", () => {
+  releaseTsumImages();
+  let imageCreations = 0;
+  const OriginalImage = globalThis.Image;
+  globalThis.Image = class {
+    constructor() {
+      imageCreations += 1;
+    }
+  };
+  try {
+    preloadTsumImages([{ imageSrc: "unused.png" }], { enabled: false });
+    const drawn = drawTsumArtwork(
+      { drawImage() { assert.fail("drawImage must stay disabled"); } },
+      { imageSrc: "unused.png" },
+      0,
+      0,
+      20,
+      { enabled: false }
+    );
+    assert.equal(drawn, false);
+    assert.equal(imageCreations, 0);
+  } finally {
+    globalThis.Image = OriginalImage;
+    releaseTsumImages();
+  }
 });

@@ -148,6 +148,25 @@ canvas {
   background: #31c9e7;
 }
 
+html[data-render-quality="light"] body::before,
+html[data-render-quality="light"] body::after,
+html[data-render-quality="minimal"] body::before,
+html[data-render-quality="minimal"] body::after {
+  display: none;
+}
+
+html[data-render-quality="light"] canvas {
+  box-shadow: 0 8px 20px rgba(0, 44, 91, 0.2);
+}
+
+html[data-render-quality="minimal"] body {
+  background: #087ca8;
+}
+
+html[data-render-quality="minimal"] canvas {
+  box-shadow: none;
+}
+
 @media (min-width: 900px) {
   .game-arena[data-mode="battle"] {
     grid-template-columns: repeat(2, minmax(0, 414px));

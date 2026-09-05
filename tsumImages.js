@@ -52,14 +52,24 @@ function drawCoveredImage(ctx, image, x, y, width, height) {
   );
 }
 
-export function preloadTsumImages(types) {
+export function preloadTsumImages(types, { enabled = true } = {}) {
+  if (!enabled) {
+    return;
+  }
   for (const type of types || []) {
     const sources = type.imageSources || (type.imageSrc ? [type.imageSrc] : []);
     sources.forEach(getImage);
   }
 }
 
-export function drawTsumArtwork(ctx, type, x, y, radius, { fit = "contain" } = {}) {
+export function releaseTsumImages() {
+  imageCache.clear();
+}
+
+export function drawTsumArtwork(ctx, type, x, y, radius, { fit = "contain", enabled = true } = {}) {
+  if (!enabled) {
+    return false;
+  }
   const sources = type?.imageSources || (type?.imageSrc ? [type.imageSrc] : []);
   const images = sources.map(getImage);
   if (images.length === 0 || images.some((image) => !isDrawable(image))) {

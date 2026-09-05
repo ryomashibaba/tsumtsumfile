@@ -11,11 +11,16 @@ import {
   easeOutBack,
   drawStarPath
 } from './config.js?v=skill-visuals-1';
-import { drawTsumArtwork } from './tsumImages.js?v=skill-visuals-1';
+import { drawTsumArtwork } from './tsumImages.js?v=render-quality-1';
 import { drawLiliaBat } from './lilia.js?v=skill-visuals-1';
 
 const FIELD_HEIGHT = FIELD_BOTTOM - FIELD_TOP;
 const CENTER_Y = (FIELD_TOP + FIELD_BOTTOM) * 0.5;
+let activeParticleScale = 1;
+
+function scaledEffectCount(count, minimum = 1) {
+  return Math.max(minimum, Math.round(count * activeParticleScale));
+}
 
 export const SKILL_VISUAL_TIMELINES = Object.freeze({
   coronationElsa: Object.freeze({ presentation: [[100, 'dim'], [700, 'hero'], [850, 'crossfade'], [1500, 'coronation'], [1750, 'finish']] }),
@@ -149,7 +154,7 @@ export function drawRainbowBurst(ctx, x, y, radius, colors, rotation = 0, alpha 
   ctx.translate(x, y);
   ctx.rotate(rotation);
   ctx.globalAlpha = clamp(alpha, 0, 1);
-  const count = 28;
+  const count = scaledEffectCount(28);
   for (let index = 0; index < count; index += 1) {
     const angle = (index / count) * Math.PI * 2;
     const half = Math.PI / count * 0.72;
@@ -195,7 +200,7 @@ export function drawWhiteFlash(ctx, alpha) {
 }
 
 export function drawParticleField(ctx, state, options = {}) {
-  const count = clamp(options.count ?? 42, 0, 80);
+  const count = scaledEffectCount(clamp(options.count ?? 42, 0, 80), 0);
   const seed = visualSeed(state) ^ hashString(options.key || 'particles');
   const elapsedSec = state.elapsedMs / 1000;
   const colors = options.colors || ['#ffffff'];
@@ -247,7 +252,7 @@ export function drawParticleField(ctx, state, options = {}) {
 export function drawSoftSmoke(ctx, state, x, y, progress, colors = ['rgba(255,255,255,0.7)'], count = 24) {
   const seed = visualSeed(state) ^ hashString('smoke');
   ctx.save();
-  for (let index = 0; index < Math.min(48, count); index += 1) {
+  for (let index = 0; index < scaledEffectCount(Math.min(48, count), 0); index += 1) {
     const angle = seededUnit(seed, index, 1) * Math.PI * 2;
     const spread = lerp(12, 110, progress) * lerp(0.35, 1, seededUnit(seed, index, 2));
     const radius = lerp(8, 26, seededUnit(seed, index, 3)) * lerp(0.55, 1.2, progress);
@@ -261,6 +266,7 @@ export function drawSoftSmoke(ctx, state, x, y, progress, colors = ['rgba(255,25
 }
 
 export function drawSpeedLines(ctx, color, progress, count = 24) {
+  count = scaledEffectCount(count, 0);
   ctx.save();
   ctx.strokeStyle = color;
   ctx.lineCap = 'round';
@@ -661,6 +667,7 @@ function drawGothicCastle(ctx) {
 }
 
 function drawBats(ctx, state, progress, burst = false, count = 18) {
+  count = scaledEffectCount(count, 0);
   const seed = visualSeed(state) ^ hashString(burst ? 'bat-burst' : 'bats');
   ctx.save();
   for (let index = 0; index < count; index += 1) {
@@ -766,7 +773,7 @@ function withGame(state, game) {
   return { ...state, game };
 }
 
-export function drawSkillPresentation(ctx, game, rawState) {
+function drawSkillPresentationFull(ctx, game, rawState) {
   if (!rawState || rawState.kind !== 'presentation') return false;
   const state = withGame(rawState, game);
   const phase = resolveSkillVisualPhase(state.skillId, state.kind, state.elapsedMs, state.durationMs);
@@ -819,7 +826,7 @@ function drawClearBurst(ctx, state, phase, colors) {
   }
 }
 
-export function drawSkillSecondaryVisual(ctx, game, rawState) {
+function drawSkillSecondaryVisualFull(ctx, game, rawState) {
   if (!rawState || rawState.kind === 'presentation') return false;
   const state = withGame(rawState, game);
   const phase = resolveSkillVisualPhase(state.skillId, state.kind, state.elapsedMs, state.durationMs);
@@ -898,4 +905,28 @@ export function drawSkillSecondaryVisual(ctx, game, rawState) {
   }
   ctx.restore();
   return true;
+}
+
+function withParticleScale(options, draw) {
+  const previousScale = activeParticleScale;
+  activeParticleScale = clamp(Number(options?.particleScale) || 0, 0, 1);
+  try {
+    return draw();
+  } finally {
+    activeParticleScale = previousScale;
+  }
+}
+
+export function drawSkillPresentation(ctx, game, rawState, options = {}) {
+  return withParticleScale(
+    { particleScale: options.particleScale ?? 1 },
+    () => drawSkillPresentationFull(ctx, game, rawState)
+  );
+}
+
+export function drawSkillSecondaryVisual(ctx, game, rawState, options = {}) {
+  return withParticleScale(
+    { particleScale: options.particleScale ?? 1 },
+    () => drawSkillSecondaryVisualFull(ctx, game, rawState)
+  );
 }

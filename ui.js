@@ -35,16 +35,37 @@ import {
   drawStarPath
 } from './config.js?v=perfume-alice-target-1';
 import { drawLiliaBat } from './lilia.js?v=tsum-images-8';
-import { drawTsumArtwork, preloadTsumImages } from './tsumImages.js?v=tsum-images-5';
-import { drawSkillPresentation, drawSkillSecondaryVisual } from './skillPresentationVisuals.js?v=skill-visuals-1';
+import { drawTsumArtwork, preloadTsumImages } from './tsumImages.js?v=render-quality-1';
+import { drawSkillPresentation, drawSkillSecondaryVisual } from './skillPresentationVisuals.js?v=render-quality-1';
 
 let sharedFeltTexture = null;
 
 export class UIRenderer {
   constructor(game) {
     this.game = game;
-    this.feltTexture = sharedFeltTexture || (sharedFeltTexture = this.createFeltTexture());
-    preloadTsumImages(TSUM_TYPES);
+    this.feltTexture = this.profile().drawTextures
+      ? sharedFeltTexture || (sharedFeltTexture = this.createFeltTexture())
+      : null;
+    preloadTsumImages(TSUM_TYPES, { enabled: this.profile().drawArtwork });
+  }
+
+  onRenderQualityChanged() {
+    if (this.profile().drawTextures && !this.feltTexture) {
+      this.feltTexture = sharedFeltTexture || (sharedFeltTexture = this.createFeltTexture());
+    }
+  }
+
+  profile() {
+    return this.game.getRenderQualityProfile?.() || {
+      drawArtwork: true,
+      drawTextures: true,
+      drawDecorations: true,
+      drawBodyShadows: true,
+      drawTransientEffects: true,
+      useRichSurfaces: true,
+      particleScale: 1,
+      skillVisualDetail: "full"
+    };
   }
 
   render(ctx) {
@@ -89,6 +110,9 @@ export class UIRenderer {
   }
 
   drawStitchedRoundedRect(ctx, x, y, w, h, radius, alpha = 0.62) {
+    if (!this.profile().drawDecorations) {
+      return;
+    }
     ctx.save();
     ctx.setLineDash([1.5, 3.2]);
     ctx.lineCap = "round";
@@ -102,6 +126,12 @@ export class UIRenderer {
   }
 
   drawBackdrop(ctx) {
+    const profile = this.profile();
+    if (!profile.useRichSurfaces) {
+      ctx.fillStyle = "#087ca8";
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      return;
+    }
     const g = ctx.createLinearGradient(0, 0, 0, HEIGHT);
     g.addColorStop(0, "#6DEAF5");
     g.addColorStop(0.16, "#27C7DE");
@@ -110,6 +140,10 @@ export class UIRenderer {
     g.addColorStop(1, "#056A9E");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    if (!profile.drawDecorations) {
+      return;
+    }
 
     ctx.save();
     ctx.globalAlpha = 0.2;
@@ -132,7 +166,9 @@ export class UIRenderer {
     ctx.save();
     ctx.globalCompositeOperation = "soft-light";
     ctx.globalAlpha = 1;
-    ctx.drawImage(this.feltTexture, 0, 0);
+    if (profile.drawTextures) {
+      ctx.drawImage(this.feltTexture, 0, 0);
+    }
     ctx.restore();
 
     ctx.save();
@@ -190,6 +226,18 @@ export class UIRenderer {
     const shellBottom = FIELD_BOTTOM + 10;
     const topLipY = FIELD_TOP + 8;
     const bottomLipY = FIELD_BOTTOM - 7;
+    const profile = this.profile();
+
+    if (!profile.drawDecorations) {
+      ctx.save();
+      ctx.fillStyle = profile.useRichSurfaces ? "rgba(0,58,120,0.5)" : "#12355f";
+      ctx.fillRect(0, FIELD_TOP - 4, WIDTH, FIELD_HEIGHT + 8);
+      ctx.strokeStyle = "rgba(190,248,255,0.7)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(1.5, FIELD_TOP - 2.5, WIDTH - 3, FIELD_HEIGHT + 5);
+      ctx.restore();
+      return;
+    }
 
     ctx.save();
     ctx.shadowBlur = 22;
@@ -296,6 +344,7 @@ export class UIRenderer {
   }
 
   drawFieldContents(ctx) {
+    const profile = this.profile();
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(-14, FIELD_TOP + 18);
@@ -304,49 +353,49 @@ export class UIRenderer {
     ctx.quadraticCurveTo(FIELD_CENTER_X, FIELD_BOTTOM + 7, -14, FIELD_BOTTOM - 16);
     ctx.closePath();
     ctx.clip();
-    const fillGrad = ctx.createLinearGradient(0, FIELD_TOP - 8, 0, FIELD_BOTTOM + 10);
-    fillGrad.addColorStop(0, "#315E91");
-    fillGrad.addColorStop(0.14, "#183F74");
-    fillGrad.addColorStop(0.48, "#0B285E");
-    fillGrad.addColorStop(0.84, "#071E50");
-    fillGrad.addColorStop(1, "#092C67");
-    ctx.fillStyle = fillGrad;
-    ctx.fillRect(0, FIELD_TOP - 10, WIDTH, FIELD_HEIGHT + 22);
-
-    ctx.save();
-    const innerShade = ctx.createRadialGradient(FIELD_CENTER_X, FIELD_TOP + 70, 18, FIELD_CENTER_X, (FIELD_TOP + FIELD_BOTTOM) * 0.54, FIELD_HEIGHT * 0.82);
-    innerShade.addColorStop(0, "rgba(144,235,255,0.16)");
-    innerShade.addColorStop(0.34, "rgba(68,183,230,0.03)");
-    innerShade.addColorStop(1, "rgba(0,5,34,0.42)");
-    ctx.fillStyle = innerShade;
-    ctx.fillRect(0, FIELD_TOP - 10, WIDTH, FIELD_HEIGHT + 22);
-    ctx.restore();
-
-    ctx.save();
-    ctx.globalCompositeOperation = "soft-light";
-    ctx.globalAlpha = 0.24;
-    ctx.drawImage(this.feltTexture, 0, FIELD_TOP - 10, WIDTH, FIELD_HEIGHT + 22, 0, FIELD_TOP - 10, WIDTH, FIELD_HEIGHT + 22);
-    ctx.restore();
-
-    ctx.save();
-    const sideShade = ctx.createLinearGradient(0, 0, WIDTH, 0);
-    sideShade.addColorStop(0, "rgba(0,8,34,0.24)");
-    sideShade.addColorStop(0.16, "rgba(0,40,92,0.04)");
-    sideShade.addColorStop(0.84, "rgba(0,40,92,0.04)");
-    sideShade.addColorStop(1, "rgba(0,8,34,0.24)");
-    ctx.fillStyle = sideShade;
-    ctx.fillRect(0, FIELD_TOP - 10, WIDTH, FIELD_HEIGHT + 22);
-    ctx.restore();
-
-    ctx.save();
-    ctx.globalAlpha = 0.065;
-    for (let i = 0; i < 18; i += 1) {
-      ctx.fillStyle = "rgba(143,238,255,0.13)";
-      ctx.beginPath();
-      ctx.arc(10 + i * 24, FIELD_TOP + 24 + (i % 5) * 70, 8 + (i % 3) * 5, 0, Math.PI * 2);
-      ctx.fill();
+    if (profile.useRichSurfaces) {
+      const fillGrad = ctx.createLinearGradient(0, FIELD_TOP - 8, 0, FIELD_BOTTOM + 10);
+      fillGrad.addColorStop(0, "#315E91");
+      fillGrad.addColorStop(0.14, "#183F74");
+      fillGrad.addColorStop(0.48, "#0B285E");
+      fillGrad.addColorStop(0.84, "#071E50");
+      fillGrad.addColorStop(1, "#092C67");
+      ctx.fillStyle = fillGrad;
+    } else {
+      ctx.fillStyle = "#10284f";
     }
-    ctx.restore();
+    ctx.fillRect(0, FIELD_TOP - 10, WIDTH, FIELD_HEIGHT + 22);
+
+    if (profile.drawDecorations) {
+      ctx.save();
+      const innerShade = ctx.createRadialGradient(FIELD_CENTER_X, FIELD_TOP + 70, 18, FIELD_CENTER_X, (FIELD_TOP + FIELD_BOTTOM) * 0.54, FIELD_HEIGHT * 0.82);
+      innerShade.addColorStop(0, "rgba(144,235,255,0.16)");
+      innerShade.addColorStop(0.34, "rgba(68,183,230,0.03)");
+      innerShade.addColorStop(1, "rgba(0,5,34,0.42)");
+      ctx.fillStyle = innerShade;
+      ctx.fillRect(0, FIELD_TOP - 10, WIDTH, FIELD_HEIGHT + 22);
+      ctx.restore();
+    }
+
+    if (profile.drawTextures && this.feltTexture) {
+      ctx.save();
+      ctx.globalCompositeOperation = "soft-light";
+      ctx.globalAlpha = 0.24;
+      ctx.drawImage(this.feltTexture, 0, FIELD_TOP - 10, WIDTH, FIELD_HEIGHT + 22, 0, FIELD_TOP - 10, WIDTH, FIELD_HEIGHT + 22);
+      ctx.restore();
+    }
+
+    if (profile.drawDecorations) {
+      ctx.save();
+      const sideShade = ctx.createLinearGradient(0, 0, WIDTH, 0);
+      sideShade.addColorStop(0, "rgba(0,8,34,0.24)");
+      sideShade.addColorStop(0.16, "rgba(0,40,92,0.04)");
+      sideShade.addColorStop(0.84, "rgba(0,40,92,0.04)");
+      sideShade.addColorStop(1, "rgba(0,8,34,0.24)");
+      ctx.fillStyle = sideShade;
+      ctx.fillRect(0, FIELD_TOP - 10, WIDTH, FIELD_HEIGHT + 22);
+      ctx.restore();
+    }
 
     const bodies = this.game.renderBodies.length ? this.game.renderBodies : this.game.getRenderableBodies();
     for (const body of bodies) {
@@ -356,19 +405,23 @@ export class UIRenderer {
         body.draw(ctx, this.game.chainSet.has(body.id), this.game.elapsed);
       }
     }
-    this.drawSkillChargeFlights(ctx);
+    if (profile.drawTransientEffects) {
+      this.drawSkillChargeFlights(ctx);
+    }
 
     this.drawLiliaSkillOverlay(ctx);
     this.drawChain(ctx);
 
-    ctx.save();
-    const rimHighlight = ctx.createLinearGradient(0, FIELD_TOP, 0, FIELD_TOP + 120);
-    rimHighlight.addColorStop(0, "rgba(255,255,255,0.2)");
-    rimHighlight.addColorStop(0.42, "rgba(101,230,255,0.06)");
-    rimHighlight.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = rimHighlight;
-    ctx.fillRect(0, FIELD_TOP - 2, WIDTH, 104);
-    ctx.restore();
+    if (profile.drawDecorations) {
+      ctx.save();
+      const rimHighlight = ctx.createLinearGradient(0, FIELD_TOP, 0, FIELD_TOP + 120);
+      rimHighlight.addColorStop(0, "rgba(255,255,255,0.2)");
+      rimHighlight.addColorStop(0.42, "rgba(101,230,255,0.06)");
+      rimHighlight.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = rimHighlight;
+      ctx.fillRect(0, FIELD_TOP - 2, WIDTH, 104);
+      ctx.restore();
+    }
 
     ctx.restore();
   }
@@ -1052,12 +1105,17 @@ export class UIRenderer {
   }
 
   drawGlassPanel(ctx, x, y, w, h, radius = 24, alpha = 0.68) {
+    const profile = this.profile();
     ctx.save();
     makeRoundedRectPath(ctx, x, y, w, h, radius);
-    const panelGradient = ctx.createLinearGradient(x, y, x, y + h);
-    panelGradient.addColorStop(0, `rgba(255,255,255,${(alpha * 0.22).toFixed(3)})`);
-    panelGradient.addColorStop(1, `rgba(7,18,34,${alpha.toFixed(3)})`);
-    ctx.fillStyle = panelGradient;
+    if (profile.useRichSurfaces) {
+      const panelGradient = ctx.createLinearGradient(x, y, x, y + h);
+      panelGradient.addColorStop(0, `rgba(255,255,255,${(alpha * 0.22).toFixed(3)})`);
+      panelGradient.addColorStop(1, `rgba(7,18,34,${alpha.toFixed(3)})`);
+      ctx.fillStyle = panelGradient;
+    } else {
+      ctx.fillStyle = `rgba(7,27,53,${Math.max(0.72, alpha).toFixed(3)})`;
+    }
     ctx.fill();
     ctx.strokeStyle = "rgba(255,255,255,0.16)";
     ctx.lineWidth = 1.5;
@@ -1078,14 +1136,19 @@ export class UIRenderer {
 
     ctx.save();
     ctx.globalAlpha = disabled ? 0.4 : alpha;
-    ctx.shadowBlur = disabled ? 0 : 18;
+    const profile = this.profile();
+    ctx.shadowBlur = profile.drawDecorations && !disabled ? 18 : 0;
     ctx.shadowColor = glow;
-    const grad = ctx.createLinearGradient(rect.x, rect.y, rect.x, rect.y + rect.h);
-    grad.addColorStop(0, "rgba(255,255,255,0.24)");
-    grad.addColorStop(0.15, fill);
-    grad.addColorStop(1, "rgba(6,17,30,0.9)");
     makeRoundedRectPath(ctx, rect.x, rect.y, rect.w, rect.h, 20);
-    ctx.fillStyle = grad;
+    if (profile.useRichSurfaces) {
+      const grad = ctx.createLinearGradient(rect.x, rect.y, rect.x, rect.y + rect.h);
+      grad.addColorStop(0, "rgba(255,255,255,0.24)");
+      grad.addColorStop(0.15, fill);
+      grad.addColorStop(1, "rgba(6,17,30,0.9)");
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = fill;
+    }
     ctx.fill();
     ctx.shadowBlur = 0;
     ctx.strokeStyle = "rgba(255,255,255,0.28)";
@@ -1105,17 +1168,22 @@ export class UIRenderer {
   }
 
   drawCharacterBubble(ctx, type, x, y, r, selected, level) {
+    const profile = this.profile();
     ctx.save();
     const pulse = selected ? 1 + Math.sin(this.game.elapsed * 6) * 0.02 : 1;
     const rr = r * pulse;
     ctx.translate(x, y);
-    ctx.shadowBlur = selected ? 22 : 10;
+    ctx.shadowBlur = profile.drawBodyShadows ? (selected ? 22 : 10) : 0;
     ctx.shadowColor = selected ? type.accent : "rgba(0,0,0,0.22)";
-    const grad = ctx.createRadialGradient(-rr * 0.38, -rr * 0.4, rr * 0.18, 0, 0, rr * 1.06);
-    grad.addColorStop(0, type.light);
-    grad.addColorStop(0.48, type.color);
-    grad.addColorStop(1, type.dark);
-    ctx.fillStyle = grad;
+    if (profile.useRichSurfaces) {
+      const grad = ctx.createRadialGradient(-rr * 0.38, -rr * 0.4, rr * 0.18, 0, 0, rr * 1.06);
+      grad.addColorStop(0, type.light);
+      grad.addColorStop(0.48, type.color);
+      grad.addColorStop(1, type.dark);
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = type.color;
+    }
     ctx.beginPath();
     ctx.arc(0, 0, rr, 0, Math.PI * 2);
     ctx.fill();
@@ -1123,7 +1191,7 @@ export class UIRenderer {
     ctx.lineWidth = selected ? 4 : 2;
     ctx.strokeStyle = selected ? "rgba(255,255,255,0.98)" : "rgba(255,255,255,0.24)";
     ctx.stroke();
-    const hasArtwork = drawTsumArtwork(ctx, type, 0, 0, rr * 0.92);
+    const hasArtwork = drawTsumArtwork(ctx, type, 0, 0, rr * 0.92, { enabled: profile.drawArtwork });
     if (!hasArtwork) {
       ctx.font = `${Math.round(rr * 0.98)}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
       ctx.textAlign = "center";
@@ -1160,6 +1228,7 @@ export class UIRenderer {
   }
 
   drawSelectionTopBar(ctx) {
+    const profile = this.profile();
     const pills = [
       { x: 16, w: 98, kind: "level", value: "0%" },
       { x: 121, w: 170, kind: "coin", value: formatNumber(this.game.coins) },
@@ -1168,14 +1237,18 @@ export class UIRenderer {
 
     for (const pill of pills) {
       ctx.save();
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = profile.drawDecorations ? 10 : 0;
       ctx.shadowOffsetY = 4;
       ctx.shadowColor = "rgba(0,32,76,0.58)";
       makeRoundedRectPath(ctx, pill.x, 14, pill.w, 46, 23);
-      const g = ctx.createLinearGradient(0, 14, 0, 60);
-      g.addColorStop(0, "#174f7d");
-      g.addColorStop(1, "#08355f");
-      ctx.fillStyle = g;
+      if (profile.useRichSurfaces) {
+        const g = ctx.createLinearGradient(0, 14, 0, 60);
+        g.addColorStop(0, "#174f7d");
+        g.addColorStop(1, "#08355f");
+        ctx.fillStyle = g;
+      } else {
+        ctx.fillStyle = "#123e69";
+      }
       ctx.fill();
       ctx.shadowBlur = 0;
       ctx.lineWidth = 4;
@@ -1196,17 +1269,21 @@ export class UIRenderer {
         ctx.stroke();
         ctx.restore();
       } else {
-        const iconGrad = ctx.createRadialGradient(iconX - 5, iconY - 6, 2, iconX, iconY, 17);
-        if (pill.kind === "coin") {
-          iconGrad.addColorStop(0, "#fff1a6");
-          iconGrad.addColorStop(0.5, "#ffc11f");
-          iconGrad.addColorStop(1, "#ec8b00");
+        if (profile.useRichSurfaces) {
+          const iconGrad = ctx.createRadialGradient(iconX - 5, iconY - 6, 2, iconX, iconY, 17);
+          if (pill.kind === "coin") {
+            iconGrad.addColorStop(0, "#fff1a6");
+            iconGrad.addColorStop(0.5, "#ffc11f");
+            iconGrad.addColorStop(1, "#ec8b00");
+          } else {
+            iconGrad.addColorStop(0, "#ffc8d5");
+            iconGrad.addColorStop(0.48, "#ff6285");
+            iconGrad.addColorStop(1, "#d9255c");
+          }
+          ctx.fillStyle = iconGrad;
         } else {
-          iconGrad.addColorStop(0, "#ffc8d5");
-          iconGrad.addColorStop(0.48, "#ff6285");
-          iconGrad.addColorStop(1, "#d9255c");
+          ctx.fillStyle = pill.kind === "coin" ? "#e8a600" : "#df4168";
         }
-        ctx.fillStyle = iconGrad;
         ctx.beginPath();
         ctx.arc(iconX, iconY, 17, 0, Math.PI * 2);
         ctx.fill();
@@ -1236,16 +1313,21 @@ export class UIRenderer {
   }
 
   drawSelectionShell(ctx, title, instruction, height = 552) {
+    const profile = this.profile();
     ctx.save();
-    ctx.shadowBlur = 18;
+    ctx.shadowBlur = profile.drawDecorations ? 18 : 0;
     ctx.shadowOffsetY = 8;
     ctx.shadowColor = "rgba(0,36,84,0.58)";
     makeRoundedRectPath(ctx, 14, 74, 386, height, 31);
-    const shell = ctx.createLinearGradient(14, 74, 400, 626);
-    shell.addColorStop(0, "#16c8ec");
-    shell.addColorStop(0.5, "#079dcc");
-    shell.addColorStop(1, "#0478af");
-    ctx.fillStyle = shell;
+    if (profile.useRichSurfaces) {
+      const shell = ctx.createLinearGradient(14, 74, 400, 626);
+      shell.addColorStop(0, "#16c8ec");
+      shell.addColorStop(0.5, "#079dcc");
+      shell.addColorStop(1, "#0478af");
+      ctx.fillStyle = shell;
+    } else {
+      ctx.fillStyle = "#087fae";
+    }
     ctx.fill();
     ctx.shadowBlur = 0;
     ctx.strokeStyle = "#59edff";
@@ -1350,10 +1432,16 @@ export class UIRenderer {
     });
     const visualToggleRect = this.game.getTitleSkillVisualToggleRect();
     const visualsEnabled = this.game.skillVisualsEnabled !== false;
-    this.drawButton(ctx, visualToggleRect, `全スキル演出 ${visualsEnabled ? "ON" : "OFF"}`, {
+    this.drawButton(ctx, visualToggleRect, `演出 ${visualsEnabled ? "ON" : "OFF"}`, {
       fill: visualsEnabled ? "#14a89b" : "#4c5f76",
       glow: visualsEnabled ? "#7fffe9" : "#71849a",
-      size: 14
+      size: 13
+    });
+    const qualityProfile = this.profile();
+    this.drawButton(ctx, this.game.getTitleRenderQualityRect(), `軽量化 ${qualityProfile.label}`, {
+      fill: qualityProfile.id === "normal" ? "#3e6687" : qualityProfile.id === "light" ? "#168f7e" : "#56606b",
+      glow: qualityProfile.id === "normal" ? "#74b6e8" : "#8affdf",
+      size: 12
     });
     const cheatEnabled = this.game.isCheatActive?.() === true;
     this.drawButton(ctx, this.game.getTitleCheatToggleRect(), `チート ${cheatEnabled ? "ON" : "OFF"}`, {
@@ -1374,7 +1462,9 @@ export class UIRenderer {
       subtitle: "アイテム選択へ",
       size: 25
     });
-    this.drawTsumTsumLogo(ctx);
+    if (this.profile().drawDecorations) {
+      this.drawTsumTsumLogo(ctx);
+    }
   }
 
   drawTitlePageArrow(ctx, rect, direction, enabled) {
@@ -1482,6 +1572,13 @@ export class UIRenderer {
     ctx.fillText(`選択中 ${formatNumber(selectedCost)} コイン`, 105, 545);
     ctx.restore();
 
+    const qualityProfile = this.profile();
+    this.drawButton(ctx, this.game.getItemsRenderQualityRect(), `軽量化：${qualityProfile.label}`, {
+      fill: qualityProfile.id === "normal" ? "#3e6687" : qualityProfile.id === "light" ? "#168f7e" : "#56606b",
+      glow: qualityProfile.id === "normal" ? "#74b6e8" : "#8affdf",
+      size: 14
+    });
+
     this.drawButton(ctx, this.game.getItemsBackRect(), "もどる", {
       fill: "#f0a516",
       glow: "#ffd34e",
@@ -1497,11 +1594,16 @@ export class UIRenderer {
       size: 25,
       disabled: this.game.getSelectedItemCost() > this.game.coins
     });
-    this.drawTsumTsumLogo(ctx);
+    if (this.profile().drawDecorations) {
+      this.drawTsumTsumLogo(ctx);
+    }
   }
 
   drawGameScreen(ctx) {
-    this.drawDisneyLogo(ctx);
+    const profile = this.profile();
+    if (profile.drawDecorations) {
+      this.drawDisneyLogo(ctx);
+    }
     this.drawFieldShell(ctx);
     this.drawFieldContents(ctx);
     this.drawSkillVisualLayer(ctx);
@@ -1512,8 +1614,10 @@ export class UIRenderer {
     }
     this.drawTopHUDReal(ctx);
     this.drawComboDisplay(ctx);
-    this.drawShockwaves(ctx);
-    this.drawFloatingTexts(ctx);
+    if (profile.drawTransientEffects) {
+      this.drawShockwaves(ctx);
+      this.drawFloatingTexts(ctx);
+    }
     this.drawFeverBanner(ctx);
     this.drawCenterMessages(ctx);
     this.drawCoingainLotteryOverlay(ctx);
@@ -1787,11 +1891,13 @@ export class UIRenderer {
       for (let i = 1; i < this.game.chain.length; i += 1) {
         ctx.lineTo(this.game.chain[i].x, this.game.chain[i].y);
       }
-      ctx.strokeStyle = "rgba(255,255,200,0.3)";
-      ctx.lineWidth = 14;
-      ctx.shadowBlur = 12;
-      ctx.shadowColor = "#FFFF88";
-      ctx.stroke();
+      if (this.profile().useRichSurfaces) {
+        ctx.strokeStyle = "rgba(255,255,200,0.3)";
+        ctx.lineWidth = 14;
+        ctx.shadowBlur = this.profile().drawBodyShadows ? 12 : 0;
+        ctx.shadowColor = "#FFFF88";
+        ctx.stroke();
+      }
 
       ctx.shadowBlur = 0;
       ctx.strokeStyle = "rgba(255,255,255,0.9)";
@@ -1799,7 +1905,7 @@ export class UIRenderer {
       ctx.stroke();
     }
 
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = this.profile().drawBodyShadows ? 10 : 0;
     ctx.shadowColor = "rgba(255,255,255,0.95)";
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 3;
@@ -1860,9 +1966,21 @@ export class UIRenderer {
       }
       ctx.save();
       ctx.translate(bat.x, bat.y);
-      ctx.shadowColor = "rgba(255,88,190,0.72)";
-      ctx.shadowBlur = 10;
-      drawLiliaBat(ctx, TSUM_RADIUS * 0.78, false);
+      if (this.profile().useRichSurfaces) {
+        ctx.shadowColor = "rgba(255,88,190,0.72)";
+        ctx.shadowBlur = this.profile().drawBodyShadows ? 10 : 0;
+        drawLiliaBat(ctx, TSUM_RADIUS * 0.78, false);
+      } else {
+        ctx.fillStyle = "#7550ad";
+        ctx.beginPath();
+        ctx.arc(0, 0, TSUM_RADIUS * 0.78, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        ctx.font = '800 9px "Trebuchet MS", sans-serif';
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("BAT", 0, 1);
+      }
       ctx.restore();
     }
 
@@ -2227,11 +2345,58 @@ export class UIRenderer {
     if (this.game.skillVisualsEnabled === false) return;
     const state = this.game.getSkillVisualState?.();
     if (!state) return;
-    if (state.kind === "presentation") {
-      drawSkillPresentation(ctx, this.game, state);
-    } else {
-      drawSkillSecondaryVisual(ctx, this.game, state);
+    const profile = this.profile();
+    if (profile.skillVisualDetail === "minimal") {
+      this.drawMinimalSkillVisual(ctx, state);
+      return;
     }
+    const options = { particleScale: profile.particleScale };
+    if (state.kind === "presentation") {
+      drawSkillPresentation(ctx, this.game, state, options);
+    } else {
+      drawSkillSecondaryVisual(ctx, this.game, state, options);
+    }
+  }
+
+  drawMinimalSkillVisual(ctx, state) {
+    const progress = state.durationMs > 0 ? clamp(state.elapsedMs / state.durationMs, 0, 1) : 1;
+    const isPresentation = state.kind === "presentation";
+    ctx.save();
+    if (isPresentation) {
+      ctx.fillStyle = "rgba(5,15,34,0.7)";
+      ctx.fillRect(0, FIELD_TOP, WIDTH, FIELD_HEIGHT);
+    }
+    const targets = new Set(state.targetIds || []);
+    if (targets.size > 0) {
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      for (const body of this.game.getRenderableBodies?.() || []) {
+        if (!targets.has(body.id)) continue;
+        ctx.beginPath();
+        ctx.arc(body.x, body.y, (body.radius || TSUM_RADIUS) + 4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    ctx.strokeStyle = "#8defff";
+    ctx.lineWidth = 3;
+    for (const center of state.centers || []) {
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, 24 + progress * 42, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (isPresentation) {
+      const selectedType = TSUM_TYPES[this.game.selectedMyTsumIndex] || this.game.myTsum;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#ffffff";
+      ctx.font = '900 24px "Trebuchet MS", "Yu Gothic", sans-serif';
+      ctx.fillText(selectedType?.skillName || this.game.skillSystem?.displayName || "SKILL", WIDTH * 0.5, FIELD_CENTER_Y - 12);
+      ctx.fillStyle = "rgba(255,255,255,0.25)";
+      ctx.fillRect(72, FIELD_CENTER_Y + 22, WIDTH - 144, 8);
+      ctx.fillStyle = "#55e7ff";
+      ctx.fillRect(72, FIELD_CENTER_Y + 22, (WIDTH - 144) * progress, 8);
+    }
+    ctx.restore();
   }
 
   drawBattleResultScreen(ctx) {
