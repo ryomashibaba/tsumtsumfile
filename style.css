@@ -173,6 +173,8 @@ canvas {
 }
 
 .cheat-dialog {
+  display: flex;
+  flex-direction: column;
   width: min(390px, calc(100vw - 24px));
   max-height: min(680px, calc(100dvh - 24px));
   margin: auto;
@@ -229,7 +231,8 @@ canvas {
 }
 
 .cheat-dialog__body {
-  max-height: calc(100dvh - 190px);
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 14px 18px;
   overflow-y: auto;
   overscroll-behavior: contain;

@@ -4,7 +4,7 @@ import test from "node:test";
 import { Game } from "./game.js";
 import { PERFUME_ALICE_TARGET_TSUM_COUNT, TARGET_TSUM_COUNT } from "./config.js";
 
-test("Perfume Alice raises the natural board target to 55 only while active", () => {
+test("Perfume Alice raises the natural board target to 70 only while active", () => {
   const game = {
     isCheatActive: () => false,
     getCoingainData: () => null,
