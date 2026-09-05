@@ -46,7 +46,7 @@ import {
   drawStarPath
 } from './config.js?v=perfume-alice-target-1';
 
-import { UIRenderer } from './ui.js?v=render-quality-1';
+import { UIRenderer } from './ui.js?v=game-feel-1';
 import { JudyNickGaugeManager, registerJudyNickSkill, resolveJudyNickActivationMode } from './judyNick.js?v=skill-visuals-1';
 import {
   LILIA_CHAIN_TYPE,
@@ -65,7 +65,7 @@ import {
   getRenderQualityProfile,
   normalizeRenderQualityMode,
   shouldRenderForQuality
-} from './renderQuality.js?v=render-quality-1';
+} from './renderQuality.js?v=game-feel-1';
 import { areBoardTypesColorCompatible } from './boardTypeSelection.js?v=tsum-images-5';
 import {
   CHEAT_SPECIAL,
@@ -140,6 +140,7 @@ import {
   wakePhysicsBody,
   wakeSupportedBodies
 } from './tsumPhysics.js?v=hybrid-physics-1';
+import { GameFeelController, calculateVisualChainCount } from './gameFeel.js?v=game-feel-1';
 
 const TITLE_TSUMS_PER_PAGE = 10;
 const JUDY_NICK_MOVING_FREEZE_KIND = "judyNickMovingIce";
@@ -464,8 +465,10 @@ class Tsum {
           const renderPosition = this.game.getLiliaRenderPosition?.(this) || this;
           const extraScale = this.game.boardState ? this.game.boardState.getVisualScale(this) : 1;
           const isMyTsum = this.game.isMyTsumTypeId(displayType.id);
-          const pulse = highlighted ? 1 + Math.sin(time * 16 + this.x * 0.03) * 0.04 : 1;
           const renderProfile = this.game.getRenderQualityProfile();
+          const anticipation = highlighted && renderProfile.gameFeelScale > 0 ? (this.game.gameFeel?.chain?.level || 0) : 0;
+          const pulseAmount = 0.04 + anticipation * 0.008;
+          const pulse = highlighted ? 1 + Math.sin(time * 16 + this.x * 0.03) * pulseAmount : 1;
           const deformation = liliaBat || !renderProfile.useBodyDeformation
             ? { angle: 0, compression: 0, contactAngle: 0, motionStretch: 0, motionAngle: 0 }
             : getTsumRenderDeformation(this);
@@ -942,6 +945,7 @@ class Tsum {
           this.feverCount += 1;
           this.bannerTimer = 1.3;
           this.flash = 1;
+          this.game.gameFeel?.emit('fever-start');
           this.game.timeRemaining += 5;
           this.game.timeUp = false;
           this.game.noteAction();
@@ -2514,6 +2518,11 @@ class ClearPipeline {
       this.game.coinBonus += skillCoins;
       awardedRawCoins = skillCoins;
     }
+    this.game.gameFeel?.emit('combo', {
+      combo: this.game.comboSystem.combo,
+      x: clearDisplayX,
+      y: clearDisplayY
+    });
     if (info.coronationElsaIceTapDebug) {
       this.game.recordStrongestModeCoronationElsaIceTapActual?.({
         effectiveClearCount: resolvedClearCount,
@@ -2546,6 +2555,16 @@ class ClearPipeline {
     });
 
     this.game.addFloatingText(clearDisplayX, clearDisplayY + 6, `${resolvedClearCount}`, "#fff4b8", 48, 1);
+    this.game.gameFeel?.emit('clear', {
+      effectiveClearCount: resolvedClearCount,
+      source: info.source,
+      x: clearDisplayX,
+      y: clearDisplayY,
+      combo: this.game.comboSystem.combo,
+      fever: this.game.feverSystem.active,
+      createdBomb: bombType || null,
+      color: clearedTypeCandidates[0]?.color || '#fff2a0'
+    });
 
     // Note: coinMultiplier will be applied once at finishRun() to the total coinBonus
     // Do NOT apply it here with score-based calculation
@@ -2837,6 +2856,17 @@ class Game {
     this.itemSelection = this.blankItemSelection();
     this.activeItems = this.blankItemSelection();
 
+    this.gameFeel = new GameFeelController({
+      enabled: this.role === "player",
+      getQualityProfile: () => this.getRenderQualityProfile(),
+      getExternalParticleCount: () => {
+        let count = 0;
+        for (const effect of this.floatingTexts || []) {
+          if (effect.particle) count += 1;
+        }
+        return count;
+      }
+    });
     this.ui = new UIRenderer(this);
     if (this.role === "player" && typeof document !== "undefined") {
       document.documentElement.dataset.renderQuality = this.renderQualityMode;
@@ -4820,6 +4850,7 @@ class Game {
     this.floatingTexts = [];
     this.shockwaves = [];
     this.centerMessages = [];
+    this.gameFeel?.reset({ skillReady: false });
     this.dragging = false;
     this.chain = [];
     this.chainSet = new Set();
@@ -4857,6 +4888,7 @@ class Game {
 
 
   render() {
+    this.gameFeel?.capturePendingFrame(this.canvas);
     this.ctx.clearRect(0, 0, this.width, this.height);
     this.ui.render(this.ctx);
   }
@@ -5020,6 +5052,7 @@ class Game {
       }
       this.itemSelection = this.blankItemSelection();
       this.state = "title";
+      this.gameFeel?.reset({ skillReady: this.isSkillReadyForActivation() });
       return;
     }
     if (rectContains(DECOR_BUTTON_RECT, pos.x, pos.y)) {
@@ -5332,6 +5365,7 @@ class Game {
     if (rectContains(this.getTitlePlayRect(), pos.x, pos.y)) {
       this.itemSelection = this.blankItemSelection();
       this.state = "items";
+      this.gameFeel?.reset({ skillReady: this.isSkillReadyForActivation() });
     }
   }
 
@@ -5345,6 +5379,7 @@ class Game {
         this.battleController.returnToTitle();
       } else {
         this.state = "title";
+        this.gameFeel?.reset({ skillReady: this.isSkillReadyForActivation() });
       }
       return;
     }
@@ -5398,6 +5433,7 @@ class Game {
       }
       this.itemSelection = this.blankItemSelection();
       this.state = "items";
+      this.gameFeel?.reset({ skillReady: this.isSkillReadyForActivation() });
       return;
     }
     if (rectContains(this.getResultTitleRect(), pos.x, pos.y)) {
@@ -5407,6 +5443,7 @@ class Game {
       }
       this.itemSelection = this.blankItemSelection();
       this.state = "title";
+      this.gameFeel?.reset({ skillReady: this.isSkillReadyForActivation() });
     }
   }
 
@@ -9973,6 +10010,9 @@ class Game {
 
   startGame(options = {}) {
     this.clearAiLearningRestartTimer();
+    if (this.gameFeel) {
+      this.gameFeel.enabled = this.role === "player" && !this.aiLearningMode;
+    }
     this.itemSelection = this.normalizeItemSelection();
     const cost = options.skipCost ? 0 : this.getSelectedItemCost();
     this.activeItems = { ...this.itemSelection };
@@ -10040,6 +10080,7 @@ class Game {
     this.comboSystem.reset();
     this.skillRuntime.reset();
     this.boardState.reset();
+    this.gameFeel?.reset({ skillReady: this.isSkillReadyForActivation() });
 
     // Initialize dual gauge system for Judy & Nick
     if (this.myTsum.id === "judyNick") {
@@ -10087,6 +10128,7 @@ class Game {
     }
     // move to item selection screen instead of starting immediately
     this.state = "items";
+    this.gameFeel?.reset({ skillReady: this.isSkillReadyForActivation() });
   }
 
   populateField() {
@@ -10440,6 +10482,7 @@ class Game {
       if (used) {
         this.judyNickGaugeManager.consumeSkill(mode);
         this.skillSystem.consume();
+        this.gameFeel?.emit('skill-activate');
         this.triggerSkillButtonFeedback("ready");
         if (fromKeyboard) {
           this.addFloatingText(SKILL_BUTTON_RECT.x + SKILL_BUTTON_RECT.w * 0.5, SKILL_BUTTON_RECT.y + SKILL_BUTTON_RECT.h + 20, "SKILL!", "#ffe8a2", 16, 0.6);
@@ -10458,6 +10501,7 @@ class Game {
     }
     const used = this.skillSystem.use();
     if (used) {
+      this.gameFeel?.emit('skill-activate');
       this.triggerSkillButtonFeedback("ready");
       if (fromKeyboard) {
         this.addFloatingText(SKILL_BUTTON_RECT.x + SKILL_BUTTON_RECT.w * 0.5, SKILL_BUTTON_RECT.y + SKILL_BUTTON_RECT.h + 20, "SKILL!", "#ffe8a2", 16, 0.6);
@@ -10624,6 +10668,7 @@ class Game {
     this.chainRule = chainRule;
     this.chainTypeId = this.boardState.getResolvedType(tsum).id;
     this.dragPointer = pos;
+    this.gameFeel?.setChain(calculateVisualChainCount(this.chain), tsum.x, tsum.y);
     this.noteAction();
     return true;
   }
@@ -10642,6 +10687,8 @@ class Game {
         if (removed) {
           removed.inChain = false;
           this.chainSet.delete(removed.id);
+          const current = this.chain[this.chain.length - 1];
+          this.gameFeel?.setChain(calculateVisualChainCount(this.chain), current?.x || pos.x, current?.y || pos.y);
         }
         return;
       }
@@ -10675,6 +10722,7 @@ class Game {
       candidate.inChain = true;
       this.chain.push(candidate);
       this.chainSet.add(candidate.id);
+      this.gameFeel?.setChain(calculateVisualChainCount(this.chain), candidate.x, candidate.y);
     }
   }
 
@@ -10685,6 +10733,7 @@ class Game {
     this.chainSet = new Set();
     this.chainTypeId = null;
     this.chainRule = null;
+    this.gameFeel?.setChain(0);
     if (chain.length < 3) {
       chain.forEach((tsum) => { tsum.inChain = false; });
       this.flushPostChainCleanup();
@@ -11627,9 +11676,23 @@ class Game {
     const bombOnlyAffected = affected.filter((tsum) => !chainRemainingIds.has(tsum.id));
 
     this.applyBombEffect(bomb.bombType, bomb.x, bomb.y);
-    bombsToExplode.forEach((entry) => {
-      this.createShockwave(entry.x, entry.y, "rgba(255,200,0,0.6)", 6, 0, 0.3, 335);
-      this.spawnExplosionSparks(entry.x, entry.y, BOMB_DATA[entry.bombType].color, 12);
+    this.gameFeel?.emit('bomb', {
+      centers: bombsToExplode.map((entry) => ({ x: entry.x, y: entry.y })),
+      chainLength: bombsToExplode.length,
+      color: BOMB_DATA[bomb.bombType].color
+    });
+    bombsToExplode.forEach((entry, index) => {
+      const escalation = Math.min(3, index);
+      this.createShockwave(
+        entry.x,
+        entry.y,
+        "rgba(255,200,0,0.6)",
+        4.5 + escalation * 0.5,
+        0,
+        0.24 + escalation * 0.02,
+        275 + escalation * 20
+      );
+      this.spawnExplosionSparks(entry.x, entry.y, BOMB_DATA[entry.bombType].color, 8 + escalation * 2);
     });
 
     if (bombOnlyAffected.length === 0 && chainRemaining.length === 0) {
@@ -12101,11 +12164,29 @@ class Game {
   }
 
   createShockwave(x, y, color, lineWidth = 5, radius = 18, life = 0.45, growth = 240) {
+    if (!this.getRenderQualityProfile().drawTransientEffects) {
+      return;
+    }
     this.shockwaves.push({ x, y, color, radius, lineWidth, growth, life, maxLife: life, alpha: 1 });
   }
 
+  getTransientParticleAllowance(requested) {
+    const profile = this.getRenderQualityProfile();
+    if (!profile.drawTransientEffects || profile.particleScale <= 0) return 0;
+    let active = this.gameFeel?.particles?.length || 0;
+    for (const effect of this.floatingTexts) {
+      if (effect.particle) active += 1;
+    }
+    const cap = Math.max(0, profile.maxGameFeelParticles || 0);
+    return Math.min(
+      Math.max(0, cap - active),
+      Math.max(0, Math.round(requested * profile.particleScale))
+    );
+  }
+
   spawnExplosionSparks(x, y, color, count = 12) {
-    for (let i = 0; i < count; i += 1) {
+    const allowed = this.getTransientParticleAllowance(count);
+    for (let i = 0; i < allowed; i += 1) {
       const angle = (Math.PI * 2 * i) / count + rand(-0.18, 0.18);
       const speed = rand(60, 160);
       this.floatingTexts.push({
@@ -12125,7 +12206,8 @@ class Game {
   }
 
   spawnPopParticles(x, y, color) {
-    for (let i = 0; i < 10; i += 1) {
+    const allowed = this.getTransientParticleAllowance(10);
+    for (let i = 0; i < allowed; i += 1) {
       this.floatingTexts.push({
         x: x + rand(-12, 12),
         y: y + rand(-10, 10),
@@ -12230,6 +12312,7 @@ class Game {
       itemCost: ITEM_DEFS.reduce((sum, item) => sum + (this.activeItems[item.key] ? item.cost : 0), 0),
       scoreBaseText: `Base ${formatNumber(baseScore)}`
     };
+    this.gameFeel?.emit('result', { stats: this.resultStats });
 
     if (this.onRunFinished && this.onRunFinished(this.resultStats, this)) {
       this.state = "battleWaiting";
@@ -12488,12 +12571,18 @@ class Game {
   }
 
   update(dt) {
+    const gameFeelEnabled = this.role === "player" && !this.aiLearningMode;
+    if (this.gameFeel && this.gameFeel.enabled !== gameFeelEnabled) {
+      this.gameFeel.enabled = gameFeelEnabled;
+      this.gameFeel.reset({ skillReady: this.isSkillReadyForActivation() });
+    }
     this.elapsed += dt;
     this.strongestModeCoronationElsaPlannerFrameRevision += 1;
     this.strongestModeCoronationElsaPlannerLastFrameCallCount = this.strongestModeCoronationElsaPlannerFrameCallCount;
     this.strongestModeCoronationElsaPlannerFrameCallCount = 0;
     this.displayedScore = lerp(this.displayedScore, this.score, clamp(dt * 8, 0, 1));
     this.updateEffects(dt);
+    this.gameFeel?.update(dt);
     if (this.skillButtonFeedback.timer > 0) {
       this.skillButtonFeedback.timer = Math.max(0, this.skillButtonFeedback.timer - dt);
       if (this.skillButtonFeedback.timer <= 0) {
@@ -12580,6 +12669,7 @@ class Game {
     this.updateSkillChargeFlights(gameplayDt * 1000);
     this.skillRuntime.update(gameplayDt * 1000);
     this.skillSystem.update(dt);
+    this.gameFeel?.syncSkillReady(this.isSkillReadyForActivation());
     this.updateCheatAutoSkill?.();
     this.feverSystem.update(gameplayDt);
     this.comboSystem.update(gameplayDt);

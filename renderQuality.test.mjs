@@ -27,6 +27,14 @@ test("quality profiles progressively reduce expensive drawing", () => {
   assert.equal(minimal.drawArtwork, false);
   assert.ok(normal.particleScale > light.particleScale);
   assert.ok(light.particleScale > minimal.particleScale);
+  assert.equal(normal.visualHitStop, true);
+  assert.equal(light.visualHitStop, false);
+  assert.equal(minimal.visualHitStop, false);
+  assert.equal(normal.maxGameFeelParticles, 80);
+  assert.equal(light.maxGameFeelParticles, 40);
+  assert.equal(minimal.maxGameFeelParticles, 0);
+  assert.ok(normal.shakeScale > light.shakeScale);
+  assert.equal(minimal.shakeScale, 0);
   assert.equal(minimal.renderIntervalMs, 1000 / 30);
 });
 

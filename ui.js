@@ -37,6 +37,7 @@ import {
 import { drawLiliaBat } from './lilia.js?v=tsum-images-8';
 import { drawTsumArtwork, preloadTsumImages } from './tsumImages.js?v=render-quality-1';
 import { drawSkillPresentation, drawSkillSecondaryVisual } from './skillPresentationVisuals.js?v=render-quality-1';
+import { drawGameFeelField, drawGameFeelHud } from './gameFeel.js?v=game-feel-1';
 
 let sharedFeltTexture = null;
 
@@ -395,6 +396,12 @@ export class UIRenderer {
       ctx.fillStyle = sideShade;
       ctx.fillRect(0, FIELD_TOP - 10, WIDTH, FIELD_HEIGHT + 22);
       ctx.restore();
+    }
+
+    const feelState = this.game.gameFeel?.getRenderState();
+    if (feelState?.chain.level >= 4 && profile.drawTransientEffects) {
+      ctx.fillStyle = `rgba(0,5,22,${(0.06 * (profile.gameFeelScale || 0)).toFixed(3)})`;
+      ctx.fillRect(0, FIELD_TOP - 10, WIDTH, FIELD_HEIGHT + 22);
     }
 
     const bodies = this.game.renderBodies.length ? this.game.renderBodies : this.game.getRenderableBodies();
@@ -763,7 +770,11 @@ export class UIRenderer {
     const fanCenterY = DECOR_BUTTON_RECT.y + DECOR_BUTTON_RECT.h * 0.5;
     const skillRadius = SKILL_BUTTON_RECT.w * 0.5;
     const fanRadius = DECOR_BUTTON_RECT.w * 0.5;
-    const pulse = skillReady ? 22 + Math.sin(Date.now() * 0.005) * 9 : 12;
+    const pulse = skillReady ? 16 : 12;
+    const feelState = this.game.gameFeel?.getRenderState();
+    const readyRatio = feelState?.skillReady.maxLife > 0 ? feelState.skillReady.life / feelState.skillReady.maxLife : 0;
+    const activateRatio = feelState?.skillActivate.maxLife > 0 ? feelState.skillActivate.life / feelState.skillActivate.maxLife : 0;
+    const skillPop = 1 + Math.sin(Math.max(readyRatio, activateRatio) * Math.PI) * (readyRatio > 0 ? 0.12 : 0.07);
 
     ctx.save();
     const trayGrad = ctx.createLinearGradient(0, 592, 0, HEIGHT);
@@ -785,6 +796,7 @@ export class UIRenderer {
 
     ctx.save();
     ctx.translate(skillCenterX, skillCenterY);
+    ctx.scale(skillPop, skillPop);
     ctx.shadowBlur = skillReady ? pulse : 10;
     ctx.shadowColor = skillReady ? "#fff06f" : "rgba(0,51,113,0.44)";
     const skillGrad = ctx.createLinearGradient(0, -skillRadius, 0, skillRadius);
@@ -1038,7 +1050,10 @@ export class UIRenderer {
     const window = this.game.comboSystem.comboWindowFor(this.game.comboSystem.combo);
     const timerRatio = window > 0 ? clamp(this.game.comboSystem.timer / window, 0, 1) : 1;
     const alpha = this.game.activeItems.combo || this.game.feverSystem.active ? 1 : 0.35 + timerRatio * 0.65;
-    const scale = 1 + this.game.comboSystem.pulse * 0.4;
+    const feelCombo = this.game.gameFeel?.combo;
+    const milestoneRatio = feelCombo?.maxLife > 0 ? feelCombo.life / feelCombo.maxLife : 0;
+    const milestoneLevel = milestoneRatio > 0 ? feelCombo.level : 0;
+    const scale = 1 + this.game.comboSystem.pulse * 0.14 + Math.sin(milestoneRatio * Math.PI) * (milestoneLevel >= 5 ? 0.3 : milestoneLevel * 0.035);
 
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -1049,24 +1064,38 @@ export class UIRenderer {
     ctx.lineJoin = "round";
     ctx.lineWidth = 4;
     ctx.strokeStyle = "rgba(0,0,0,0.82)";
-    ctx.fillStyle = "#ffffff";
-    ctx.font = '900 32px "Trebuchet MS", sans-serif';
-    const text = `COMBO x${this.game.comboSystem.combo}`;
+    const milestoneColors = ["#ffffff", "#fff2a0", "#ffe06e", "#ffbd72", "#8de8ff", "#fff6bd"];
+    ctx.fillStyle = milestoneColors[milestoneLevel];
+    if (milestoneLevel > 0) {
+      ctx.shadowBlur = 10 + milestoneLevel * 3;
+      ctx.shadowColor = milestoneColors[milestoneLevel];
+    }
+    ctx.font = `900 ${milestoneLevel >= 5 ? 42 : 32}px "Trebuchet MS", sans-serif`;
+    const text = milestoneLevel >= 5
+      ? `${this.game.comboSystem.combo} COMBO!`
+      : `COMBO x${this.game.comboSystem.combo}`;
     ctx.strokeText(text, 0, 0);
     ctx.fillText(text, 0, 0);
     ctx.restore();
   }
 
   drawFeverBanner(ctx) {
-    if (this.game.feverSystem.flash > 0) {
+    const profile = this.profile();
+    if (profile.drawTransientEffects && this.game.feverSystem.flash > 0) {
       ctx.save();
-      ctx.globalAlpha = Math.min(0.4, this.game.feverSystem.flash * 0.4);
+      ctx.globalAlpha = Math.min(0.4, this.game.feverSystem.flash * 0.4) * (profile.flashScale ?? 1);
       ctx.fillStyle = "rgba(255,220,0,0.4)";
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
       ctx.restore();
     }
 
     if (this.game.feverSystem.bannerTimer <= 0) {
+      return;
+    }
+
+    const feverFeel = this.game.gameFeel?.feverStart;
+    const feverFeelElapsed = feverFeel?.maxLife > 0 ? feverFeel.maxLife - feverFeel.life : 1;
+    if (feverFeelElapsed < 0.07) {
       return;
     }
 
@@ -1601,11 +1630,23 @@ export class UIRenderer {
 
   drawGameScreen(ctx) {
     const profile = this.profile();
+    const feelState = this.game.gameFeel?.getRenderState();
     if (profile.drawDecorations) {
       this.drawDisneyLogo(ctx);
     }
     this.drawFieldShell(ctx);
-    this.drawFieldContents(ctx);
+    ctx.save();
+    ctx.translate(feelState?.shakeX || 0, feelState?.shakeY || 0);
+    if (feelState?.hitStopActive && feelState.snapshotCanvas) {
+      const snapshot = feelState.snapshotCanvas;
+      const sourceTop = Math.round((FIELD_TOP / HEIGHT) * snapshot.height);
+      const sourceHeight = Math.round((FIELD_HEIGHT / HEIGHT) * snapshot.height);
+      ctx.drawImage(snapshot, 0, sourceTop, snapshot.width, sourceHeight, 0, FIELD_TOP, WIDTH, FIELD_HEIGHT);
+    } else {
+      this.drawFieldContents(ctx);
+    }
+    drawGameFeelField(ctx, feelState, { left: 0, right: WIDTH, top: FIELD_TOP, bottom: FIELD_BOTTOM });
+    ctx.restore();
     this.drawSkillVisualLayer(ctx);
     if (this.game.role === "cpu") {
       this.drawCpuStatusFooter(ctx);
@@ -1623,6 +1664,14 @@ export class UIRenderer {
     this.drawCoingainLotteryOverlay(ctx);
     this.drawCoingainLotteryRoulette(ctx);
     this.drawCoingainFloorGauge(ctx);
+    drawGameFeelHud(ctx, feelState, {
+      width: WIDTH,
+      height: HEIGHT,
+      skillRect: SKILL_BUTTON_RECT,
+      feverRect: { x: 99, y: 646, w: 216, h: 34 },
+      feverGauge: this.game.feverSystem.gauge,
+      feverActive: this.game.feverSystem.active
+    });
     this.drawPauseOverlay(ctx);
     this.drawGameOverOverlay(ctx);
   }
@@ -1882,6 +1931,9 @@ export class UIRenderer {
       return;
     }
 
+    const anticipation = this.game.gameFeel?.chain?.level || 0;
+    const profile = this.profile();
+    const chainColors = ["#ffffff", "#fff5aa", "#ffe36f", "#ffbd66", "#ff8d78"];
     ctx.save();
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -1891,24 +1943,24 @@ export class UIRenderer {
       for (let i = 1; i < this.game.chain.length; i += 1) {
         ctx.lineTo(this.game.chain[i].x, this.game.chain[i].y);
       }
-      if (this.profile().useRichSurfaces) {
-        ctx.strokeStyle = "rgba(255,255,200,0.3)";
-        ctx.lineWidth = 14;
-        ctx.shadowBlur = this.profile().drawBodyShadows ? 12 : 0;
-        ctx.shadowColor = "#FFFF88";
+      if (profile.useRichSurfaces) {
+        ctx.strokeStyle = anticipation > 0 ? `rgba(255,235,120,${0.28 + anticipation * 0.08})` : "rgba(255,255,200,0.3)";
+        ctx.lineWidth = 14 + anticipation * 2;
+        ctx.shadowBlur = profile.drawBodyShadows ? 12 + anticipation * 4 : 0;
+        ctx.shadowColor = chainColors[anticipation];
         ctx.stroke();
       }
 
       ctx.shadowBlur = 0;
-      ctx.strokeStyle = "rgba(255,255,255,0.9)";
-      ctx.lineWidth = 6;
+      ctx.strokeStyle = chainColors[anticipation];
+      ctx.lineWidth = 6 + anticipation * 0.75;
       ctx.stroke();
     }
 
-    ctx.shadowBlur = this.profile().drawBodyShadows ? 10 : 0;
+    ctx.shadowBlur = profile.drawBodyShadows ? 10 + anticipation * 3 : 0;
     ctx.shadowColor = "rgba(255,255,255,0.95)";
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = chainColors[anticipation];
+    ctx.lineWidth = 3 + anticipation * 0.35;
     for (const tsum of this.game.chain) {
       ctx.beginPath();
       ctx.arc(tsum.x, tsum.y, tsum.radius + 4, 0, Math.PI * 2);
@@ -2128,7 +2180,7 @@ export class UIRenderer {
     ctx.font = '800 28px "Trebuchet MS", sans-serif';
     ctx.fillStyle = "#fff6d1";
     ctx.fillText(formatNumber(this.game.displayedScore), WIDTH * 0.5, 54);
-    const comboScale = 1 + this.game.comboSystem.pulse * 0.18;
+    const comboScale = 1 + this.game.comboSystem.pulse * 0.08;
     ctx.translate(WIDTH * 0.5, 96);
     ctx.scale(comboScale, comboScale);
     ctx.fillStyle = "#ffffff";
@@ -2267,6 +2319,11 @@ export class UIRenderer {
       this.drawBattleResultScreen(ctx);
       return;
     }
+    const resultPresentation = this.game.gameFeel?.getResultPresentation(this.game.resultStats) || {
+      score: this.game.resultStats.finalScore,
+      scoreScale: 1,
+      revealedStats: 5
+    };
     this.drawGlassPanel(ctx, 18, 16, 378, 704, 30, 0.76);
     ctx.save();
     ctx.textAlign = "center";
@@ -2286,9 +2343,34 @@ export class UIRenderer {
     ctx.fillStyle = "#fff4c9";
     ctx.font = '700 14px "Trebuchet MS", sans-serif';
     ctx.fillText("FINAL SCORE", WIDTH * 0.5, 138);
+    ctx.translate(WIDTH * 0.5, 186);
+    ctx.scale(resultPresentation.scoreScale, resultPresentation.scoreScale);
+    if (resultPresentation.scoreScale > 1) {
+      const burst = (resultPresentation.scoreScale - 1) / 0.12;
+      ctx.save();
+      ctx.globalAlpha = burst * 0.55;
+      ctx.strokeStyle = "#ffe58a";
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 10; i += 1) {
+        const angle = (Math.PI * 2 * i) / 10;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * 70, Math.sin(angle) * 28);
+        ctx.lineTo(Math.cos(angle) * 94, Math.sin(angle) * 42);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
     ctx.font = '900 38px "Trebuchet MS", sans-serif';
     ctx.fillStyle = "#ffffff";
-    ctx.fillText(formatNumber(this.game.resultStats.finalScore), WIDTH * 0.5, 186);
+    if (resultPresentation.scoreScale > 1) {
+      ctx.shadowBlur = 22;
+      ctx.shadowColor = "#ffe17a";
+    }
+    ctx.fillText(formatNumber(resultPresentation.score), 0, 0);
+    ctx.restore();
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
     ctx.font = '600 12px "Trebuchet MS", sans-serif';
     ctx.fillStyle = "rgba(255,255,255,0.72)";
     const scoreBoostText = this.game.activeItems.score ? " (+Score item applied)" : "";
@@ -2316,7 +2398,12 @@ export class UIRenderer {
       ctx.fillStyle = stats[i].color;
       ctx.font = '800 20px "Trebuchet MS", sans-serif';
       ctx.textAlign = "right";
-      ctx.fillText(stats[i].value, 338, y);
+      if (i < resultPresentation.revealedStats) {
+        ctx.fillText(stats[i].value, 338, y);
+      } else {
+        ctx.globalAlpha = 0.32;
+        ctx.fillText("—", 338, y);
+      }
       ctx.restore();
     }
 
@@ -2401,6 +2488,11 @@ export class UIRenderer {
 
   drawBattleResultScreen(ctx) {
     const battle = this.game.battleStats;
+    const resultPresentation = this.game.gameFeel?.getResultPresentation(this.game.resultStats) || {
+      score: battle.playerScore,
+      scoreScale: 1,
+      revealedStats: 5
+    };
     const outcomeLabels = {
       win: { title: "VICTORY!", color: "#8dffd3" },
       loss: { title: "DEFEAT", color: "#ff9baa" },
@@ -2431,7 +2523,7 @@ export class UIRenderer {
 
     this.drawGlassPanel(ctx, 38, 138, 338, 178, 26, 0.54);
     const scoreRows = [
-      { label: "PLAYER", value: battle.playerScore, color: "#8dffd3", y: 184 },
+      { label: "PLAYER", value: resultPresentation.score, color: "#8dffd3", y: 184, scale: resultPresentation.scoreScale },
       { label: "CPU", value: battle.cpuScore, color: "#ffb0bc", y: 246 }
     ];
     for (const row of scoreRows) {
@@ -2444,7 +2536,15 @@ export class UIRenderer {
       ctx.textAlign = "right";
       ctx.fillStyle = row.color;
       ctx.font = '900 30px "Trebuchet MS", sans-serif';
-      ctx.fillText(formatNumber(row.value), 346, row.y);
+      if (row.scale > 1) {
+        ctx.translate(346, row.y);
+        ctx.scale(row.scale, row.scale);
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = row.color;
+        ctx.fillText(formatNumber(row.value), 0, 0);
+      } else {
+        ctx.fillText(formatNumber(row.value), 346, row.y);
+      }
       ctx.restore();
     }
     ctx.save();
@@ -2466,7 +2566,8 @@ export class UIRenderer {
     ctx.fillText("WIN BONUS", WIDTH * 0.5, 376);
     ctx.fillStyle = battle.bonus > 0 ? "#fff5a8" : "rgba(255,255,255,0.65)";
     ctx.font = '900 34px "Trebuchet MS", sans-serif';
-    ctx.fillText(`+${formatNumber(battle.bonus)} COINS`, WIDTH * 0.5, 416);
+    const displayedBonus = resultPresentation.revealedStats >= 1 ? battle.bonus : 0;
+    ctx.fillText(`+${formatNumber(displayedBonus)} COINS`, WIDTH * 0.5, 416);
     ctx.fillStyle = "rgba(255,255,255,0.78)";
     ctx.font = '700 14px "Trebuchet MS", sans-serif';
     ctx.fillText(`Record  ${record.wins || 0}W  ${record.losses || 0}L  ${record.draws || 0}D`, WIDTH * 0.5, 464);

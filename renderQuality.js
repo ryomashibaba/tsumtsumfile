@@ -14,6 +14,12 @@ export const RENDER_QUALITY_PROFILES = Object.freeze({
     useRichSurfaces: true,
     useBodyDeformation: true,
     particleScale: 1,
+    gameFeelScale: 1,
+    shakeScale: 1,
+    flashScale: 1,
+    maxGameFeelParticles: 80,
+    maxGameFeelRings: 8,
+    visualHitStop: true,
     skillVisualDetail: "full"
   }),
   light: Object.freeze({
@@ -29,6 +35,12 @@ export const RENDER_QUALITY_PROFILES = Object.freeze({
     useRichSurfaces: true,
     useBodyDeformation: true,
     particleScale: 0.5,
+    gameFeelScale: 0.62,
+    shakeScale: 0.5,
+    flashScale: 0.55,
+    maxGameFeelParticles: 40,
+    maxGameFeelRings: 5,
+    visualHitStop: false,
     skillVisualDetail: "reduced"
   }),
   minimal: Object.freeze({
@@ -44,6 +56,12 @@ export const RENDER_QUALITY_PROFILES = Object.freeze({
     useRichSurfaces: false,
     useBodyDeformation: false,
     particleScale: 0,
+    gameFeelScale: 0,
+    shakeScale: 0,
+    flashScale: 0,
+    maxGameFeelParticles: 0,
+    maxGameFeelRings: 0,
+    visualHitStop: false,
     skillVisualDetail: "minimal"
   })
 });

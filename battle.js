@@ -324,6 +324,7 @@ export class BattleController {
     this.cpu.battleContext.complete = true;
     this.player.state = "result";
     this.cpu.state = "battleWaiting";
+    this.player.gameFeel?.emit("result", { stats: playerResult });
     this.active = false;
     this.updateArena();
   }
@@ -347,6 +348,7 @@ export class BattleController {
     this.abortBattle();
     this.player.state = "title";
     this.player.itemSelection = this.player.blankItemSelection();
+    this.player.gameFeel?.reset({ skillReady: this.player.isSkillReadyForActivation?.() });
   }
 
   abortBattle() {
