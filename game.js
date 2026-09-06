@@ -20,6 +20,7 @@ import {
   FRICTION,
   FIXED_STEP,
   STORAGE_KEY,
+  COIN_HUD_ICON_CENTER,
   PAUSE_BUTTON_RECT,
   SELECT_TSUM_BUTTON_RECT,
   SKILL_BUTTON_RECT,
@@ -44,9 +45,9 @@ import {
   rectContains,
   pointInCircle,
   drawStarPath
-} from './config.js?v=perfume-alice-target-1';
+} from './config.js?v=coin-flights-1';
 
-import { UIRenderer } from './ui.js?v=game-feel-1';
+import { UIRenderer } from './ui.js?v=coin-flights-1';
 import { JudyNickGaugeManager, registerJudyNickSkill, resolveJudyNickActivationMode } from './judyNick.js?v=skill-visuals-1';
 import {
   LILIA_CHAIN_TYPE,
@@ -93,6 +94,12 @@ import {
   resolveBombGeneration,
   shouldSpawnLargeTsum
 } from './bombLogic.js?v=tsum-images-5';
+import {
+  COIN_FLIGHT_DIAMETER_RATIO,
+  advanceCoinFlight,
+  buildCoinFlightAwardPlan,
+  createCoinFlight
+} from './coinFlights.js?v=coin-flights-1';
 import { SKILL_TIMING_TABLE, getGameplayClockDelta, resolveGameplayPauseState } from './gameplayTiming.js?v=skill-timing-2';
 import {
   beginBodyRemovalState,
@@ -2064,6 +2071,61 @@ class ClearPipeline {
     });
   }
 
+  prepareCoinFlightPlan(info) {
+    if (!info || !Array.isArray(info.targets)) {
+      return null;
+    }
+    const resolvedClearCount = clamp(Math.floor(calculateEffectiveClearCount(info)), 0, 317);
+    const calculation = this.game.getCoinCalculationContext(
+      this.game.myTsum.id,
+      info.correctionType,
+      info
+    );
+    const previousEmitted = info.coinFlightEmittedTargetIds instanceof Set
+      ? info.coinFlightEmittedTargetIds
+      : new Set();
+    info.coinFlightPlan = buildCoinFlightAwardPlan({
+      coinTable: calculation.table,
+      ...info,
+      effectiveClearCountOverride: resolvedClearCount
+    });
+    info.coinFlightEmittedTargetIds = previousEmitted;
+    info.coinFlightSyntheticEmitted = !!info.coinFlightSyntheticEmitted;
+    return info.coinFlightPlan;
+  }
+
+  emitCoinFlightsForDisappearedTargets(info, { includeAll = false } = {}) {
+    if (!info?.coinFlightPlan) {
+      this.prepareCoinFlightPlan(info);
+    }
+    const awards = new Map((info.coinFlightPlan?.targetAwards || [])
+      .map((award) => [award.targetId, award.count]));
+    const emitted = info.coinFlightEmittedTargetIds instanceof Set
+      ? info.coinFlightEmittedTargetIds
+      : (info.coinFlightEmittedTargetIds = new Set());
+    for (const target of info.targets || []) {
+      if (!target || emitted.has(target.id) || (!includeAll && !target.dead)) {
+        continue;
+      }
+      emitted.add(target.id);
+      const count = awards.get(target.id) || 0;
+      if (count > 0) {
+        this.game.enqueueCoinFlights(target.x, target.y, count);
+      }
+    }
+  }
+
+  emitSyntheticCoinFlights(info, x, y) {
+    if (!info?.coinFlightPlan || info.coinFlightSyntheticEmitted) {
+      return;
+    }
+    info.coinFlightSyntheticEmitted = true;
+    const count = info.coinFlightPlan.syntheticCoins || 0;
+    if (count > 0) {
+      this.game.enqueueCoinFlights(x, y, count);
+    }
+  }
+
   prepareSequentialChainClear(prepared) {
     const interval = this.game.feverSystem.active ? 0.08 : 0.15;
     this.markChainTargetsOccupied(prepared.targets);
@@ -2391,6 +2453,7 @@ class ClearPipeline {
     if (!prepared) {
       return false;
     }
+    this.prepareCoinFlightPlan(prepared);
 
     if (prepared.source === "chain") {
       if (this.game.pendingClear?.sequentialChain) {
@@ -2448,6 +2511,12 @@ class ClearPipeline {
     const clearDisplayX = info.targets.length ? clearCenter.x / info.targets.length : (info.x || WIDTH * 0.5);
     const clearDisplayY = info.targets.length ? clearCenter.y / info.targets.length : (info.y || FIELD_CENTER_Y);
 
+    // Recalculate from the final clear state while retaining targets whose
+    // coins were already emitted during a sequential clear.
+    this.prepareCoinFlightPlan(info);
+    this.emitCoinFlightsForDisappearedTargets(info, { includeAll: true });
+    this.emitSyntheticCoinFlights(info, clearDisplayX, clearDisplayY);
+
     info.targets.forEach((tsum) => {
       this.game.spawnPopParticles(tsum.x, tsum.y, this.board.getResolvedType(tsum).color);
     });
@@ -2498,7 +2567,7 @@ class ClearPipeline {
         info.correctionType,
         info
       );
-      this.game.coinBonus += chainCoins;
+      this.game.addCoinBonus(chainCoins, { displayImmediately: false });
       awardedRawCoins = chainCoins;
     } else {
       score = this.game.calculateMixedClearScore(resolvedClearCount, info.targets);
@@ -2515,7 +2584,7 @@ class ClearPipeline {
         info.correctionType,
         info
       );
-      this.game.coinBonus += skillCoins;
+      this.game.addCoinBonus(skillCoins, { displayImmediately: false });
       awardedRawCoins = skillCoins;
     }
     this.game.gameFeel?.emit('combo', {
@@ -3032,6 +3101,7 @@ class Game {
     this.pendingClear = null;
     this.pendingChainClearQueue = [];
     this.skillChargeFlights = [];
+    this.coinFlights = [];
     this.tempLockTimer = 0;
     this.physicsAccumulator = 0;
     this.skillButtonFeedback = { mode: "idle", timer: 0, max: 0 };
@@ -3049,6 +3119,7 @@ class Game {
     this.lastActionAt = 0;
     this.totalCleared = 0;
     this.coinBonus = 0;
+    this.displayedCoinBonus = 0;
     this.expBonus = 0;
     this.resultStats = {
       finalScore: 0,
@@ -4867,6 +4938,10 @@ class Game {
     this.actionLock = false;
     this.pendingClear = null;
     this.pendingChainClearQueue = [];
+    this.skillChargeFlights = [];
+    this.coinFlights = [];
+    this.coinBonus = 0;
+    this.displayedCoinBonus = 0;
     this.postChainCleanupSessionIds = [];
   }
 
@@ -5935,7 +6010,7 @@ class Game {
     this.totalCleared += clearCount;
     this.feverSystem.addClears(clearCount);
     const correctionType = this.getCoingainCorrectionType();
-    this.coinBonus += this.getCoinsByClearCount(clearCount, this.myTsum.id, correctionType);
+    this.addCoinBonus(this.getCoinsByClearCount(clearCount, this.myTsum.id, correctionType));
     this.comboSystem.recordAction();
     this.addFloatingText(x, y + 6, `${clearCount}`, "#fff4b8", 40, 0.8);
     this.recordCoingainClear({ coingainBombCount: clearCount }, clearCount);
@@ -10054,6 +10129,7 @@ class Game {
     this.pendingClear = null;
     this.pendingChainClearQueue = [];
     this.skillChargeFlights = [];
+    this.coinFlights = [];
     this.tempLockTimer = 0;
     this.cheatSpawnAccumulator = 0;
     this.runFinished = false;
@@ -10071,6 +10147,7 @@ class Game {
     this.lastActionAt = this.elapsed;
     this.totalCleared = 0;
     this.coinBonus = 0;
+    this.displayedCoinBonus = 0;
     this.expBonus = 0;
     this.namineSkillTimer = 0;
     this.postChainCleanupSessionIds = [];
@@ -11699,7 +11776,7 @@ class Game {
       if (coingainBombCountBonus > 0) {
         this.totalCleared += coingainBombCountBonus;
         this.feverSystem.addClears(coingainBombCountBonus);
-        this.coinBonus += this.getCoinsByClearCount(coingainBombCountBonus, this.myTsum.id, this.getCoingainCorrectionType());
+        this.addCoinBonus(this.getCoinsByClearCount(coingainBombCountBonus, this.myTsum.id, this.getCoingainCorrectionType()));
         this.recordCoingainClear({ coingainBombCount: coingainBombCountBonus }, coingainBombCountBonus);
         this.queueNaturalLargeTsum({
           source: "bomb",
@@ -11781,7 +11858,7 @@ class Game {
       this.expBonus += 10;
       this.addFloatingText(x, y - 24, "EXP +10", "#ffe87e", 22, 1);
     } else if (type === "coin") {
-      this.coinBonus += 10;
+      this.addCoinBonus(10);
       this.addFloatingText(x, y - 24, "COIN +10", "#ffd56b", 22, 1);
     } else if (type === "score") {
       this.nextChainScoreMultiplier = 2;
@@ -12113,19 +12190,17 @@ class Game {
       console.warn(`[COIN] No tsum type found for tsumId=${tsumId}, myTsum=${this.myTsum.id}`);
       return 0;
     }
-    const correctionType = correctionTypeOverride || tsumType.coinCorrectionType || DEFAULT_COIN_CORRECTION_TYPE;
-    const defaultCorrection = parseCoinCorrectionType(correctionType);
-    const correctionRoute = clearEvent?.coinCheatRoute || "default";
-    const requestedCorrection = correctionTypeOverride && tsumType.id === "coingain"
-      ? defaultCorrection + this.getCheatCoinCorrection("skill", "coingainBase", 0)
-      : this.getCheatCoinCorrection(correctionTypeOverride ? "skill" : "normal", correctionRoute, defaultCorrection);
-    const clampedCount = clamp(clearCount, 0, 317);
-    const table = COIN_CORRECTION_TABLE[`correction_${requestedCorrection}`]
-      || this.createCoinCorrectionTable(requestedCorrection);
+    const { correctionType, table } = Game.prototype.getCoinCalculationContext.call(
+      this,
+      tsumType.id,
+      correctionTypeOverride,
+      clearEvent
+    );
     if (!table) {
-      console.error(`[COIN] Correction table not found for type: correction_${requestedCorrection}`);
+      console.error(`[COIN] Correction table not found for type: ${correctionType}`);
       return 0;
     }
+    const clampedCount = clamp(clearCount, 0, 317);
     if (!table.hasOwnProperty(clampedCount)) {
       console.error(`[COIN] No entry for clear count ${clampedCount} in table ${correctionType}`);
       return 0;
@@ -12139,10 +12214,27 @@ class Game {
         completedLargeSteps: clearEvent.largeTsumCompletedSteps
       })
       : table[clampedCount];
-    // Debug output: compare base vs corrected
     const baseCoins = COIN_CORRECTION_TABLE['correction_0'][clampedCount] || 0;
     console.log(`[COIN] Tsum=${tsumType.id} Clears=${clearCount} Type=${correctionType} → Coins=${coins} (base=${baseCoins})`);
     return coins;
+  }
+
+  getCoinCalculationContext(tsumId = null, correctionTypeOverride = null, clearEvent = null) {
+    const tsumType = tsumId
+      ? TSUM_TYPES.find((entry) => entry.id === tsumId)
+      : this.myTsum;
+    if (!tsumType) {
+      return { correctionType: DEFAULT_COIN_CORRECTION_TYPE, table: null };
+    }
+    const correctionType = correctionTypeOverride || tsumType.coinCorrectionType || DEFAULT_COIN_CORRECTION_TYPE;
+    const defaultCorrection = parseCoinCorrectionType(correctionType);
+    const correctionRoute = clearEvent?.coinCheatRoute || "default";
+    const requestedCorrection = correctionTypeOverride && tsumType.id === "coingain"
+      ? defaultCorrection + this.getCheatCoinCorrection("skill", "coingainBase", 0)
+      : this.getCheatCoinCorrection(correctionTypeOverride ? "skill" : "normal", correctionRoute, defaultCorrection);
+    const table = COIN_CORRECTION_TABLE[`correction_${requestedCorrection}`]
+      || this.createCoinCorrectionTable(requestedCorrection);
+    return { correctionType: `correction_${requestedCorrection}`, table };
   }
 
   createCoinCorrectionTable(correction) {
@@ -12157,6 +12249,15 @@ class Game {
 
   addScore(amount) {
     this.score += Math.round(amount);
+  }
+
+  addCoinBonus(amount, { displayImmediately = true } = {}) {
+    const coins = Math.max(0, Math.round(Number(amount) || 0));
+    this.coinBonus += coins;
+    if (displayImmediately) {
+      this.displayedCoinBonus += coins;
+    }
+    return coins;
   }
 
   addFloatingText(x, y, text, color, size = 24, life = 1) {
@@ -12281,6 +12382,9 @@ class Game {
 
   finishRun() {
     if (this.state !== "playing" || this.runFinished) {
+      return;
+    }
+    if ((this.coinFlights?.length || 0) > 0) {
       return;
     }
     this.runFinished = true;
@@ -12597,6 +12701,19 @@ class Game {
       return;
     }
 
+    // Coin collection is presentation time: it continues through skill timing
+    // pauses, but respects the player's manual pause.
+    this.updateCoinFlights?.(dt);
+    if (
+      this.timeUp &&
+      !this.dragging &&
+      !this.actionLock &&
+      !this.pendingClear &&
+      (this.coinFlights?.length || 0) > 0
+    ) {
+      return;
+    }
+
     if (this.fanCooldown > 0) {
       this.fanCooldown = Math.max(0, this.fanCooldown - dt);
     }
@@ -12661,6 +12778,9 @@ class Game {
           tsum.update(dt);
         }
       }
+    }
+    if (this.pendingClear) {
+      this.clearPipeline.emitCoinFlightsForDisappearedTargets?.(this.pendingClear);
     }
     this.bombs = this.bombs.filter((bomb) => !bomb.dead);
     if (this.pendingClear) {
@@ -12776,6 +12896,39 @@ class Game {
       }
       return progress < 1;
     });
+  }
+
+  enqueueCoinFlights(startX, startY, count = 0) {
+    const coinCount = Math.max(0, Math.floor(Number(count) || 0));
+    const radius = this.getConfiguredTsumRadius() * COIN_FLIGHT_DIAMETER_RATIO;
+    for (let index = 0; index < coinCount; index += 1) {
+      this.coinFlights.push(createCoinFlight({
+        startX,
+        startY,
+        targetX: COIN_HUD_ICON_CENTER.x,
+        targetY: COIN_HUD_ICON_CENTER.y,
+        radius,
+        rng: this.random
+      }));
+    }
+  }
+
+  updateCoinFlights(dtSec = 0) {
+    if (!this.coinFlights.length) {
+      return;
+    }
+    this.coinFlights = this.coinFlights.filter((flight) => {
+      const sample = advanceCoinFlight(flight, dtSec);
+      if (sample.arrived && !flight.applied) {
+        flight.applied = true;
+        this.displayedCoinBonus += 1;
+      }
+      return !sample.arrived;
+    });
+  }
+
+  getDisplayedRunCoins() {
+    return Math.max(0, Math.round(Number(this.displayedCoinBonus) || 0));
   }
 }
 
@@ -13167,7 +13320,7 @@ SkillRegistry.captainLightyear = {
 
 // finalize: expose SkillRegistry and export Game
 Game.SkillRegistry = SkillRegistry;
-export { Game, InputRouter, SkillRuntimeManager };
+export { ClearPipeline, Game, InputRouter, SkillRuntimeManager };
 // --- ensure namine skill exists and is selectable ---
 SkillRegistry.namine = {
   id: "namine",

@@ -159,6 +159,25 @@ test("a skill presentation freezes gameplay while its raw timer still advances",
   assert.equal(observed.physicsSteps, 0);
 });
 
+test("time-up coin collection advances only the flying coins before result finalization", () => {
+  const { game, observed } = makeUpdateHarness();
+  game.timeUp = true;
+  game.timeRemaining = 0;
+  game.coinFlights = [{}];
+  let coinFlightDt = null;
+  game.updateCoinFlights = (dt) => { coinFlightDt = dt; };
+
+  Game.prototype.update.call(game, 0.05);
+
+  assert.equal(coinFlightDt, 0.05);
+  assert.equal(observed.effectDt, 0.05);
+  assert.equal(observed.physicsSteps, 0);
+  assert.equal(observed.rawDtMs, undefined);
+  assert.equal(observed.skillDtMs, null);
+  assert.equal(observed.feverDt, null);
+  assert.equal(observed.comboDt, null);
+});
+
 test("skill visual state derives elapsed time without exposing mutable runtime arrays", () => {
   const presentationGame = {
     skillRuntime: {

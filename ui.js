@@ -9,6 +9,7 @@ import {
   FIELD_RIGHT,
   FIELD_HEIGHT,
   TSUM_RADIUS,
+  COIN_HUD_ICON_CENTER,
   PAUSE_BUTTON_RECT,
   SELECT_TSUM_BUTTON_RECT,
   SKILL_BUTTON_RECT,
@@ -33,11 +34,12 @@ import {
   makeEllipsePath,
   drawGlossButton,
   drawStarPath
-} from './config.js?v=perfume-alice-target-1';
+} from './config.js?v=coin-flights-1';
 import { drawLiliaBat } from './lilia.js?v=tsum-images-8';
 import { drawTsumArtwork, preloadTsumImages } from './tsumImages.js?v=render-quality-1';
 import { drawSkillPresentation, drawSkillSecondaryVisual } from './skillPresentationVisuals.js?v=render-quality-1';
 import { drawGameFeelField, drawGameFeelHud } from './gameFeel.js?v=game-feel-1';
+import { sampleCoinFlight } from './coinFlights.js?v=coin-flights-1';
 
 let sharedFeltTexture = null;
 
@@ -532,23 +534,23 @@ export class UIRenderer {
     ctx.lineWidth = 1;
     ctx.stroke();
     this.drawStitchedRoundedRect(ctx, coinX + 4, coinY + 3, coinW - 8, coinH - 6, (coinH - 6) * 0.5, 0.38);
-    const coinGrad = ctx.createRadialGradient(coinX + 19, coinY + 14, 2, coinX + 19, coinY + 14, 11);
+    const coinGrad = ctx.createRadialGradient(COIN_HUD_ICON_CENTER.x, COIN_HUD_ICON_CENTER.y, 2, COIN_HUD_ICON_CENTER.x, COIN_HUD_ICON_CENTER.y, 11);
     coinGrad.addColorStop(0, "#fff4a8");
     coinGrad.addColorStop(0.55, "#FFD700");
     coinGrad.addColorStop(1, "#FFA500");
     ctx.fillStyle = coinGrad;
     ctx.beginPath();
-    ctx.arc(coinX + 19, coinY + 14, 11, 0, Math.PI * 2);
+    ctx.arc(COIN_HUD_ICON_CENTER.x, COIN_HUD_ICON_CENTER.y, 11, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = "rgba(255,255,255,0.9)";
     ctx.font = '700 11px "Trebuchet MS", sans-serif';
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("$", coinX + 19, coinY + 14);
+    ctx.fillText("$", COIN_HUD_ICON_CENTER.x, COIN_HUD_ICON_CENTER.y);
     ctx.fillStyle = "#ffffff";
     ctx.font = '900 17px "Trebuchet MS", sans-serif';
     ctx.textAlign = "left";
-    ctx.fillText(formatNumber(this.game.pendingCoinsEstimate()), coinX + 42, coinY + 14);
+    ctx.fillText(formatNumber(this.game.getDisplayedRunCoins()), coinX + 42, coinY + 14);
     ctx.restore();
 
     if (this.game.role !== "cpu") {
@@ -1256,6 +1258,44 @@ export class UIRenderer {
     }
   }
 
+  drawCoinFlights(ctx) {
+    if (!Array.isArray(this.game.coinFlights) || this.game.coinFlights.length === 0) {
+      return;
+    }
+    for (const flight of this.game.coinFlights) {
+      const sample = sampleCoinFlight(flight);
+      const radius = flight.radius || TSUM_RADIUS * 0.475;
+      ctx.save();
+      ctx.translate(sample.x, sample.y);
+      ctx.scale(sample.scaleX, 1);
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = "rgba(255,184,0,0.72)";
+      const gradient = ctx.createRadialGradient(-radius * 0.32, -radius * 0.38, radius * 0.08, 0, 0, radius);
+      gradient.addColorStop(0, "#fffbd0");
+      gradient.addColorStop(0.28, "#ffe86b");
+      gradient.addColorStop(0.72, "#ffc21f");
+      gradient.addColorStop(1, "#e88700");
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.lineWidth = Math.max(1.2, radius * 0.12);
+      ctx.strokeStyle = "rgba(255,247,164,0.9)";
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.72, 0, Math.PI * 2);
+      ctx.stroke();
+      if (sample.scaleX > 0.32) {
+        ctx.fillStyle = "rgba(255,255,224,0.94)";
+        ctx.font = `900 ${Math.max(8, radius * 0.9)}px "Trebuchet MS", sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("$", 0, 0.5);
+      }
+      ctx.restore();
+    }
+  }
+
   drawSelectionTopBar(ctx) {
     const profile = this.profile();
     const pills = [
@@ -1654,6 +1694,7 @@ export class UIRenderer {
       this.drawBottomHUDReal(ctx);
     }
     this.drawTopHUDReal(ctx);
+    this.drawCoinFlights(ctx);
     this.drawComboDisplay(ctx);
     if (profile.drawTransientEffects) {
       this.drawShockwaves(ctx);
@@ -2220,7 +2261,7 @@ export class UIRenderer {
     ctx.textBaseline = "middle";
     ctx.fillStyle = "#ffd66e";
     ctx.font = '700 16px "Trebuchet MS", sans-serif';
-    ctx.fillText(`COIN ${formatNumber(this.game.coins + this.game.pendingCoinsEstimate())}`, WIDTH - 18, 28);
+    ctx.fillText(`COIN ${formatNumber(this.game.coins + this.game.getDisplayedRunCoins())}`, WIDTH - 18, 28);
     ctx.restore();
 
     const gaugeRect = { x: 20, y: 176, w: WIDTH - 40, h: 22 };

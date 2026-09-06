@@ -29,6 +29,7 @@ export const FRICTION = 0.80;
 export const TSUM_RESTITUTION = 0.20;
 export const FIXED_STEP = 1 / 60;
 export const STORAGE_KEY = "canvas_tsum_clone_save_v2";
+export const COIN_HUD_ICON_CENTER = Object.freeze({ x: 166, y: 82 });
 export const PAUSE_BUTTON_RECT = { x: WIDTH - 58, y: 38, w: 48, h: 48 };
 export const SKILL_BUTTON_RECT = { x: 18, y: 634, w: 74, h: 74 };
 export const DECOR_BUTTON_RECT = { x: WIDTH - 92, y: 634, w: 74, h: 74 };

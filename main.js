@@ -86,7 +86,7 @@ async function bootGame() {
   const debugImport = params.get("coronationElsaDebug") === "1" || params.get("coronationElsaPerf") === "1" || params.get("liliaDebug") === "1";
   const gameModuleUrl = debugImport
     ? `./game.js?t=${encodeURIComponent(params.get("t") || Date.now())}`
-    : "./game.js?v=game-feel-1";
+    : "./game.js?v=coin-flights-1";
   const { Game } = await import(gameModuleUrl);
   const { BattleController } = await import("./battle.js?v=game-feel-1");
   const { CheatSettingsPanel } = await import("./cheatSettingsPanel.js?v=cheat-settings-3");
