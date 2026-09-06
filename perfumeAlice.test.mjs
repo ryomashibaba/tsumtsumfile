@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { Game } from "./game.js";
-import { PERFUME_ALICE_TARGET_TSUM_COUNT, TARGET_TSUM_COUNT } from "./config.js";
+import { PERFUME_ALICE_TARGET_TSUM_BONUS, TARGET_TSUM_COUNT } from "./config.js";
+import { DEFAULT_CHEAT_SETTINGS } from "./cheatSettings.js";
 
-test("Perfume Alice raises the natural board target to 70 only while active", () => {
+test("Perfume Alice raises the current board target by 25 only while active", () => {
   const game = {
     isCheatActive: () => false,
     getCoingainData: () => null,
@@ -12,10 +13,41 @@ test("Perfume Alice raises the natural board target to 70 only while active", ()
     getActiveSkillSession: (skillId) => skillId === "perfumeAlice" ? { id: "perfumeAlice_1" } : null
   };
 
-  assert.equal(Game.prototype.getTargetBodyCount.call(game), PERFUME_ALICE_TARGET_TSUM_COUNT);
+  assert.equal(Game.prototype.getTargetBodyCount.call(game), TARGET_TSUM_COUNT + PERFUME_ALICE_TARGET_TSUM_BONUS);
 
   game.getActiveSkillSession = () => null;
   assert.equal(Game.prototype.getTargetBodyCount.call(game), TARGET_TSUM_COUNT);
+});
+
+test("Perfume Alice adds 25 to the cheat board target and preserves an unlimited target", () => {
+  const game = {
+    isCheatActive: () => true,
+    cheatSettings: { boardTarget: 60 },
+    getActiveSkillSession: () => ({ id: "perfumeAlice_1" })
+  };
+
+  assert.equal(Game.prototype.getTargetBodyCount.call(game), 60 + PERFUME_ALICE_TARGET_TSUM_BONUS);
+
+  game.cheatSettings.boardTarget = "unlimited";
+  assert.equal(Game.prototype.getTargetBodyCount.call(game), Infinity);
+});
+
+test("Perfume Alice's cheat refill also uses the raised board target", () => {
+  const game = {
+    isCheatActive: () => true,
+    isCoingainSpawnPaused: () => false,
+    timeUp: false,
+    cheatSettings: { ...DEFAULT_CHEAT_SETTINGS, enabled: true, boardTarget: 60, spawnRate: "instant" },
+    cheatSpawnAccumulator: 0,
+    getTargetBodyCount: () => 60 + PERFUME_ALICE_TARGET_TSUM_BONUS,
+    getLiveBodyOccupancy: () => 60,
+    spawnTsumBatch: (count, targetHint) => ({ count, targetHint })
+  };
+
+  assert.deepEqual(Game.prototype.updateCheatSpawnScheduler.call(game, 0), {
+    count: PERFUME_ALICE_TARGET_TSUM_BONUS,
+    targetHint: 60 + PERFUME_ALICE_TARGET_TSUM_BONUS
+  });
 });
 
 test("Perfume Alice clears each adjacent Alice simultaneously with its triggering chain Tsum", () => {

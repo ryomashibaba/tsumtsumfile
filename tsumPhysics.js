@@ -261,15 +261,17 @@ const recordContact = (body, normalX, normalY, normalImpulse, tangentImpulse, co
 export function resolveTsumContactPair(a, b, options = {}) {
   const tuning = options.tuning || TSUM_PHYSICS_TUNING;
   const getRadius = options.getRadius || ((body) => getPhysicsContactRadius(body));
-  const getPosition = options.getPosition || ((body) => ({ x: body.x, y: body.y }));
+  const getPosition = options.getPosition || null;
+  const getX = options.getX || ((body) => body.x);
+  const getY = options.getY || ((body) => body.y);
   const isLocked = options.isLocked || (() => false);
   const material = options.material || getContactMaterial(a, b, tuning);
-  const radiusA = getRadius(a);
-  const radiusB = getRadius(b);
-  const positionA = getPosition(a);
-  const positionB = getPosition(b);
-  const dx = positionB.x - positionA.x;
-  const dy = positionB.y - positionA.y;
+  const radiusA = Number.isFinite(options.radiusA) ? options.radiusA : getRadius(a);
+  const radiusB = Number.isFinite(options.radiusB) ? options.radiusB : getRadius(b);
+  const positionA = getPosition ? getPosition(a) : null;
+  const positionB = getPosition ? getPosition(b) : null;
+  const dx = (positionB ? positionB.x : getX(b)) - (positionA ? positionA.x : getX(a));
+  const dy = (positionB ? positionB.y : getY(b)) - (positionA ? positionA.y : getY(a));
   const dist = Math.hypot(dx, dy) || 0.001;
   const radiusSum = radiusA + radiusB;
   const targetDistance = radiusSum * material.targetDistanceRatio;
@@ -370,15 +372,17 @@ export function resolveTsumContactPair(a, b, options = {}) {
 export function enforceEmergencyContactMinimum(a, b, options = {}) {
   const tuning = options.tuning || TSUM_PHYSICS_TUNING;
   const getRadius = options.getRadius || ((body) => getPhysicsContactRadius(body));
-  const getPosition = options.getPosition || ((body) => ({ x: body.x, y: body.y }));
+  const getPosition = options.getPosition || null;
+  const getX = options.getX || ((body) => body.x);
+  const getY = options.getY || ((body) => body.y);
   const isLocked = options.isLocked || (() => false);
   const material = options.material || getContactMaterial(a, b, tuning);
-  const radiusA = getRadius(a);
-  const radiusB = getRadius(b);
-  const positionA = getPosition(a);
-  const positionB = getPosition(b);
-  const dx = positionB.x - positionA.x;
-  const dy = positionB.y - positionA.y;
+  const radiusA = Number.isFinite(options.radiusA) ? options.radiusA : getRadius(a);
+  const radiusB = Number.isFinite(options.radiusB) ? options.radiusB : getRadius(b);
+  const positionA = getPosition ? getPosition(a) : null;
+  const positionB = getPosition ? getPosition(b) : null;
+  const dx = (positionB ? positionB.x : getX(b)) - (positionA ? positionA.x : getX(a));
+  const dy = (positionB ? positionB.y : getY(b)) - (positionA ? positionA.y : getY(a));
   const dist = Math.hypot(dx, dy) || 0.001;
   const minimumDistance = (radiusA + radiusB) * Math.min(
     material.targetDistanceRatio,

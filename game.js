@@ -13,7 +13,7 @@ import {
   BOMB_BLAST_RADIUS,
   MAX_CHAIN_DIST,
   NAMINE_SPLASH_RADIUS,
-  PERFUME_ALICE_TARGET_TSUM_COUNT,
+  PERFUME_ALICE_TARGET_TSUM_BONUS,
   TARGET_TSUM_COUNT,
   GRAVITY,
   RESTITUTION,
@@ -147,6 +147,10 @@ import {
   wakePhysicsBody,
   wakeSupportedBodies
 } from './tsumPhysics.js?v=hybrid-physics-1';
+import {
+  StableTsumSpatialHash,
+  shouldUseHighBodyCountBroadphase
+} from './tsumSpatialHash.js?v=high-body-count-1';
 import { GameFeelController, calculateVisualChainCount } from './gameFeel.js?v=game-feel-1';
 
 const TITLE_TSUMS_PER_PAGE = 10;
@@ -3138,6 +3142,10 @@ class Game {
     this.currentWeights = [];
     this.renderTsums = [];
     this.renderBodies = [];
+    this.physicsBodiesScratch = [];
+    this.physicsContactRadiiScratch = [];
+    this.physicsContactSpatialHash = new StableTsumSpatialHash();
+    this.physicsBroadphaseStats = null;
     this.namineSkillTimer = 0;
     this.judyNickPreparedMode = "judy";
     this.judyNickGaugeManager = null;
@@ -5883,19 +5891,21 @@ class Game {
   }
 
   getTargetBodyCount() {
+    let targetBodyCount = TARGET_TSUM_COUNT;
     if (this.isCheatActive?.()) {
-      return this.cheatSettings.boardTarget === CHEAT_SPECIAL.UNLIMITED
+      targetBodyCount = this.cheatSettings.boardTarget === CHEAT_SPECIAL.UNLIMITED
         ? Infinity
         : this.cheatSettings.boardTarget;
-    }
-    const data = this.getCoingainData();
-    if (data?.miniActive) {
-      return skillValue("coingain", "miniTargetCount", data.level || this.selectedSkillLevel) || 90;
+    } else {
+      const data = this.getCoingainData();
+      if (data?.miniActive) {
+        targetBodyCount = skillValue("coingain", "miniTargetCount", data.level || this.selectedSkillLevel) || 90;
+      }
     }
     if (this.getActiveSkillSession?.("perfumeAlice")) {
-      return PERFUME_ALICE_TARGET_TSUM_COUNT;
+      return targetBodyCount + PERFUME_ALICE_TARGET_TSUM_BONUS;
     }
-    return TARGET_TSUM_COUNT;
+    return targetBodyCount;
   }
 
   applyCoingainMiniScaleToBody(body, session = this.getCoingainSession()) {
@@ -10339,13 +10349,14 @@ class Game {
     let remaining = Math.max(0, Math.floor(Number(requestedCount) || 0));
     let spawnIndex = 0;
     const maxSpawns = Math.max(0, remaining);
+    let liveNaturalLargeCount = this.getLiveNaturalLargeTsumCount();
     while (remaining > 0 && spawnIndex < maxSpawns) {
       const pendingLargeType = this.pendingLargeTsumTypes.length > 0
         ? this.pendingLargeTsumTypes.shift()
         : null;
       const canSpawnLarge = canSpawnNaturalLargeTsum({
         hasPendingReservation: !!pendingLargeType,
-        liveNaturalLargeCount: this.getLiveNaturalLargeTsumCount(),
+        liveNaturalLargeCount,
         availableBodySlots: remaining
       });
       const type = canSpawnLarge ? pendingLargeType : this.randomTsumType();
@@ -10360,6 +10371,8 @@ class Game {
       }
       if (body.isBomb) {
         this.bombs.push(body);
+      } else if (body.isLarge && body.largeSpawnSource === "natural") {
+        liveNaturalLargeCount += 1;
       }
       spawnIndex += 1;
       remaining -= 1;
@@ -10381,8 +10394,12 @@ class Game {
     if (!this.isCheatActive() || this.isCoingainSpawnPaused() || this.timeUp) {
       return 0;
     }
+    const targetOccupancy = this.getTargetBodyCount();
+    const spawnSettings = targetOccupancy === Infinity
+      ? this.cheatSettings
+      : { ...this.cheatSettings, boardTarget: targetOccupancy };
     const schedule = advanceSpawnSchedule({
-      settings: this.cheatSettings,
+      settings: spawnSettings,
       occupancy: this.getLiveBodyOccupancy(),
       accumulator: this.cheatSpawnAccumulator,
       dt,
@@ -10392,9 +10409,9 @@ class Game {
     if (schedule.spawnCount <= 0) {
       return 0;
     }
-    const targetHint = this.cheatSettings.boardTarget === CHEAT_SPECIAL.UNLIMITED
+    const targetHint = targetOccupancy === Infinity
       ? Math.max(TARGET_TSUM_COUNT, schedule.spawnCount)
-      : this.cheatSettings.boardTarget;
+      : targetOccupancy;
     return this.spawnTsumBatch(schedule.spawnCount, targetHint);
   }
 
@@ -10484,7 +10501,15 @@ class Game {
   }
 
   refreshRenderBodies() {
-    this.renderBodies = this.getRenderableBodies();
+    const bodies = this.renderBodies;
+    bodies.length = 0;
+    for (const tsum of this.tsums) {
+      if (this.isBodyRenderable(tsum)) bodies.push(tsum);
+    }
+    for (const bomb of this.bombs) {
+      if (this.isBodyRenderable(bomb)) bodies.push(bomb);
+    }
+    bodies.sort((a, b) => b.y - a.y);
   }
 
   getFieldFloorY(x) {
@@ -11948,13 +11973,65 @@ class Game {
   }
 
   stepPhysicsFrame() {
-    const activeBodies = this.getPhysicsBodies();
-    const occupyingBodies = this.getOccupyingBodies();
-    const isLocked = (body) => !!(
-      body.clearOccupying ||
-      body.inChain ||
-      this.isBodyMotionLocked(body)
+    const activeBodies = this.physicsBodiesScratch;
+    activeBodies.length = 0;
+    for (const tsum of this.tsums) {
+      if (isBodyPhysicsActive(tsum)) activeBodies.push(tsum);
+    }
+    for (const bomb of this.bombs) {
+      if (isBodyPhysicsActive(bomb)) activeBodies.push(bomb);
+    }
+    // isBodyOccupying currently has the same lifecycle contract as
+    // isBodyPhysicsActive, so the hot path can safely share one compact list.
+    const occupyingBodies = activeBodies;
+    const lockedBodies = new Set();
+    const contactRadii = this.physicsContactRadiiScratch;
+    contactRadii.length = activeBodies.length;
+    for (let bodyIndex = 0; bodyIndex < activeBodies.length; bodyIndex += 1) {
+      const body = activeBodies[bodyIndex];
+      if (body.clearOccupying || body.inChain || this.isBodyMotionLocked(body)) {
+        lockedBodies.add(body);
+      }
+      contactRadii[bodyIndex] = this.getPhysicsContactRadius(body);
+    }
+    const isLocked = (body) => lockedBodies.has(body);
+    const getRadius = (body, index) => (
+      Number.isInteger(index) ? contactRadii[index] : this.getPhysicsContactRadius(body)
     );
+    const getX = (body) => this.getBodyCollisionX(body);
+    const getY = (body) => this.getBodyCollisionY(body);
+    const contactOptions = { getRadius, getX, getY, isLocked };
+    const useBroadphase = shouldUseHighBodyCountBroadphase({
+      cheatActive: this.isCheatActive(),
+      bodyCount: occupyingBodies.length
+    });
+    const broadphase = this.physicsContactSpatialHash;
+    const fullPairsPerPass = occupyingBodies.length * Math.max(0, occupyingBodies.length - 1) / 2;
+    let broadphasePasses = 0;
+    let broadphaseFallbacks = 0;
+    let candidatePairs = 0;
+    const forEachContactPair = (callback) => {
+      if (useBroadphase) {
+        const pairs = broadphase.build(occupyingBodies, contactOptions);
+        broadphasePasses += 1;
+        if (pairs) {
+          candidatePairs += pairs.length / 2;
+          for (let pairIndex = 0; pairIndex < pairs.length; pairIndex += 2) {
+            const first = pairs[pairIndex];
+            const second = pairs[pairIndex + 1];
+            callback(occupyingBodies[first], occupyingBodies[second], first, second);
+          }
+          return;
+        }
+        broadphaseFallbacks += 1;
+      }
+      candidatePairs += fullPairsPerPass;
+      for (let first = 0; first < occupyingBodies.length; first += 1) {
+        for (let second = first + 1; second < occupyingBodies.length; second += 1) {
+          callback(occupyingBodies[first], occupyingBodies[second], first, second);
+        }
+      }
+    };
     const gravityMultiplier = this.isCheatActive() ? this.cheatSettings.gravityMultiplier : 1;
     const gravity = {
       x: TSUM_PHYSICS_TUNING.gravity.x * gravityMultiplier,
@@ -11969,42 +12046,26 @@ class Game {
     }
 
     for (let iter = 0; iter < TSUM_PHYSICS_TUNING.solverIterations; iter += 1) {
-      for (let i = 0; i < occupyingBodies.length; i += 1) {
-        for (let j = i + 1; j < occupyingBodies.length; j += 1) {
-          const a = occupyingBodies[i];
-          const b = occupyingBodies[j];
-          const result = resolveTsumContactPair(a, b, {
-            getRadius: (entry) => this.getPhysicsContactRadius(entry),
-            getPosition: (entry) => ({
-              x: this.getBodyCollisionX(entry),
-              y: this.getBodyCollisionY(entry)
-            }),
-            isLocked
-          });
-          if (result && result.normalImpulse > 0.15) {
-            a.bounce = 1;
-            b.bounce = 1;
-          }
+      forEachContactPair((a, b, first, second) => {
+        contactOptions.radiusA = contactRadii[first];
+        contactOptions.radiusB = contactRadii[second];
+        const result = resolveTsumContactPair(a, b, contactOptions);
+        if (result && result.normalImpulse > 0.15) {
+          a.bounce = 1;
+          b.bounce = 1;
         }
-      }
+      });
       for (const body of activeBodies) {
         this.resolveFieldBoundary(body, { soft: true, locked: isLocked(body) });
       }
     }
 
     for (let iter = 0; iter < TSUM_PHYSICS_TUNING.emergencyProjectionIterations; iter += 1) {
-      for (let i = 0; i < occupyingBodies.length; i += 1) {
-        for (let j = i + 1; j < occupyingBodies.length; j += 1) {
-          enforceEmergencyContactMinimum(occupyingBodies[i], occupyingBodies[j], {
-            getRadius: (entry) => this.getPhysicsContactRadius(entry),
-            getPosition: (entry) => ({
-              x: this.getBodyCollisionX(entry),
-              y: this.getBodyCollisionY(entry)
-            }),
-            isLocked
-          });
-        }
-      }
+      forEachContactPair((a, b, first, second) => {
+        contactOptions.radiusA = contactRadii[first];
+        contactOptions.radiusB = contactRadii[second];
+        enforceEmergencyContactMinimum(a, b, contactOptions);
+      });
       for (const body of activeBodies) {
         this.resolveFieldBoundary(body, { soft: true, locked: isLocked(body) });
       }
@@ -12014,6 +12075,16 @@ class Game {
       if (!body.inChain) this.resolveFieldBoundary(body, { soft: true, locked: isLocked(body) });
       finalizeTsumPhysicsBody(body, { locked: isLocked(body) });
     }
+    this.physicsBroadphaseStats = Object.freeze({
+      enabled: useBroadphase,
+      bodyCount: occupyingBodies.length,
+      passes: broadphasePasses,
+      fallbacks: broadphaseFallbacks,
+      fullPairCount: fullPairsPerPass * (
+        TSUM_PHYSICS_TUNING.solverIterations + TSUM_PHYSICS_TUNING.emergencyProjectionIterations
+      ),
+      candidatePairCount: candidatePairs
+    });
   }
 
   resolveFieldBoundary(tsum, options = {}) {
