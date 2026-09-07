@@ -231,7 +231,7 @@ export const SKILL_TABLES = {
     durationSec: [3.0, 3.6, 4.2, 4.8, 5.4, 6.0],
     splashRadius: [NAMINE_SPLASH_RADIUS, NAMINE_SPLASH_RADIUS, NAMINE_SPLASH_RADIUS, NAMINE_SPLASH_RADIUS, NAMINE_SPLASH_RADIUS, NAMINE_SPLASH_RADIUS],
     coinCorrectionType: ["correction_-5", "correction_-4", "correction_-4", "correction_-3", "correction_-3", "correction_-2"],
-    chargeMultiplier: [0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
+    chargeMultiplier: [1 / 3, 1 / 3, 1 / 3, 1 / 3, 1 / 3, 1 / 3]
   },
   gaston: {
     cost: [20, 20, 20, 20, 20, 20],
@@ -258,14 +258,16 @@ export const SKILL_TABLES = {
     aliceScale: [0.72, 0.68, 0.64, 0.60, 0.56, 0.52],
     aliceHitRadiusScale: [0.72, 0.68, 0.64, 0.60, 0.56, 0.52],
     coinCorrectionType: ["correction_1", "correction_2", "correction_2", "correction_3", "correction_3", "correction_4"],
-    scoreMultiplier: [1.21, 1.3924, 1.5876, 1.7956, 2.0164, 2.25]
+    scoreMultiplier: [1.21, 1.3924, 1.5876, 1.7956, 2.0164, 2.25],
+    chargeMultiplier: [0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
   },
   jamilViper: {
     cost: [22, 21, 20, 19, 18, 17],
     durationSec: [6.0, 6.0, 6.0, 6.0, 6.0, 6.0],
     scoreMultiplier: [1.4, 1.8, 2.2, 2.6, 3.0, 3.4],
     coinCorrectionType: ["correction_1", "correction_2", "correction_3", "correction_4", "correction_5", "correction_6"],
-    splashRadius: [60, 66, 72, 78, 84, 90]
+    splashRadius: [60, 66, 72, 78, 84, 90],
+    chargeMultiplier: [0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
   },
   snowQueenElsa: {
     cost: [19, 19, 19, 19, 19, 19],

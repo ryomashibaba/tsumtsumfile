@@ -60,6 +60,7 @@ import {
   registerLiliaSkill
 } from './lilia.js?v=tsum-images-8';
 import {
+  FINAL_BATTLE_HOOK_TYPE_ID,
   registerFinalBattleHookSkill
 } from './finalBattleHook.js?v=final-battle-hook-1';
 import { drawTsumArtwork, preloadTsumImages, releaseTsumImages } from './tsumImages.js?v=render-quality-1';
@@ -1432,6 +1433,7 @@ class BoardStateService {
         sessionId: spec.sessionId,
         kind: spec.kind,
         scoreMultiplier: spec.scoreMultiplier || 1,
+        chargeMultiplier: spec.chargeMultiplier || 1,
         correctionType: spec.correctionType || null,
         coinMultiplier: spec.coinMultiplier || 1,
         splashRadius: spec.splashRadius || 0
@@ -1713,11 +1715,13 @@ class SkillRuntimeManager {
     this.nextVisualSequenceId = 0;
     this.pendingActivation = null;
     this.timingPauses = [];
+    this.heldFinalBattleHookInput = null;
   }
 
   reset() {
     this.pendingActivation = null;
     this.timingPauses = [];
+    this.heldFinalBattleHookInput = null;
     for (const session of this.sessions.slice()) {
       this.endSession(session, "replaced", { skipEndPause: true });
     }
@@ -1828,6 +1832,13 @@ class SkillRuntimeManager {
     if (!this.sessions.some((entry) => entry.id === session.id)) {
       this.sessions.push(session);
     }
+    if (
+      skillId === FINAL_BATTLE_HOOK_TYPE_ID
+      && this.heldFinalBattleHookInput?.activationSequenceId != null
+    ) {
+      this.heldFinalBattleHookInput.sessionId = session.id;
+      this.heldFinalBattleHookInput.activationSequenceId = null;
+    }
     return true;
   }
 
@@ -1846,6 +1857,63 @@ class SkillRuntimeManager {
 
   isInputLocked() {
     return !!this.pendingActivation || this.timingPauses.length > 0;
+  }
+
+  captureHeldFinalBattleHookInput(pos, pointerId) {
+    if (!pos || pointerId == null) return false;
+    const pendingActivation = this.pendingActivation;
+    const activeSession = this.getSessionsByHandlerId(FINAL_BATTLE_HOOK_TYPE_ID).at(-1);
+    const isHookPresentation = pendingActivation?.skillId === FINAL_BATTLE_HOOK_TYPE_ID;
+    const isHookTimingPause = this.timingPauses.some((pause) => pause.skillId === FINAL_BATTLE_HOOK_TYPE_ID);
+    const isHookClearPresentation = this.game?.pendingClear?.visual?.skillId === FINAL_BATTLE_HOOK_TYPE_ID;
+    if (!isHookPresentation && !(activeSession && (isHookTimingPause || isHookClearPresentation))) {
+      return false;
+    }
+    this.heldFinalBattleHookInput = {
+      pointerId,
+      pos: { x: pos.x, y: pos.y },
+      activationSequenceId: isHookPresentation ? pendingActivation.sequenceId : null,
+      sessionId: activeSession?.id || null
+    };
+    return true;
+  }
+
+  releaseHeldFinalBattleHookInput(pointerId) {
+    if (this.heldFinalBattleHookInput?.pointerId === pointerId) {
+      this.heldFinalBattleHookInput = null;
+    }
+  }
+
+  clearHeldFinalBattleHookInput() {
+    this.heldFinalBattleHookInput = null;
+  }
+
+  resumeHeldFinalBattleHookInput() {
+    const held = this.heldFinalBattleHookInput;
+    if (!held) return false;
+    if (this.game?.manualDragPointerId !== held.pointerId) {
+      this.heldFinalBattleHookInput = null;
+      return false;
+    }
+    if (
+      this.game?.state !== 'playing'
+      || this.game?.paused
+      || this.game?.timeUp
+      || this.game?.actionLock
+      || this.game?.pendingClear
+      || this.isInputLocked()
+    ) {
+      return false;
+    }
+    const session = this.getSessionsByHandlerId(FINAL_BATTLE_HOOK_TYPE_ID)
+      .find((entry) => entry.id === held.sessionId);
+    this.heldFinalBattleHookInput = null;
+    if (!session) return false;
+    const started = this.game.inputRouter?.handleChainStart(held.pos) === true;
+    if (started) {
+      this.game.noteAction?.();
+    }
+    return started;
   }
 
   getTimingPauseState() {
@@ -1928,6 +1996,9 @@ class SkillRuntimeManager {
     session._ending = true;
     if (handler && handler.onEnd) {
       handler.onEnd(this.createContext(handler, session.level, session), session, reason);
+    }
+    if (this.heldFinalBattleHookInput?.sessionId === session.id) {
+      this.heldFinalBattleHookInput = null;
     }
     if (session.cleanupOnEnd !== false && handler && handler.cleanupBySession) {
       handler.cleanupBySession(this.createContext(handler, session.level, session), session.id);
@@ -4942,6 +5013,7 @@ class Game {
     this.displayedScore = 0;
     this.timeRemaining = 60;
     this.state = "title";
+    this.skillRuntime?.clearHeldFinalBattleHookInput?.();
     this.tsums = [];
     this.bombs = [];
     this.pendingLargeTsumTypes = [];
@@ -5225,6 +5297,9 @@ class Game {
       this.cancelActiveInputForCoingainLock();
       return;
     }
+    if (this.skillRuntime.captureHeldFinalBattleHookInput(pos, event.pointerId)) {
+      return;
+    }
     if (this.isGameplayInputLocked({ ignoreActionLock: true })) {
       return;
     }
@@ -5395,6 +5470,7 @@ class Game {
     this.dragPointer = this.getPointerPosition(event);
     this.manualDragPoint = null;
     this.manualDragPointerId = null;
+    this.skillRuntime.releaseHeldFinalBattleHookInput(event.pointerId);
     if (this.state === "playing" && this.isCoingainInputLocked()) {
       return;
     }
@@ -12878,6 +12954,7 @@ class Game {
     }
     this.updateSkillChargeFlights(gameplayDt * 1000);
     this.skillRuntime.update(gameplayDt * 1000);
+    this.skillRuntime.resumeHeldFinalBattleHookInput?.();
     this.skillSystem.update(dt);
     this.gameFeel?.syncSkillReady(this.isSkillReadyForActivation());
     this.updateCheatAutoSkill?.();
@@ -13136,6 +13213,16 @@ function pickMostCommonType(game, excludedTypeId = null) {
     .filter((entry) => entry.type);
   entries.sort((a, b) => b.count - a.count);
   return entries.length ? entries[0].type : null;
+}
+
+function pickRandomBoardSubType(game) {
+  const candidates = game.getBoardTypes()
+    .filter((type) => type && type.id !== game.myTsum.id);
+  if (!candidates.length) {
+    return null;
+  }
+  const random = typeof game.random === "function" ? game.random : Math.random;
+  return candidates[Math.min(candidates.length - 1, Math.floor(random() * candidates.length))];
 }
 
 function computeCoronationElsaFreezePreview(game, chain, level, plannerSnapshot = null) {
@@ -13425,7 +13512,7 @@ SkillRegistry.namine = {
   tables: SKILL_TABLES.namine,
   onActivate(ctx) {
     const duration = skillValue("namine", "durationSec", ctx.level) || 4.0;
-    const sourceType = pickMostCommonType(ctx.game, ctx.game.myTsum.id);
+    const sourceType = pickRandomBoardSubType(ctx.game);
     ctx.game.pushCenterMessage("NAMINE!", "#ffd2ff", 0.92);
     ctx.game.namineSkillTimer = duration;
     const session = ctx.createSession({
@@ -13451,9 +13538,7 @@ SkillRegistry.namine = {
     ctx.game.namineSkillTimer = Math.max(0, session.remainingMs / 1000);
   },
   onSpawn(ctx, session, node) {
-    // During skill duration, always transform the most common sub-tsum type to Sora
-    const mostCommon = pickMostCommonType(ctx.game, ctx.game.myTsum.id);
-    if (mostCommon && node.type.id === mostCommon.id) {
+    if (session.data.sourceTypeId && ctx.board.getResolvedType(node).id === session.data.sourceTypeId) {
       ctx.transformNodes([node.id], {
         sessionId: session.id,
         toTypeId: "namineSora",
@@ -13686,6 +13771,7 @@ SkillRegistry.perfumeAlice = {
     if (request.source !== "chain") {
       return request;
     }
+    request.chargeMultiplier = skillValue("perfumeAlice", "chargeMultiplier", ctx.level);
     const primaryTargets = Array.isArray(request.sequentialPrimaryTargets) && request.sequentialPrimaryTargets.length
       ? request.sequentialPrimaryTargets.slice()
       : request.targets.slice();
@@ -13755,6 +13841,7 @@ SkillRegistry.jamilViper = {
       sessionId: session.id,
       kind: "jamilHighScore",
       scoreMultiplier: skillValue("jamilViper", "scoreMultiplier", ctx.level),
+      chargeMultiplier: skillValue("jamilViper", "chargeMultiplier", ctx.level),
       correctionType: skillValue("jamilViper", "coinCorrectionType", ctx.level),
       splashRadius: skillValue("jamilViper", "splashRadius", ctx.level)
     });
@@ -13769,6 +13856,7 @@ SkillRegistry.jamilViper = {
       sessionId: session.id,
       kind: "jamilHighScore",
       scoreMultiplier: skillValue("jamilViper", "scoreMultiplier", ctx.level),
+      chargeMultiplier: skillValue("jamilViper", "chargeMultiplier", ctx.level),
       correctionType: skillValue("jamilViper", "coinCorrectionType", ctx.level),
       splashRadius: skillValue("jamilViper", "splashRadius", ctx.level)
     });
@@ -13789,6 +13877,7 @@ SkillRegistry.jamilViper = {
     }
     const seen = new Set(request.targets.map((tsum) => tsum.id));
     let maxScoreMultiplier = 1;
+    let chargeMultiplier = 1;
     let correctionType = null;
     const sequentialSplashGroups = [];
     for (const { tsum, entry } of specials) {
@@ -13808,10 +13897,12 @@ SkillRegistry.jamilViper = {
         sequentialSplashGroups.push({ triggerId: tsum.id, targets: groupTargets });
       }
       maxScoreMultiplier = Math.max(maxScoreMultiplier, entry.scoreMultiplier);
+      chargeMultiplier = Math.min(chargeMultiplier, entry.chargeMultiplier ?? 1);
       correctionType = correctionType || entry.correctionType;
     }
     attachSequentialSplashGroups(request, primaryTargets, sequentialSplashGroups, ctx.game, "jamilViper");
     request.scoreMultiplier *= maxScoreMultiplier;
+    request.chargeMultiplier *= chargeMultiplier;
     request.correctionType = correctionType;
     return request;
   },

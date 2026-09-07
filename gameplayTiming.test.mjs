@@ -703,6 +703,7 @@ test("one Moana special-bomb action creates one 670 ms pause even for multiple b
 
 function createJudyNickActivationHarness({ currentMode = null, preparedMode = "judy" } = {}) {
   const messages = [];
+  const gaugeEvents = [];
   let existing = currentMode ? {
     id: "judyNick-1",
     handlerId: "judyNick",
@@ -715,6 +716,10 @@ function createJudyNickActivationHarness({ currentMode = null, preparedMode = "j
     activationData: { judyNickMode: preparedMode },
     game: {
       judyNickPreparedMode: "judy",
+      judyNickGaugeManager: {
+        startSkill: (mode) => gaugeEvents.push(`start:${mode}`),
+        endSkill: (mode) => gaugeEvents.push(`end:${mode}`)
+      },
       tsums: [],
       myTsum: { id: "judyNick" },
       pushCenterMessage(text) { messages.push(text); }
@@ -743,6 +748,7 @@ function createJudyNickActivationHarness({ currentMode = null, preparedMode = "j
   return {
     ctx,
     messages,
+    gaugeEvents,
     activate(prepared = preparedMode) {
       ctx.activationData = { judyNickMode: prepared };
       return Game.SkillRegistry.judyNick.onActivate(ctx);
@@ -787,4 +793,12 @@ test("JudyNick repeated reactivation alternates Judy and Nick", () => {
   modes.push(harness.activate("nick").data.currentMode);
 
   assert.deepEqual(modes, ["judy", "nick", "judy", "nick"]);
+  assert.equal(harness.activate("judy").data.countStage, 5);
+  assert.deepEqual(harness.gaugeEvents, [
+    "start:judy",
+    "end:judy", "start:nick",
+    "end:nick", "start:judy",
+    "end:judy", "start:nick",
+    "end:nick", "start:judy"
+  ]);
 });

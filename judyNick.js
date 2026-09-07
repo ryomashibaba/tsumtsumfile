@@ -285,14 +285,6 @@ export class JudyNickGaugeManager {
       return false;
     }
 
-    if (context.activeMode === "judy" && typeId === "judyNickNickMate") {
-      return false;
-    }
-
-    if (context.activeMode === "nick" && typeId === "judyNickJudy") {
-      return false;
-    }
-
     return true;
   }
 
@@ -544,6 +536,7 @@ export function registerJudyNickSkill({
       if (session) {
         const previousMode = session.data.currentMode || "judy";
         const nextMode = resolveJudyNickActivationMode(previousMode, preparedMode);
+        ctx.game.judyNickGaugeManager?.endSkill(previousMode);
         session.level = ctx.level;
         session.remainingMs = durationMs;
         session.data.countStage = Math.min(10, (session.data.countStage || 1) + 1);
@@ -574,6 +567,7 @@ export function registerJudyNickSkill({
         });
       }
       applyJudyNickMode(ctx, session);
+      ctx.game.judyNickGaugeManager?.startSkill(session.data.currentMode);
       return session;
     },
     onSpawn(ctx, session, node) {
@@ -622,6 +616,7 @@ export function registerJudyNickSkill({
       return request;
     },
     onEnd(ctx, session) {
+      ctx.game.judyNickGaugeManager?.endSkill(session.data.currentMode);
       ctx.clearBySource(session.id);
     },
     cleanupBySession() {

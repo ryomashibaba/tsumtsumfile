@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { SKILL_TABLES } from './config.js';
-import { ClearPipeline } from './game.js';
+import { ClearPipeline, InputRouter, SkillRuntimeManager } from './game.js';
 import {
   FINAL_BATTLE_HOOK_ACTIVE_DURATION_MS,
   FINAL_BATTLE_HOOK_PHASE,
@@ -153,6 +153,115 @@ function makeSkillHarness(level = 6) {
   pauses.shift().onComplete();
   return { handler, ctx, game, session, clearCalls, pauses, ended, physicalA, physicalB, diagonal };
 }
+
+function makeHeldInputRuntimeHarness() {
+  const physicalHook = node('held-hook', 90, 460);
+  const game = {
+    state: 'playing',
+    paused: false,
+    timeUp: false,
+    manualDragPointerId: 41,
+    actionLock: false,
+    pendingClear: null,
+    width: 414,
+    myTsum: type,
+    tsums: [physicalHook],
+    dragging: false,
+    chain: [],
+    chainSet: new Set(),
+    skillVisualsEnabled: true,
+    boardState: {
+      getResolvedType: (entry) => entry.type,
+      isFrozen: () => false
+    },
+    isTsumInPlayArea: () => true,
+    getBodyRadius: (entry) => entry.radius || 29,
+    findTsumAt(x, y) {
+      return this.tsums.find((entry) => Math.hypot(entry.x - x, entry.y - y) <= this.getBodyRadius(entry)) || null;
+    },
+    canConnectWithChainRule: () => true,
+    gameFeel: { setChain() {} },
+    noteAction() { this.noteActionCount = (this.noteActionCount || 0) + 1; }
+  };
+  const runtime = new SkillRuntimeManager(game, game.boardState);
+  game.isGameplayInputLocked = () => runtime.isInputLocked();
+  game.inputRouter = new InputRouter(game, game.boardState, runtime, {});
+  return { game, runtime, physicalHook };
+}
+
+test('held input during every Final Battle Hook presentation resumes only after input is unlocked', () => {
+  const initial = makeHeldInputRuntimeHarness();
+  assert.equal(initial.runtime.activate('finalBattleHook', 1), true);
+  assert.equal(initial.runtime.captureHeldFinalBattleHookInput({ x: 90, y: 460 }, 41), true);
+  initial.runtime.updateRaw(1970);
+  initial.runtime.updateRaw(20);
+  assert.equal(initial.game.dragging, false, 'smoke reveal still locks input after activation presentation');
+  initial.runtime.updateRaw(400);
+  assert.equal(initial.runtime.resumeHeldFinalBattleHookInput(), true);
+  assert.deepEqual(initial.game.chain.map((entry) => entry.id), ['held-hook']);
+  const initialSession = initial.runtime.getSessionsByHandlerId('finalBattleHook')[0];
+  assert.equal(initial.game.inputRouter.handleDrag({
+    x: initialSession.data.angryHook.x,
+    y: initialSession.data.angryHook.y
+  }), true, 'the resumed chain continues through the normal Hook drag path');
+  assert.deepEqual(initial.game.chain.map((entry) => entry.id), ['held-hook', initialSession.data.angryHook.id]);
+
+  for (const presentation of ['manualResolve', 'slashVisual', 'diagonalResolve', 'growthSettle']) {
+    const harness = makeHeldInputRuntimeHarness();
+    assert.equal(harness.runtime.activateNow('finalBattleHook', 1), true);
+    harness.runtime.updateRaw(400);
+    const session = harness.runtime.getSessionsByHandlerId('finalBattleHook')[0];
+    session.data.phase = FINAL_BATTLE_HOOK_PHASE.ACTIVE_INPUT;
+    if (presentation === 'manualResolve' || presentation === 'diagonalResolve') {
+      harness.game.pendingClear = { visual: { skillId: 'finalBattleHook', kind: presentation } };
+    } else {
+      harness.runtime.startTimingPause({ durationMs: 100, pauseClock: true, pausePhysics: true }, {
+        skillId: 'finalBattleHook',
+        kind: presentation
+      });
+    }
+    assert.equal(harness.runtime.captureHeldFinalBattleHookInput({ x: 90, y: 460 }, 41), true, presentation);
+    harness.game.pendingClear = null;
+    harness.runtime.timingPauses = [];
+    assert.equal(harness.runtime.resumeHeldFinalBattleHookInput(), true, presentation);
+    assert.deepEqual(harness.game.chain.map((entry) => entry.id), ['held-hook'], presentation);
+  }
+});
+
+test('held Final Battle Hook input can resume from the Angry Hook', () => {
+  const harness = makeHeldInputRuntimeHarness();
+  assert.equal(harness.runtime.activateNow('finalBattleHook', 1), true);
+  const session = harness.runtime.getSessionsByHandlerId('finalBattleHook')[0];
+  const pos = { x: session.data.angryHook.x, y: session.data.angryHook.y };
+  assert.equal(harness.runtime.captureHeldFinalBattleHookInput(pos, 41), true);
+  harness.runtime.updateRaw(400);
+  assert.equal(harness.runtime.resumeHeldFinalBattleHookInput(), true);
+  assert.deepEqual(harness.game.chain.map((entry) => entry.id), [session.data.angryHook.id]);
+});
+
+test('held Final Battle Hook input is discarded on release, invalid targets, and session end', () => {
+  const released = makeHeldInputRuntimeHarness();
+  released.runtime.activateNow('finalBattleHook', 1);
+  assert.equal(released.runtime.captureHeldFinalBattleHookInput({ x: 90, y: 460 }, 41), true);
+  released.runtime.releaseHeldFinalBattleHookInput(41);
+  released.runtime.timingPauses = [];
+  assert.equal(released.runtime.resumeHeldFinalBattleHookInput(), false);
+
+  const invalid = makeHeldInputRuntimeHarness();
+  invalid.runtime.activateNow('finalBattleHook', 1);
+  assert.equal(invalid.runtime.captureHeldFinalBattleHookInput({ x: 12, y: 12 }, 41), true);
+  invalid.runtime.timingPauses = [];
+  assert.equal(invalid.runtime.resumeHeldFinalBattleHookInput(), false);
+  assert.equal(invalid.game.dragging, false);
+
+  const ended = makeHeldInputRuntimeHarness();
+  ended.runtime.activateNow('finalBattleHook', 1);
+  assert.equal(ended.runtime.captureHeldFinalBattleHookInput({ x: 90, y: 460 }, 41), true);
+  const session = ended.runtime.getSessionsByHandlerId('finalBattleHook')[0];
+  ended.runtime.endSession(session, 'timeout');
+  ended.runtime.timingPauses = [];
+  assert.equal(ended.runtime.resumeHeldFinalBattleHookInput(), false);
+});
 
 test('successful chain emits separate manual and diagonal events and never clears Angry Hook', () => {
   const harness = makeSkillHarness(6);
