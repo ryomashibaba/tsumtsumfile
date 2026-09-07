@@ -123,6 +123,23 @@ test("arrivals increment only the displayed run coins and direct awards update b
   assert.equal(game.displayedCoinBonus, 11);
 });
 
+test("coin flight effects respect the quality cap without changing awarded coins", () => {
+  for (const [mode, effectCount] of [["normal", 30], ["light", 10], ["minimal", 0]]) {
+    const game = {
+      coinFlights: [],
+      coinBonus: 72,
+      displayedCoinBonus: 0,
+      random: () => 0.5,
+      getConfiguredTsumRadius: () => 30,
+      getRenderQualityProfile: () => ({ maxCoinFlightEffectsPerTsum: effectCount })
+    };
+    Game.prototype.enqueueCoinFlights.call(game, 100, 200, 36);
+    assert.equal(game.coinFlights.length, effectCount, mode);
+    assert.equal(game.displayedCoinBonus, 36 - effectCount, mode);
+    assert.equal(game.coinBonus, 72, mode);
+  }
+});
+
 test("finishRun waits while a flying coin is still collecting", () => {
   const game = { state: "playing", runFinished: false, coinFlights: [{}] };
   assert.equal(Game.prototype.finishRun.call(game), undefined);

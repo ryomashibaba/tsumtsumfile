@@ -19,6 +19,7 @@ export const RENDER_QUALITY_PROFILES = Object.freeze({
     flashScale: 1,
     maxGameFeelParticles: 80,
     maxGameFeelRings: 8,
+    maxCoinFlightEffectsPerTsum: 30,
     visualHitStop: true,
     skillVisualDetail: "full"
   }),
@@ -40,6 +41,7 @@ export const RENDER_QUALITY_PROFILES = Object.freeze({
     flashScale: 0.55,
     maxGameFeelParticles: 40,
     maxGameFeelRings: 5,
+    maxCoinFlightEffectsPerTsum: 10,
     visualHitStop: false,
     skillVisualDetail: "reduced"
   }),
@@ -61,6 +63,7 @@ export const RENDER_QUALITY_PROFILES = Object.freeze({
     flashScale: 0,
     maxGameFeelParticles: 0,
     maxGameFeelRings: 0,
+    maxCoinFlightEffectsPerTsum: 0,
     visualHitStop: false,
     skillVisualDetail: "minimal"
   })

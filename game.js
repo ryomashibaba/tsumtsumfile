@@ -12971,8 +12971,16 @@ class Game {
 
   enqueueCoinFlights(startX, startY, count = 0) {
     const coinCount = Math.max(0, Math.floor(Number(count) || 0));
+    const effectLimit = Math.max(
+      0,
+      Math.floor(Number(this.getRenderQualityProfile()?.maxCoinFlightEffectsPerTsum) || 0)
+    );
+    const effectCount = Math.min(coinCount, effectLimit);
+    // Coin rewards have already been calculated in ClearPipeline.  Omitted
+    // flights are presentation-only, so reflect them in the HUD immediately.
+    this.displayedCoinBonus += coinCount - effectCount;
     const radius = this.getConfiguredTsumRadius() * COIN_FLIGHT_DIAMETER_RATIO;
-    for (let index = 0; index < coinCount; index += 1) {
+    for (let index = 0; index < effectCount; index += 1) {
       this.coinFlights.push(createCoinFlight({
         startX,
         startY,
