@@ -53,6 +53,7 @@ test("skill timing table keeps presentation, clear, and end phases independent",
       jamilViper: 2820,
       snowQueenElsa: 3160,
       liliaVanrouge: 3360,
+      finalBattleHook: 1980,
       judyNick: 2920
     }
   );
@@ -63,6 +64,14 @@ test("skill timing table keeps presentation, clear, and end phases independent",
   assert.equal(SKILL_TIMING_TABLE.perfumeAlice.endPause.durationMs, 770);
   assert.equal(SKILL_TIMING_TABLE.jamilViper.endPause.durationMs, 770);
   assert.equal(SKILL_TIMING_TABLE.liliaVanrouge.endPause.durationMs, 520);
+  assert.deepEqual(SKILL_TIMING_TABLE.finalBattleHook, {
+    presentation: { durationMs: 1980, pauseClock: true, pausePhysics: true },
+    smokeReveal: { durationMs: 340, pauseClock: true, pausePhysics: true },
+    manualResolve: { durationMs: 575, pauseClock: true, pausePhysics: true },
+    slashVisual: { durationMs: 185, pauseClock: true, pausePhysics: true },
+    diagonalResolve: { durationMs: 1210, pauseClock: true, pausePhysics: true },
+    growthSettle: { durationMs: 100, pauseClock: true, pausePhysics: true }
+  });
   for (const id of ["coronationElsa", "snowQueenElsa", "gaston", "judyNick"]) {
     assert.equal(SKILL_TIMING_TABLE[id].endPause, undefined);
   }

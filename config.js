@@ -62,6 +62,7 @@ export const TSUM_TYPES = [
   { id: "jamilViper", name: "ジャミル・ヴァイパー", emoji: "JV", score: 175, color: "#8f6edc", boardColor: "#7354ba", light: "#f1e8ff", dark: "#4d2f9b", accent: "#e7dcff", skillName: "高得点ジャミル", skillType: "jamilViper", coinCorrectionType: "correction_0", subEligible: true },
   { id: "snowQueenElsa", name: "雪の女王エルサ", emoji: "SQ", score: 165, color: "#9ee1ff", boardColor: "#a5def2", light: "#f2fcff", dark: "#4f93cf", accent: "#dff5ff", skillName: "氷結拡張", skillType: "snowQueenElsa", coinCorrectionType: "correction_0", subEligible: true },
   { id: "liliaVanrouge", name: "リリア・ヴァンルージュ", emoji: "LV", score: 60, color: "#7b315f", boardColor: "#61264d", light: "#ffd7ef", dark: "#24152f", accent: "#ff8fca", skillName: "コウモリ飛行", skillType: "liliaVanrouge", coinCorrectionType: "correction_0", subEligible: true },
+  { id: "finalBattleHook", name: "最終決戦フック船長", emoji: "FH", score: 60, color: "#8f2735", boardColor: "#6f2230", light: "#ffd8ca", dark: "#35131c", accent: "#ff9a75", skillName: "怒れるフック船長", skillType: "finalBattleHook", coinCorrectionType: "correction_0", subEligible: true },
   { id: "judyNick", name: "ジュディ＆ニック", emoji: "JN", score: 170, color: "#f0b34a", boardColors: ["#84c4ff", "#e99148"], light: "#fff7e0", dark: "#b16919", accent: "#ffe7ba", skillName: "ペアスキル", skillType: "judyNick", coinCorrectionType: "correction_0", subEligible: false },
   { id: "jafarGenie", name: "ジャファー", emoji: "JF", score: 150, color: "#db171d", boardColor: "#d71920", light: "#ffdad6", dark: "#781018", accent: "#ff7a63", skillName: "サブツム専用", skillType: "auxiliary", coinCorrectionType: "correction_0", selectable: false, subOnly: true, subEligible: true },
   { id: "genie", name: "ジーニー", emoji: "GE", score: 150, color: "#65b9e8", boardColor: "#65b9e8", light: "#e5f8ff", dark: "#286b99", accent: "#a7e4ff", skillName: "サブツム専用", skillType: "auxiliary", coinCorrectionType: "correction_0", selectable: false, subOnly: true, subEligible: true },
@@ -89,6 +90,7 @@ export const FIXED_SUB_TSUM_IDS_BY_MY_TSUM = Object.freeze({
   jamilViper: { 3: ["snowQueenElsa", "jafarGenie"], 4: ["guidingMoana", "jafarGenie", "grogu"], 5: ["coronationElsa", "jafarGenie", "grogu", "grim"] },
   snowQueenElsa: { 3: ["jafarGenie", "grim"], 4: ["jamilViper", "jafarGenie", "grim"], 5: ["perfumeAlice", "jamilViper", "jafarGenie", "grim"] },
   liliaVanrouge: { 3: ["perfumeAlice", "grogu"], 4: ["guidingMoana", "jafarGenie", "grogu"], 5: ["guidingMoana", "perfumeAlice", "jafarGenie", "grogu"] },
+  finalBattleHook: { 3: ["perfumeAlice", "grogu"], 4: ["captainLightyear", "perfumeAlice", "jamilViper"], 5: ["guidingMoana", "perfumeAlice", "jamilViper", "grogu"] },
   judyNick: { 3: ["grim"], 4: ["jamilViper", "grim"], 5: ["jamilViper", "jafarGenie", "grim"] }
 });
 
@@ -276,6 +278,15 @@ export const SKILL_TABLES = {
     durationSec: [5, 6, 7, 8, 9, 10],
     coinCorrectionType: ["correction_-2", "correction_-1", "correction_-1", "correction_0", "correction_0", "correction_1"],
     chargeMultiplier: [1, 1, 1, 1, 1, 1]
+  },
+  finalBattleHook: {
+    cost: [19, 19, 19, 19, 19, 19],
+    activeDurationMs: [1800, 1800, 1800, 1800, 1800, 1800],
+    initialLogicalEquivalent: [5, 6, 7, 8, 9, 10],
+    manualScoreMultiplier: [0.70, 0.81, 0.92, 1.03, 1.14, 1.25],
+    diagonalScoreMultiplier: [0.70, 0.78, 0.86, 0.94, 1.02, 1.10],
+    manualCoinCorrectionType: ["correction_-1", "correction_-1", "correction_-1", "correction_-1", "correction_-1", "correction_-1"],
+    diagonalCoinCorrectionType: ["correction_-1", "correction_-1", "correction_-1", "correction_-2", "correction_-2", "correction_-2"]
   },
   judyNick: {
     cost: [25, 24, 23, 22, 21, 20],

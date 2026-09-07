@@ -59,6 +59,9 @@ import {
   isLiliaBatNode,
   registerLiliaSkill
 } from './lilia.js?v=tsum-images-8';
+import {
+  registerFinalBattleHookSkill
+} from './finalBattleHook.js?v=final-battle-hook-1';
 import { drawTsumArtwork, preloadTsumImages, releaseTsumImages } from './tsumImages.js?v=render-quality-1';
 import {
   clampDevicePixelRatio,
@@ -2380,13 +2383,13 @@ class ClearPipeline {
       };
     }
     request.targets = this.uniqueTargets(request.targets || []);
-    if (!request.targets.length) {
+    if (!request.targets.length && request.allowEmptyEvent !== true) {
       return null;
     }
     let prepared = this.expandBubbleTargets(request);
     prepared = this.runtime.augmentClear(prepared);
     prepared.targets = this.uniqueTargets(prepared.targets || []);
-    if (!prepared.targets.length) {
+    if (!prepared.targets.length && prepared.allowEmptyEvent !== true) {
       return null;
     }
     return prepared;
@@ -2558,7 +2561,8 @@ class ClearPipeline {
 
     let score = 0;
     let awardedRawCoins = 0;
-    if (info.source === "chain") {
+    const useChainScore = info.scoreMode === "chain" || (info.scoreMode !== "mixed" && info.source === "chain");
+    if (useChainScore) {
       const baseType = info.type || this.board.getResolvedType(info.targets[0]);
       score = this.game.calculateChainScore(baseType.score, resolvedClearCount);
       this.game.comboSystem.recordAction();
@@ -2605,7 +2609,10 @@ class ClearPipeline {
       this.game.emitStrongestModeCoronationElsaSkillSummary("iceTap");
     }
     this.game.recordCoingainClear(info, resolvedClearCount);
-    const bombType = this.game.resolveGeneratedBombType(resolvedClearCount, info);
+    const bombEffectiveClearCount = Number.isFinite(info.bombEffectiveClearCount)
+      ? Math.max(0, info.bombEffectiveClearCount)
+      : resolvedClearCount;
+    const bombType = this.game.resolveGeneratedBombType(bombEffectiveClearCount, info);
     if (bombType) {
         const rawBombX = Number.isFinite(info.x) ? info.x : clearDisplayX;
         const rawBombY = Number.isFinite(info.y) ? info.y : clearDisplayY;
@@ -2664,7 +2671,7 @@ class ClearPipeline {
   }
 
   queueMyTsumSkillChargeFlights(info, options = {}) {
-    if (!info || !Array.isArray(info.targets) || info.targets.length === 0) {
+    if (!info || !Array.isArray(info.targets)) {
       return;
     }
     // A layered Coronation Elsa ice counts duplicate clears for score/coins,
@@ -2698,7 +2705,9 @@ class ClearPipeline {
           context: judyNickChargeContext
         }
         : null;
-      const weightedChargeMultiplier = getTsumSkillChargeWeight(tsum, chargeMultiplier);
+      const weightedChargeMultiplier = Number.isFinite(info.skillChargePerPhysicalMyTsum)
+        ? Math.max(0, info.skillChargePerPhysicalMyTsum)
+        : getTsumSkillChargeWeight(tsum, chargeMultiplier);
       if (judyNickGaugePayload) {
         judyNickGaugePayload.chargeMultiplier = weightedChargeMultiplier;
       }
@@ -2708,6 +2717,15 @@ class ClearPipeline {
         resolvedType,
         weightedChargeMultiplier,
         judyNickGaugePayload
+      );
+    }
+    if (!info.additionalSkillChargeQueued && Number.isFinite(info.additionalSkillCharge) && info.additionalSkillCharge > 0) {
+      info.additionalSkillChargeQueued = true;
+      this.game.enqueueSkillChargeFlight(
+        Number.isFinite(info.x) ? info.x : WIDTH * 0.5,
+        Number.isFinite(info.y) ? info.y : FIELD_CENTER_Y,
+        this.game.myTsum,
+        info.additionalSkillCharge
       );
     }
   }
@@ -3042,6 +3060,7 @@ class Game {
     this.judyNickDebug = debugQuery?.get("judyNickDebug") === "1";
     this.coingainDebug = debugQuery?.get("coingainDebug") === "1";
     this.liliaDebug = debugQuery?.get("liliaDebug") === "1";
+    this.finalBattleHookDebug = debugQuery?.get("finalBattleHookDebug") === "1";
     this.strongestModeJudyNickJudyBubbleDebugLastElapsed = -Infinity;
     this.strongestModeJudyNickJudyBubbleDebugLastKey = "";
     this.strongestAutoStartRequested = (
@@ -14457,4 +14476,10 @@ registerJudyNickSkill({
 registerLiliaSkill({
   SkillRegistry,
   skillValue
+});
+
+registerFinalBattleHookSkill({
+  SkillRegistry,
+  chainInputMargin: CHAIN_INPUT_MARGIN,
+  chainConnectMargin: CHAIN_CONNECT_MARGIN
 });

@@ -62,6 +62,7 @@ test("characters without supplied artwork keep their fallback rendering", () => 
   const typesById = new Map(TSUM_TYPES.map((type) => [type.id, type]));
 
   assert.deepEqual(getSources(typesById.get("coingain")), []);
+  assert.deepEqual(getSources(typesById.get("finalBattleHook")), []);
   assert.deepEqual(getSources(typesById.get("namineSora")), []);
 });
 

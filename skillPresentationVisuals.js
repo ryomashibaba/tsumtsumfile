@@ -13,6 +13,7 @@ import {
 } from './config.js?v=skill-visuals-1';
 import { drawTsumArtwork } from './tsumImages.js?v=render-quality-1';
 import { drawLiliaBat } from './lilia.js?v=skill-visuals-1';
+import { drawFinalBattleHookFace } from './finalBattleHook.js?v=final-battle-hook-1';
 
 const FIELD_HEIGHT = FIELD_BOTTOM - FIELD_TOP;
 const CENTER_Y = (FIELD_TOP + FIELD_BOTTOM) * 0.5;
@@ -32,6 +33,14 @@ export const SKILL_VISUAL_TIMELINES = Object.freeze({
   jamilViper: Object.freeze({ presentation: [[150, 'dim'], [750, 'hero'], [1050, 'palace'], [2100, 'sway'], [2550, 'afterimages'], [2820, 'finish']], skillEnd: [[150, 'centerGlow'], [360, 'blast'], [770, 'particles']] }),
   snowQueenElsa: Object.freeze({ presentation: [[150, 'snowDim'], [850, 'hero'], [1100, 'dissolve'], [1800, 'landscape'], [2200, 'centerTower'], [2650, 'sideTowers'], [2950, 'aura'], [3160, 'finish']] }),
   liliaVanrouge: Object.freeze({ presentation: [[200, 'dim'], [850, 'hero'], [1100, 'castle'], [2200, 'bats'], [2500, 'colorShift'], [2850, 'rings'], [3150, 'dissolve'], [3360, 'burst']], skillEnd: [[160, 'flash'], [380, 'orbs'], [520, 'fragments']] }),
+  finalBattleHook: Object.freeze({
+    presentation: [[220, 'dim'], [720, 'angryFace'], [1120, 'purpleStage'], [1640, 'fullBody'], [1860, 'fade'], [1980, 'board']],
+    smokeReveal: [[210, 'smoke'], [340, 'angryReveal']],
+    manualResolve: [[575, 'manualResolve']],
+    slashVisual: [[185, 'slash']],
+    diagonalResolve: [[260, 'slashImpact'], [1210, 'diagonalParticles']],
+    growthSettle: [[100, 'growth']]
+  }),
   judyNick: Object.freeze({ presentation: [[100, 'dim'], [900, 'hero'], [1200, 'board'], [2350, 'pair'], [2720, 'wave'], [2920, 'finish']] })
 });
 
@@ -773,6 +782,40 @@ function withGame(state, game) {
   return { ...state, game };
 }
 
+function drawFinalBattleHookPresentation(ctx, state, phase) {
+  const hookType = getType('finalBattleHook');
+  const centerY = CENTER_Y - 8;
+  if (phase.name === 'dim') {
+    drawBoardTint(ctx, '#08030f', lerp(0.25, 0.88, phase.progress));
+    return;
+  }
+  drawBoardTint(ctx, phase.name === 'fade' || phase.name === 'board' ? '#25103e' : '#42175d', phase.name === 'board' ? 1 - phase.progress : 0.82);
+  if (phase.name === 'angryFace' || phase.name === 'purpleStage') {
+    drawFinalBattleHookFace(ctx, hookType, FIELD_CENTER_X, centerY, lerp(42, 82, easeOutBack(phase.progress)), { angry: true });
+  }
+  if (phase.name === 'purpleStage') {
+    drawRadialGlow(ctx, FIELD_CENTER_X, centerY, lerp(80, 220, phase.progress), '#c55cff', 0.58);
+  }
+  if (phase.name === 'fullBody' || phase.name === 'fade') {
+    const alpha = phase.name === 'fade' ? 1 - phase.progress : 1;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(FIELD_CENTER_X, centerY + 42);
+    ctx.fillStyle = '#321532';
+    ctx.beginPath();
+    ctx.moveTo(-82, 150);
+    ctx.lineTo(-46, 20);
+    ctx.lineTo(46, 20);
+    ctx.lineTo(82, 150);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    drawFinalBattleHookFace(ctx, hookType, FIELD_CENTER_X, centerY - 24, 64, { angry: true });
+    drawParticleField(ctx, state, { key: 'hook-presentation', count: 34, colors: ['#e998ff', '#ff716f', '#fff0a0'], direction: 'burst', centerX: FIELD_CENTER_X, centerY, radius: 230, progress: phase.progress, shape: 'star', alpha });
+  }
+  if (phase.name === 'board') drawWhiteFlash(ctx, 1 - phase.progress);
+}
+
 function drawSkillPresentationFull(ctx, game, rawState) {
   if (!rawState || rawState.kind !== 'presentation') return false;
   const state = withGame(rawState, game);
@@ -789,6 +832,7 @@ function drawSkillPresentationFull(ctx, game, rawState) {
     jamilViper: drawJamil,
     snowQueenElsa: drawSnowQueen,
     liliaVanrouge: drawLilia,
+    finalBattleHook: drawFinalBattleHookPresentation,
     judyNick: drawJudyNick
   };
   painters[state.skillId]?.(ctx, state, phase);
@@ -898,6 +942,35 @@ function drawSkillSecondaryVisualFull(ctx, game, rawState) {
     if (phase.name === 'fragments') {
       drawBats(ctx, state, phase.progress, true, 18);
       drawParticleField(ctx, state, { key: 'lilia-end', count: 40, colors: ['#6dff94', '#c276ff', '#ffd56c'], direction: 'burst', centerX: FIELD_CENTER_X, centerY: CENTER_Y, radius: 250, progress: phase.progress, shape: 'star' });
+    }
+  } else if (state.skillId === 'finalBattleHook') {
+    const center = centerFor(state);
+    const geometry = state.activationData?.geometry;
+    if (phase.name === 'smoke' || phase.name === 'angryReveal') {
+      drawSoftSmoke(ctx, state, center.x, center.y, phase.progress, ['rgba(255,255,255,0.9)', 'rgba(205,174,226,0.72)'], 42);
+      if (phase.name === 'angryReveal') {
+        drawFinalBattleHookFace(ctx, getType('finalBattleHook'), center.x, center.y, lerp(34, WIDTH * 0.125, easeOutBack(phase.progress)), { angry: true });
+      }
+    } else if (phase.name === 'manualResolve') {
+      drawVisualOnlyTsumSilhouettes(ctx, game, { targetIds: state.targetIds, color: '#fff1c9', stroke: '#ff6f7e', alpha: 0.82, scale: lerp(1, 1.18, phase.progress) });
+    } else if ((phase.name === 'slash' || phase.name === 'slashImpact' || phase.name === 'diagonalParticles') && geometry) {
+      ctx.save();
+      ctx.strokeStyle = phase.name === 'slashImpact' ? '#ffffff' : '#dc7cff';
+      ctx.shadowColor = '#ff4fba';
+      ctx.shadowBlur = 22;
+      ctx.lineWidth = phase.name === 'slash' ? lerp(3, 16, phase.progress) : Math.max(3, geometry.halfWidth * 0.16);
+      ctx.globalAlpha = phase.name === 'diagonalParticles' ? 1 - phase.progress * 0.55 : 1;
+      ctx.beginPath();
+      ctx.moveTo(geometry.start.x, geometry.start.y);
+      ctx.lineTo(geometry.end.x, geometry.end.y);
+      ctx.stroke();
+      ctx.restore();
+      if (phase.name === 'slashImpact') drawWhiteFlash(ctx, Math.sin(phase.progress * Math.PI) * 0.78);
+      if (phase.name === 'diagonalParticles') {
+        drawParticleField(ctx, state, { key: 'hook-slash', count: 44, colors: ['#ffffff', '#e378ff', '#ff7a8e'], direction: 'burst', centerX: center.x, centerY: center.y, radius: 250, progress: phase.progress, shape: 'star' });
+      }
+    } else if (phase.name === 'growth') {
+      drawRadialGlow(ctx, center.x, center.y, lerp(24, 130, easeOutCubic(phase.progress)), '#ff679d', 0.72);
     }
   } else {
     ctx.restore();

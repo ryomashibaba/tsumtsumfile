@@ -36,6 +36,7 @@ import {
   drawStarPath
 } from './config.js?v=coin-flights-1';
 import { drawLiliaBat } from './lilia.js?v=tsum-images-8';
+import { drawFinalBattleHookOverlay } from './finalBattleHook.js?v=final-battle-hook-1';
 import { drawTsumArtwork, preloadTsumImages } from './tsumImages.js?v=render-quality-1';
 import { drawSkillPresentation, drawSkillSecondaryVisual } from './skillPresentationVisuals.js?v=render-quality-1';
 import { drawGameFeelField, drawGameFeelHud } from './gameFeel.js?v=game-feel-1';
@@ -419,6 +420,7 @@ export class UIRenderer {
     }
 
     this.drawLiliaSkillOverlay(ctx);
+    drawFinalBattleHookOverlay(ctx, this.game);
     this.drawChain(ctx);
 
     if (profile.drawDecorations) {

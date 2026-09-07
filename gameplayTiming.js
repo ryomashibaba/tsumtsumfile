@@ -34,6 +34,15 @@ export const SKILL_TIMING_TABLE = Object.freeze({
     presentation: Object.freeze({ durationMs: 3360, pauseClock: true, pausePhysics: true }),
     endPause: Object.freeze({ durationMs: 520, pauseClock: true, pausePhysics: true })
   }),
+  finalBattleHook: Object.freeze({
+    // TODO FINAL_BATTLE_HOOK_CALIBRATION: Video-derived timings, not official internals.
+    presentation: Object.freeze({ durationMs: 1980, pauseClock: true, pausePhysics: true }),
+    smokeReveal: Object.freeze({ durationMs: 340, pauseClock: true, pausePhysics: true }),
+    manualResolve: Object.freeze({ durationMs: 575, pauseClock: true, pausePhysics: true }),
+    slashVisual: Object.freeze({ durationMs: 185, pauseClock: true, pausePhysics: true }),
+    diagonalResolve: Object.freeze({ durationMs: 1210, pauseClock: true, pausePhysics: true }),
+    growthSettle: Object.freeze({ durationMs: 100, pauseClock: true, pausePhysics: true })
+  }),
   judyNick: Object.freeze({
     presentation: Object.freeze({ durationMs: 2920, pauseClock: true, pausePhysics: true })
   })
