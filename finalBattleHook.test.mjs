@@ -279,6 +279,7 @@ test('successful chain emits separate manual and diagonal events and never clear
   assert.equal(manual.skillChargePerPhysicalMyTsum, 0.10);
   assert.equal(manual.additionalSkillCharge, 1.0);
   assert.equal(manual.correctionType, 'correction_-1');
+  assert.equal(manual.pausePhysics, false, 'the background board keeps falling during the manual-clear effect');
 
   manual.onFinalize();
   assert.equal(session.data.phase, FINAL_BATTLE_HOOK_PHASE.SLASH_VISUAL);
@@ -288,6 +289,7 @@ test('successful chain emits separate manual and diagonal events and never clear
   assert.equal(diagonalClear.source, 'finalBattleHookDiagonal');
   assert.equal(diagonalClear.allowBomb, false);
   assert.equal(diagonalClear.chargeMultiplier, 0.20);
+  assert.equal(diagonalClear.pausePhysics, false, 'the background board keeps falling during the diagonal-clear effect');
   assert.equal(diagonalClear.targets.some((entry) => entry.isBomb), false);
   diagonalClear.onFinalize();
   assert.equal(session.data.successCount, 1);
