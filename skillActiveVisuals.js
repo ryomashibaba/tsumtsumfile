@@ -28,12 +28,12 @@ const SUPPORTED_SKILLS = new Set([
 ]);
 
 const THEMES = Object.freeze({
-  coronationElsa: Object.freeze({ outer: ['#61D3E7', '#209FC4'], field: ['#172331', '#101A2B'], accent: '#D9FBFF', secondary: '#D8A7E8', tint: 0.5, outerAlpha: 0.84, motif: 'frost' }),
+  coronationElsa: Object.freeze({ outer: ['#C5FAFF', '#087F9F'], field: ['#0C1C38', '#030817'], accent: '#F2FEFF', secondary: '#D8A7E8', tint: 0.8, outerAlpha: 0.98, motif: 'frost' }),
   captainLightyear: Object.freeze({ outer: ['#79D8EB', '#3AAFD8'], field: ['#0B5368', '#062D48'], accent: '#C9FAFF', secondary: '#75E7FF', tint: 0.46, outerAlpha: 0.8, motif: 'reticles' }),
   namine: Object.freeze({ outer: ['#E8F4F6', '#BFD7DF'], field: ['#E8E1F3', '#AFCBD5'], accent: '#FFFFFF', secondary: '#D8CFF1', tint: 0.34, outerAlpha: 0.78, motif: 'diamonds' }),
   gaston: Object.freeze({ outer: ['#7A2924', '#3B1015'], field: ['#7D2420', '#5B1717'], accent: '#E9A57F', secondary: '#B85A4B', tint: 0.61, outerAlpha: 0.84, motif: 'none' }),
   guidingMoana: Object.freeze({ outer: ['#8E84C9', '#4FB9C9'], field: ['#83D7DB', '#247F9A'], accent: '#E4FFFF', secondary: '#F75AB8', tint: 0.46, outerAlpha: 0.82, motif: 'waves' }),
-  perfumeAlice: Object.freeze({ outer: ['#183B78', '#0F2B5F'], field: ['#183B78', '#0F2B5F'], accent: '#EDFF9B', secondary: '#A8B84B', dark: '#07172F', tint: 0.56, outerAlpha: 0.86, motif: 'garden' }),
+  perfumeAlice: Object.freeze({ outer: ['#3E58B8', '#071329'], field: ['#271653', '#050A1B'], accent: '#EDFF9B', secondary: '#BFD05A', dark: '#020713', tint: 0.8, outerAlpha: 0.98, motif: 'garden' }),
   // TODO/calibration: public reference material for the active board is limited.
   jamilViper: Object.freeze({ outer: ['#4A173C', '#2A102B'], field: ['#4A173C', '#2A102B'], accent: '#D7AE45', secondary: '#78314C', tint: 0.51, outerAlpha: 0.82, motif: 'arabesque' }),
   snowQueenElsa: Object.freeze({ outer: ['#28455B', '#162536'], field: ['#28455B', '#162536'], accent: '#CFF8FF', secondary: '#A9DCE8', tint: 0.5, outerAlpha: 0.82, motif: 'ice' }),

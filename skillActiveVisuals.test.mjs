@@ -129,6 +129,42 @@ test('minimal quality still draws identifying active surfaces and Captain reticl
   assert.ok(ctx.commands.some(([name]) => name === 'fillRect'));
 });
 
+test('Coronation Elsa and Perfume Alice use high-contrast active surfaces', () => {
+  const cases = [
+    {
+      skillId: 'coronationElsa',
+      outerColors: ['#C5FAFF', '#087F9F'],
+      fieldColors: ['#0C1C38', '#030817'],
+      outerAlpha: 0.98,
+      fieldAlpha: 0.8
+    },
+    {
+      skillId: 'perfumeAlice',
+      outerColors: ['#3E58B8', '#071329'],
+      fieldColors: ['#271653', '#050A1B'],
+      outerAlpha: 0.98,
+      fieldAlpha: 0.8
+    }
+  ];
+
+  for (const expected of cases) {
+    const frame = resolveSkillActiveVisualFrame(activeState(expected.skillId), {
+      detail: 'full',
+      visibleElapsedMs: 150
+    });
+    const outerCtx = makeContext();
+    const fieldCtx = makeContext();
+    drawSkillActiveBackdrop(outerCtx, frame);
+    drawSkillActiveFieldBackground(fieldCtx, frame);
+    const outerStops = outerCtx.commands.filter(([name]) => name === 'addColorStop').map(([, , color]) => color);
+    const fieldStops = fieldCtx.commands.filter(([name]) => name === 'addColorStop').map(([, , color]) => color);
+    assert.ok(expected.outerColors.every((color) => outerStops.includes(color)));
+    assert.ok(expected.fieldColors.every((color) => fieldStops.includes(color)));
+    assert.ok(outerCtx.commands.some(([name, property, value]) => name === 'set' && property === 'globalAlpha' && value === expected.outerAlpha));
+    assert.ok(fieldCtx.commands.some(([name, property, value]) => name === 'set' && property === 'globalAlpha' && value === expected.fieldAlpha));
+  }
+});
+
 test('runtime exposes a copied active snapshot and removes it on the session end frame', () => {
   const original = Game.SkillRegistry.coronationElsa;
   Game.SkillRegistry.coronationElsa = {
