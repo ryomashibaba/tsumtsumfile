@@ -39,6 +39,9 @@ test("quality profiles progressively reduce expensive drawing", () => {
   assert.ok(normal.shakeScale > light.shakeScale);
   assert.equal(minimal.shakeScale, 0);
   assert.equal(minimal.renderIntervalMs, 1000 / 30);
+  assert.equal(normal.activeSkillVisualDetail, "full");
+  assert.equal(light.activeSkillVisualDetail, "reduced");
+  assert.equal(minimal.activeSkillVisualDetail, "minimal");
 });
 
 test("quality profiles cap backing resolution without reducing logical updates", () => {

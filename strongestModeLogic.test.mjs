@@ -12,6 +12,7 @@ import {
   shouldUseStrongestModeFeverBombCancel
 } from "./strongestModeLogic.js";
 import { CORONATION_ELSA_PLANNER_CONFIG } from "./coronationElsaPlanner.js";
+import { FINAL_BATTLE_HOOK_PHASE, FINAL_BATTLE_HOOK_TYPE_ID } from "./finalBattleHook.js";
 
 const gaugeAfterClears = (count) => (count / FEVER_ENTRY_CLEAR_COUNT) * 100;
 
@@ -1774,4 +1775,85 @@ test("strongest mode best bomb chooses the largest effect and preserves other bo
   };
 
   assert.equal(Game.prototype.findStrongestModeBestBomb.call(harness, [low, high]), high);
+});
+
+function makeFinalBattleHookNode(id, x, y, extra = {}) {
+  return {
+    id,
+    x,
+    y,
+    radius: 29,
+    type: { id: FINAL_BATTLE_HOOK_TYPE_ID },
+    dead: false,
+    removing: false,
+    virtual: false,
+    ...extra
+  };
+}
+
+function makeFinalBattleHookStrongestHarness({ nodes, phase = FINAL_BATTLE_HOOK_PHASE.ACTIVE_INPUT, remainingActiveMs = 500 } = {}) {
+  const angryHook = makeFinalBattleHookNode("angry", 207, 360, {
+    virtual: true,
+    finalBattleHookAngry: true
+  });
+  const fallback = [
+    makeFinalBattleHookNode("fallback-a", 40, 180, { type: { id: "sub" } }),
+    makeFinalBattleHookNode("fallback-b", 90, 180, { type: { id: "sub" } }),
+    makeFinalBattleHookNode("fallback-c", 140, 180, { type: { id: "sub" } })
+  ];
+  const session = {
+    data: { phase, remainingActiveMs, angryHook }
+  };
+  const harness = {
+    myTsum: { id: FINAL_BATTLE_HOOK_TYPE_ID },
+    boardState: { getResolvedType: (node) => node.type },
+    getActiveSkillSession: (skillId) => skillId === FINAL_BATTLE_HOOK_TYPE_ID ? session : null,
+    getStrongestModeChainNodes: () => nodes || [],
+    getBodyRadius: (node) => node.radius,
+    findStrongestModeBestChain: () => fallback,
+    isStrongestModeFinalBattleHookPathClear: Game.prototype.isStrongestModeFinalBattleHookPathClear,
+    findStrongestModeFinalBattleHookThreeChain: Game.prototype.findStrongestModeFinalBattleHookThreeChain
+  };
+  return { harness, angryHook, fallback };
+}
+
+test("Final Battle Hook strongest mode prioritizes an exact three-node chain through Angry Hook", () => {
+  const first = makeFinalBattleHookNode("first", 60, 500);
+  const second = makeFinalBattleHookNode("second", 360, 500);
+  const { harness, angryHook } = makeFinalBattleHookStrongestHarness({ nodes: [first, second] });
+
+  const chain = Game.prototype.findStrongestModeChain.call(harness);
+
+  assert.deepEqual(chain, [first, angryHook, second]);
+  assert.equal(chain.length, 3);
+});
+
+test("Final Battle Hook strongest mode rejects a route that would pick up another physical Hook", () => {
+  const first = makeFinalBattleHookNode("first", 40, 360);
+  const blocker = makeFinalBattleHookNode("blocker", 125, 360);
+  const { harness, angryHook } = makeFinalBattleHookStrongestHarness({ nodes: [first, blocker] });
+
+  assert.equal(
+    Game.prototype.isStrongestModeFinalBattleHookPathClear.call(
+      harness,
+      first,
+      angryHook,
+      [first, blocker],
+      new Set([first.id])
+    ),
+    false
+  );
+});
+
+test("Final Battle Hook strongest mode falls back outside its active input window", () => {
+  const first = makeFinalBattleHookNode("first", 60, 500);
+  const second = makeFinalBattleHookNode("second", 360, 500);
+  const { harness, fallback } = makeFinalBattleHookStrongestHarness({
+    nodes: [first, second],
+    phase: FINAL_BATTLE_HOOK_PHASE.SLASH_VISUAL
+  });
+
+  assert.deepEqual(Game.prototype.findStrongestModeChain.call(harness), fallback);
+  harness.getActiveSkillSession = () => null;
+  assert.deepEqual(Game.prototype.findStrongestModeChain.call(harness), fallback);
 });

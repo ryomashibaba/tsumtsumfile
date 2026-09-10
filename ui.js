@@ -39,6 +39,13 @@ import { drawLiliaBat } from './lilia.js?v=tsum-images-8';
 import { drawFinalBattleHookOverlay } from './finalBattleHook.js?v=final-battle-hook-1';
 import { drawTsumArtwork, preloadTsumImages } from './tsumImages.js?v=render-quality-1';
 import { drawSkillPresentation, drawSkillSecondaryVisual } from './skillPresentationVisuals.js?v=render-quality-1';
+import {
+  getSkillActiveThemeId,
+  resolveSkillActiveVisualFrame,
+  drawSkillActiveBackdrop,
+  drawSkillActiveFieldBackground,
+  drawSkillActiveForeground
+} from './skillActiveVisuals.js?v=skill-active-1';
 import { drawGameFeelField, drawGameFeelHud } from './gameFeel.js?v=game-feel-1';
 import { sampleCoinFlight } from './coinFlights.js?v=coin-flights-1';
 
@@ -51,6 +58,8 @@ export class UIRenderer {
       ? sharedFeltTexture || (sharedFeltTexture = this.createFeltTexture())
       : null;
     preloadTsumImages(TSUM_TYPES, { enabled: this.profile().drawArtwork });
+    this.activeSkillVisualTransition = null;
+    this.currentActiveSkillVisualFrame = null;
   }
 
   onRenderQualityChanged() {
@@ -68,12 +77,15 @@ export class UIRenderer {
       drawTransientEffects: true,
       useRichSurfaces: true,
       particleScale: 1,
-      skillVisualDetail: "full"
+      skillVisualDetail: "full",
+      activeSkillVisualDetail: "full"
     };
   }
 
   render(ctx) {
+    this.currentActiveSkillVisualFrame = this.resolveActiveSkillVisualFrame();
     this.drawBackdrop(ctx);
+    drawSkillActiveBackdrop(ctx, this.currentActiveSkillVisualFrame);
     if (this.game.state === "title") {
       this.drawTitleScreen(ctx);
     } else if (this.game.state === "items") {
@@ -407,6 +419,8 @@ export class UIRenderer {
       ctx.fillRect(0, FIELD_TOP - 10, WIDTH, FIELD_HEIGHT + 22);
     }
 
+    drawSkillActiveFieldBackground(ctx, this.currentActiveSkillVisualFrame);
+
     const bodies = this.game.renderBodies.length ? this.game.renderBodies : this.game.getRenderableBodies();
     for (const body of bodies) {
       if (body.isBomb) {
@@ -422,6 +436,7 @@ export class UIRenderer {
     this.drawLiliaSkillOverlay(ctx);
     drawFinalBattleHookOverlay(ctx, this.game);
     this.drawChain(ctx);
+    drawSkillActiveForeground(ctx, this.currentActiveSkillVisualFrame);
 
     if (profile.drawDecorations) {
       ctx.save();
@@ -580,6 +595,44 @@ export class UIRenderer {
     }
     this.drawCoingainStatusPanel(ctx);
     this.drawBattleStatusPanel(ctx);
+  }
+
+  resolveActiveSkillVisualFrame() {
+    const state = this.game.getSkillActiveVisualState?.() || null;
+    if (!state) {
+      this.activeSkillVisualTransition = null;
+      return null;
+    }
+    const nowMs = Math.max(0, Number(this.game.elapsed) || 0) * 1000;
+    const requestedThemeId = getSkillActiveThemeId(state);
+    let transition = this.activeSkillVisualTransition;
+    if (!transition || transition.sessionId !== state.sessionId) {
+      transition = {
+        sessionId: state.sessionId,
+        themeId: requestedThemeId,
+        previousThemeId: null,
+        themeStartedAtMs: nowMs,
+        modeChangedAtMs: -Infinity
+      };
+    } else if (transition.themeId !== requestedThemeId) {
+      const isJudyNickSwitch = state.skillId === 'judyNick' && transition.themeId && requestedThemeId;
+      transition = {
+        ...transition,
+        previousThemeId: isJudyNickSwitch ? transition.themeId : null,
+        themeId: requestedThemeId,
+        themeStartedAtMs: isJudyNickSwitch ? transition.themeStartedAtMs : nowMs,
+        modeChangedAtMs: isJudyNickSwitch ? nowMs : -Infinity
+      };
+    }
+    this.activeSkillVisualTransition = transition;
+    if (!requestedThemeId) return null;
+    return resolveSkillActiveVisualFrame(state, {
+      detail: this.profile().activeSkillVisualDetail,
+      visibleElapsedMs: nowMs - transition.themeStartedAtMs,
+      previousThemeId: transition.previousThemeId,
+      modeSwitchElapsedMs: nowMs - transition.modeChangedAtMs,
+      animationMs: nowMs
+    });
   }
 
   drawBattleStatusPanel(ctx) {
@@ -1684,12 +1737,14 @@ export class UIRenderer {
       const sourceTop = Math.round((FIELD_TOP / HEIGHT) * snapshot.height);
       const sourceHeight = Math.round((FIELD_HEIGHT / HEIGHT) * snapshot.height);
       ctx.drawImage(snapshot, 0, sourceTop, snapshot.width, sourceHeight, 0, FIELD_TOP, WIDTH, FIELD_HEIGHT);
+      drawSkillActiveForeground(ctx, this.currentActiveSkillVisualFrame);
     } else {
       this.drawFieldContents(ctx);
     }
     drawGameFeelField(ctx, feelState, { left: 0, right: WIDTH, top: FIELD_TOP, bottom: FIELD_BOTTOM });
     ctx.restore();
     this.drawSkillVisualLayer(ctx);
+    this.drawActiveFeverFrame(ctx);
     if (this.game.role === "cpu") {
       this.drawCpuStatusFooter(ctx);
     } else {
@@ -1717,6 +1772,30 @@ export class UIRenderer {
     });
     this.drawPauseOverlay(ctx);
     this.drawGameOverOverlay(ctx);
+  }
+
+  drawActiveFeverFrame(ctx) {
+    if (!this.game.feverSystem?.active || !this.currentActiveSkillVisualFrame) return;
+    const shift = (this.game.elapsed * 120) % 360;
+    const gradient = ctx.createLinearGradient(0, FIELD_TOP, WIDTH, FIELD_TOP);
+    gradient.addColorStop(0, `hsl(${shift}, 100%, 72%)`);
+    gradient.addColorStop(0.5, `hsl(${(shift + 90) % 360}, 100%, 75%)`);
+    gradient.addColorStop(1, `hsl(${(shift + 180) % 360}, 100%, 72%)`);
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineWidth = 9;
+    ctx.strokeStyle = gradient;
+    ctx.shadowBlur = 14;
+    ctx.shadowColor = "rgba(255,235,120,0.58)";
+    ctx.beginPath();
+    ctx.moveTo(-8, FIELD_TOP + 8);
+    ctx.quadraticCurveTo(FIELD_CENTER_X, FIELD_TOP - 13, WIDTH + 8, FIELD_TOP + 8);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-8, FIELD_BOTTOM - 7);
+    ctx.quadraticCurveTo(FIELD_CENTER_X, FIELD_BOTTOM + 12, WIDTH + 8, FIELD_BOTTOM - 7);
+    ctx.stroke();
+    ctx.restore();
   }
 
   drawCpuStatusFooter(ctx) {

@@ -47,7 +47,7 @@ import {
   drawStarPath
 } from './config.js?v=coin-flights-1';
 
-import { UIRenderer } from './ui.js?v=coin-flights-1';
+import { UIRenderer } from './ui.js?v=skill-active-1';
 import { JudyNickGaugeManager, registerJudyNickSkill, resolveJudyNickActivationMode } from './judyNick.js?v=skill-visuals-1';
 import {
   LILIA_CHAIN_TYPE,
@@ -60,6 +60,7 @@ import {
   registerLiliaSkill
 } from './lilia.js?v=tsum-images-8';
 import {
+  FINAL_BATTLE_HOOK_PHASE,
   FINAL_BATTLE_HOOK_TYPE_ID,
   registerFinalBattleHookSkill
 } from './finalBattleHook.js?v=final-battle-hook-1';
@@ -71,6 +72,7 @@ import {
   normalizeRenderQualityMode,
   shouldRenderForQuality
 } from './renderQuality.js?v=game-feel-1';
+import { isSkillActiveVisualSupported } from './skillActiveVisuals.js?v=skill-active-1';
 import { areBoardTypesColorCompatible } from './boardTypeSelection.js?v=tsum-images-5';
 import {
   CHEAT_SPECIAL,
@@ -727,9 +729,9 @@ class Tsum {
           ctx.globalAlpha = this.alpha;
           const renderProfile = this.game.getRenderQualityProfile();
           ctx.shadowBlur = renderProfile.drawBodyShadows ? 8 + Math.sin(this.life * 7) * 3 : 0;
-          ctx.shadowColor = data.aura;
+          ctx.shadowColor = this.bombType === "moanaSpecial" ? "rgba(225,255,255,0.95)" : data.aura;
           if (!renderProfile.useRichSurfaces) {
-            ctx.fillStyle = data.color;
+            ctx.fillStyle = this.bombType === "moanaSpecial" ? "#F75AB8" : data.color;
             ctx.beginPath();
             ctx.arc(0, 0, r, 0, Math.PI * 2);
             ctx.fill();
@@ -765,6 +767,11 @@ class Tsum {
             gradient.addColorStop(0, "#ff98ca");
             gradient.addColorStop(0.58, "#ff44aa");
             gradient.addColorStop(1, "#880033");
+          } else if (this.bombType === "moanaSpecial") {
+            gradient.addColorStop(0, "#f5feff");
+            gradient.addColorStop(0.32, "#F75AB8");
+            gradient.addColorStop(0.72, "#d92e96");
+            gradient.addColorStop(1, "#6d245f");
           } else {
             gradient.addColorStop(0, "#b9f3ff");
             gradient.addColorStop(0.58, "#58cfff");
@@ -1849,6 +1856,29 @@ class SkillRuntimeManager {
   getVisualTimingState() {
     const pause = this.timingPauses[this.timingPauses.length - 1];
     return pause ? { ...pause } : null;
+  }
+
+  getActiveVisualState() {
+    const session = this.sessions
+      .slice()
+      .reverse()
+      .find((entry) => isSkillActiveVisualSupported(entry?.handlerId));
+    if (!session) {
+      return null;
+    }
+    const data = session.data || {};
+    return {
+      sessionId: session.id,
+      skillId: session.handlerId,
+      remainingMs: session.remainingMs,
+      mode: session.handlerId === "judyNick" ? (data.currentMode === "nick" ? "nick" : "judy") : null,
+      remainingShots: session.handlerId === "captainLightyear"
+        ? Math.max(0, Math.floor(Number(data.remainingShots) || 0))
+        : null,
+      phase: session.handlerId === "gaston"
+        ? (data.loopActive ? "active" : "initialClear")
+        : (typeof data.phase === "string" ? data.phase : "active")
+    };
   }
 
   isPresentationActive() {
@@ -2960,6 +2990,12 @@ const strongestSkillStrategies = {
       preferredRuleMode: "namine",
       minLength: 3
     });
+  },
+  finalBattleHook(game) {
+    if (!game.getActiveSkillSession(FINAL_BATTLE_HOOK_TYPE_ID)) {
+      return null;
+    }
+    return game.findStrongestModeFinalBattleHookThreeChain();
   }
 };
 
@@ -6241,6 +6277,10 @@ class Game {
       centers: (pause.centers || []).map((center) => ({ ...center })),
       targetIds: (pause.targetIds || []).slice()
     };
+  }
+
+  getSkillActiveVisualState() {
+    return this.skillRuntime?.getActiveVisualState?.() || null;
   }
 
   isGameplayInputLocked({ ignoreActionLock = false } = {}) {
@@ -9673,6 +9713,72 @@ class Game {
       !this.boardState.hasBubble(tsum) &&
       this.isTsumInPlayArea(tsum)
     ));
+  }
+
+  isStrongestModeFinalBattleHookPathClear(start, end, nodes, ignoredNodeIds = new Set()) {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const lengthSquared = dx * dx + dy * dy;
+    for (const node of nodes) {
+      if (!node || ignoredNodeIds.has(node.id)) {
+        continue;
+      }
+      const projection = lengthSquared <= 0
+        ? 0
+        : clamp(((node.x - start.x) * dx + (node.y - start.y) * dy) / lengthSquared, 0, 1);
+      const closestX = start.x + dx * projection;
+      const closestY = start.y + dy * projection;
+      const detectionRadius = this.getBodyRadius(node) * 1.3 + CHAIN_INPUT_MARGIN;
+      if (distance(node.x, node.y, closestX, closestY) <= detectionRadius) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  findStrongestModeFinalBattleHookThreeChain() {
+    const session = this.getActiveSkillSession(FINAL_BATTLE_HOOK_TYPE_ID);
+    const data = session?.data;
+    const angryHook = data?.angryHook;
+    if (
+      !data ||
+      data.phase !== FINAL_BATTLE_HOOK_PHASE.ACTIVE_INPUT ||
+      data.remainingActiveMs <= 0 ||
+      !angryHook ||
+      angryHook.dead ||
+      angryHook.removing ||
+      angryHook.inChain
+    ) {
+      return [];
+    }
+    const physicalHooks = this.getStrongestModeChainNodes().filter((node) => (
+      !node.virtual && this.boardState.getResolvedType(node)?.id === FINAL_BATTLE_HOOK_TYPE_ID
+    ));
+    for (let firstIndex = 0; firstIndex < physicalHooks.length; firstIndex += 1) {
+      const first = physicalHooks[firstIndex];
+      if (!this.isStrongestModeFinalBattleHookPathClear(
+        first,
+        angryHook,
+        physicalHooks,
+        new Set([first.id])
+      )) {
+        continue;
+      }
+      for (let secondIndex = 0; secondIndex < physicalHooks.length; secondIndex += 1) {
+        if (secondIndex === firstIndex) continue;
+        const second = physicalHooks[secondIndex];
+        if (!this.isStrongestModeFinalBattleHookPathClear(
+          angryHook,
+          second,
+          physicalHooks,
+          new Set([first.id, second.id])
+        )) {
+          continue;
+        }
+        return [first, angryHook, second];
+      }
+    }
+    return [];
   }
 
   countStrongestModePlayableNodesBelowCeiling() {
