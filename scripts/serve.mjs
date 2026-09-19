@@ -11,11 +11,12 @@ const contentTypes = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".mjs": "text/javascript; charset=utf-8",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
   ".svg": "image/svg+xml",
   ".png": "image/png"
 };
 
-const compressibleExtensions = new Set([".css", ".html", ".js", ".mjs", ".svg"]);
+const compressibleExtensions = new Set([".css", ".html", ".js", ".mjs", ".svg", ".webmanifest"]);
 
 createServer(async (request, response) => {
   try {
