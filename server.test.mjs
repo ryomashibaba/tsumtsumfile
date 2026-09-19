@@ -80,7 +80,7 @@ test("static server serves every Tsum PNG in parallel while an idle socket is op
 
   const imageDirectory = join(PROJECT_ROOT, "tsum_image");
   const imageNames = (await readdir(imageDirectory)).filter((name) => name.endsWith(".png")).sort();
-  assert.equal(imageNames.length, 17);
+  assert.equal(imageNames.length, 18);
 
   const responses = await Promise.all(imageNames.map(async (name) => {
     const response = await request(port, `/tsum_image/${encodeURIComponent(name)}?v=tsum-images-5`);

@@ -104,6 +104,7 @@ const TSUM_ARTWORK_BY_ID = {
   jamilViper: { imageSrc: "./tsum_image/ジャミル・ヴァイパー.png?v=tsum-images-5" },
   snowQueenElsa: { imageSrc: "./tsum_image/雪の女王エルサ.png?v=tsum-images-5" },
   liliaVanrouge: { imageSrc: "./tsum_image/リリア・ヴァンルージュ.png?v=tsum-images-5" },
+  finalBattleHook: { imageSrc: "./tsum_image/最終決戦フック船長.png?v=tsum-images-5" },
   judyNick: {
     imageSources: [
       "./tsum_image/ジュディ＆ニック_ジュディ-.png?v=tsum-images-5",

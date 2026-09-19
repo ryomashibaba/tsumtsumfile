@@ -16,6 +16,7 @@ const EXPECTED_ARTWORK_IDS = [
   "jamilViper",
   "snowQueenElsa",
   "liliaVanrouge",
+  "finalBattleHook",
   "judyNick",
   "judyNickJudy",
   "judyNickNickMate",
@@ -55,14 +56,13 @@ test("all supported Tsum artwork points to a valid versioned PNG", async () => {
     }
   }
 
-  assert.equal(uniqueSources.size, 17);
+  assert.equal(uniqueSources.size, 18);
 });
 
 test("characters without supplied artwork keep their fallback rendering", () => {
   const typesById = new Map(TSUM_TYPES.map((type) => [type.id, type]));
 
   assert.deepEqual(getSources(typesById.get("coingain")), []);
-  assert.deepEqual(getSources(typesById.get("finalBattleHook")), []);
   assert.deepEqual(getSources(typesById.get("namineSora")), []);
 });
 
