@@ -1811,7 +1811,6 @@ function makeFinalBattleHookStrongestHarness({ nodes, phase = FINAL_BATTLE_HOOK_
     getStrongestModeChainNodes: () => nodes || [],
     getBodyRadius: (node) => node.radius,
     findStrongestModeBestChain: () => fallback,
-    isStrongestModeFinalBattleHookPathClear: Game.prototype.isStrongestModeFinalBattleHookPathClear,
     findStrongestModeFinalBattleHookThreeChain: Game.prototype.findStrongestModeFinalBattleHookThreeChain
   };
   return { harness, angryHook, fallback };
@@ -1828,21 +1827,23 @@ test("Final Battle Hook strongest mode prioritizes an exact three-node chain thr
   assert.equal(chain.length, 3);
 });
 
-test("Final Battle Hook strongest mode rejects a route that would pick up another physical Hook", () => {
-  const first = makeFinalBattleHookNode("first", 40, 360);
-  const blocker = makeFinalBattleHookNode("blocker", 125, 360);
-  const { harness, angryHook } = makeFinalBattleHookStrongestHarness({ nodes: [first, blocker] });
+test("Final Battle Hook strongest mode deterministically selects only two identities when extra Hooks intervene", () => {
+  const last = makeFinalBattleHookNode("z-last", 40, 360);
+  const first = makeFinalBattleHookNode("a-first", 125, 360);
+  const second = makeFinalBattleHookNode("b-second", 207, 360);
+  const { harness, angryHook } = makeFinalBattleHookStrongestHarness({ nodes: [last, second, first] });
 
-  assert.equal(
-    Game.prototype.isStrongestModeFinalBattleHookPathClear.call(
-      harness,
-      first,
-      angryHook,
-      [first, blocker],
-      new Set([first.id])
-    ),
-    false
+  assert.deepEqual(
+    Game.prototype.findStrongestModeFinalBattleHookThreeChain.call(harness),
+    [first, angryHook, second]
   );
+});
+
+test("Final Battle Hook strongest mode does not fall back while active and fewer than two Hooks exist", () => {
+  const only = makeFinalBattleHookNode("only", 60, 500);
+  const { harness } = makeFinalBattleHookStrongestHarness({ nodes: [only] });
+
+  assert.deepEqual(Game.prototype.findStrongestModeChain.call(harness), []);
 });
 
 test("Final Battle Hook strongest mode falls back outside its active input window", () => {
@@ -1856,4 +1857,32 @@ test("Final Battle Hook strongest mode falls back outside its active input windo
   assert.deepEqual(Game.prototype.findStrongestModeChain.call(harness), fallback);
   harness.getActiveSkillSession = () => null;
   assert.deepEqual(Game.prototype.findStrongestModeChain.call(harness), fallback);
+});
+
+test("Final Battle Hook active input retries its three-chain before bombs or other strongest actions", () => {
+  const first = makeFinalBattleHookNode("first", 60, 500);
+  const second = makeFinalBattleHookNode("second", 360, 500);
+  const { harness, angryHook } = makeFinalBattleHookStrongestHarness({ nodes: [first] });
+  const calls = [];
+  harness.isStrongestModeBusy = () => false;
+  harness.isSkillReadyForActivation = () => false;
+  harness.tryPerformStrongestModeFeverBombCancel = () => {
+    calls.push("fever-bomb");
+    return true;
+  };
+  harness.normalizeStrongestModeBombCount = () => {
+    calls.push("normalize-bombs");
+    return true;
+  };
+  harness.performStrongestModeChain = (chain) => {
+    calls.push(chain.map((entry) => entry.id));
+    return true;
+  };
+
+  assert.equal(Game.prototype.performStrongestModeStep.call(harness), false);
+  assert.deepEqual(calls, []);
+
+  harness.getStrongestModeChainNodes = () => [first, second];
+  assert.equal(Game.prototype.performStrongestModeStep.call(harness), true);
+  assert.deepEqual(calls, [["first", angryHook.id, "second"]]);
 });

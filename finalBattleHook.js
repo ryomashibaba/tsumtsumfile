@@ -177,6 +177,46 @@ function startCustomChain(game, data, node, pos) {
   setChainFeedback(game, data, pos);
 }
 
+function commitStrongestModeThreeChain(ctx, session, chain) {
+  const game = ctx.game;
+  const data = getSessionData(session);
+  const entries = Array.isArray(chain) ? chain : [];
+  const [first, angry, second] = entries;
+  if (
+    !data
+    || data.phase !== FINAL_BATTLE_HOOK_PHASE.ACTIVE_INPUT
+    || data.remainingActiveMs <= 0
+    || entries.length !== 3
+    || angry !== data.angryHook
+    || !angry
+    || angry.dead
+    || angry.removing
+    || angry.inChain
+    || !first
+    || !second
+    || first === second
+    || first.id === second.id
+    || !isPhysicalHook(game, first)
+    || !isPhysicalHook(game, second)
+    || !isLiveChainCandidate(game, first)
+    || !isLiveChainCandidate(game, second)
+  ) {
+    return false;
+  }
+
+  startCustomChain(game, data, first, { x: first.x, y: first.y });
+  for (const node of [angry, second]) {
+    node.inChain = true;
+    game.chain.push(node);
+    game.chainSet.add(node.id);
+  }
+  data.specialChain.nodeIds = game.chain.map((node) => node.id);
+  data.specialChain.lastPointer = { x: second.x, y: second.y };
+  setChainFeedback(game, data, second);
+  game.finishChain();
+  return true;
+}
+
 function removeBacktrackNode(game, data, pos) {
   if (game.chain.length <= 1) return false;
   const backtrack = game.chain[game.chain.length - 2];
@@ -440,6 +480,9 @@ export function registerFinalBattleHookSkill({ SkillRegistry, chainInputMargin =
       if (data.phase !== FINAL_BATTLE_HOOK_PHASE.ACTIVE_INPUT && data.phase !== FINAL_BATTLE_HOOK_PHASE.EXPIRED_DRAG) return false;
       advanceCustomDrag(ctx.game, data, pos, chainInputMargin, chainConnectMargin);
       return true;
+    },
+    onStrongestModeChain(ctx, session, chain) {
+      return commitStrongestModeThreeChain(ctx, session, chain);
     },
     onPointerUp(ctx, session) {
       const data = getSessionData(session);

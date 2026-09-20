@@ -2117,6 +2117,23 @@ class SkillRuntimeManager {
     return false;
   }
 
+  dispatchStrongestModeChain(chain) {
+    for (const session of this.sessions.slice().reverse()) {
+      const handler = SkillRegistry[session.handlerId];
+      if (!handler || !handler.onStrongestModeChain) {
+        continue;
+      }
+      if (handler.onStrongestModeChain(
+        this.createContext(handler, session.level, session),
+        session,
+        chain
+      )) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   dispatchPointerUp(pos) {
     for (const session of this.sessions.slice().reverse()) {
       const handler = SkillRegistry[session.handlerId];
@@ -2919,7 +2936,9 @@ class InputRouter {
         targets: frozenInfo.targets,
         x: pos.x,
         y: pos.y,
-        allowBomb: false,
+        // Ice stacks increase the clear/coin count, but the bomb roll follows
+        // ordinary chain rules and is based only on the Tsums that disappear.
+        bombEffectiveClearCount: frozenInfo.targets.length,
         type: frozenInfo.type || this.game.myTsum,
         correctionType: frozenInfo.correctionType,
         coinCheatRoute: frozenInfo.coinCheatRoute,
@@ -7164,6 +7183,21 @@ class Game {
     if (this.isSkillReadyForActivation()) {
       return this.attemptSkillActivation(false);
     }
+    const finalBattleHookSession = this.myTsum?.id === FINAL_BATTLE_HOOK_TYPE_ID
+      ? this.getActiveSkillSession(FINAL_BATTLE_HOOK_TYPE_ID)
+      : null;
+    const isFinalBattleHookInputActive = !!(
+      finalBattleHookSession?.data
+      && finalBattleHookSession.data.phase === FINAL_BATTLE_HOOK_PHASE.ACTIVE_INPUT
+      && finalBattleHookSession.data.remainingActiveMs > 0
+    );
+    if (isFinalBattleHookInputActive) {
+      const chain = this.findStrongestModeFinalBattleHookThreeChain();
+      if (!Array.isArray(chain) || chain.length !== 3) {
+        return false;
+      }
+      return this.performStrongestModeChain(chain);
+    }
     if (this.tryPerformStrongestModeFeverBombCancel()) {
       return true;
     }
@@ -7690,6 +7724,15 @@ class Game {
         }
       }
       return strategyChain;
+    }
+    const finalBattleHookSession = this.myTsum?.id === FINAL_BATTLE_HOOK_TYPE_ID
+      ? this.getActiveSkillSession(FINAL_BATTLE_HOOK_TYPE_ID)
+      : null;
+    if (
+      finalBattleHookSession?.data?.phase === FINAL_BATTLE_HOOK_PHASE.ACTIVE_INPUT
+      && finalBattleHookSession.data.remainingActiveMs > 0
+    ) {
+      return [];
     }
     if (isCoronationElsaSkillActive) {
       return [];
@@ -9731,27 +9774,6 @@ class Game {
     ));
   }
 
-  isStrongestModeFinalBattleHookPathClear(start, end, nodes, ignoredNodeIds = new Set()) {
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const lengthSquared = dx * dx + dy * dy;
-    for (const node of nodes) {
-      if (!node || ignoredNodeIds.has(node.id)) {
-        continue;
-      }
-      const projection = lengthSquared <= 0
-        ? 0
-        : clamp(((node.x - start.x) * dx + (node.y - start.y) * dy) / lengthSquared, 0, 1);
-      const closestX = start.x + dx * projection;
-      const closestY = start.y + dy * projection;
-      const detectionRadius = this.getBodyRadius(node) * 1.3 + CHAIN_INPUT_MARGIN;
-      if (distance(node.x, node.y, closestX, closestY) <= detectionRadius) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   findStrongestModeFinalBattleHookThreeChain() {
     const session = this.getActiveSkillSession(FINAL_BATTLE_HOOK_TYPE_ID);
     const data = session?.data;
@@ -9767,34 +9789,14 @@ class Game {
     ) {
       return [];
     }
-    const physicalHooks = this.getStrongestModeChainNodes().filter((node) => (
-      !node.virtual && this.boardState.getResolvedType(node)?.id === FINAL_BATTLE_HOOK_TYPE_ID
-    ));
-    for (let firstIndex = 0; firstIndex < physicalHooks.length; firstIndex += 1) {
-      const first = physicalHooks[firstIndex];
-      if (!this.isStrongestModeFinalBattleHookPathClear(
-        first,
-        angryHook,
-        physicalHooks,
-        new Set([first.id])
-      )) {
-        continue;
-      }
-      for (let secondIndex = 0; secondIndex < physicalHooks.length; secondIndex += 1) {
-        if (secondIndex === firstIndex) continue;
-        const second = physicalHooks[secondIndex];
-        if (!this.isStrongestModeFinalBattleHookPathClear(
-          angryHook,
-          second,
-          physicalHooks,
-          new Set([first.id, second.id])
-        )) {
-          continue;
-        }
-        return [first, angryHook, second];
-      }
-    }
-    return [];
+    const physicalHooks = this.getStrongestModeChainNodes()
+      .filter((node) => (
+        !node.virtual && this.boardState.getResolvedType(node)?.id === FINAL_BATTLE_HOOK_TYPE_ID
+      ))
+      .sort((left, right) => String(left.id).localeCompare(String(right.id)));
+    return physicalHooks.length >= 2
+      ? [physicalHooks[0], angryHook, physicalHooks[1]]
+      : [];
   }
 
   countStrongestModePlayableNodesBelowCeiling() {
@@ -10123,6 +10125,17 @@ class Game {
     );
     if (!Array.isArray(chain) || chain.length < 3 || !canAttemptChain) {
       return false;
+    }
+    if (
+      this.myTsum?.id === FINAL_BATTLE_HOOK_TYPE_ID
+      && chain.length === 3
+      && chain[1]?.finalBattleHookAngry === true
+    ) {
+      const committed = this.skillRuntime.dispatchStrongestModeChain(chain);
+      if (options.result) {
+        options.result.committedLength = committed ? 3 : 0;
+      }
+      return committed;
     }
     if (chain.strongestModeCoronationElsaSource === "planner") {
       const validation = this.validateStrongestModeCoronationElsaPlannedChain(chain);
@@ -12213,7 +12226,10 @@ class Game {
     contactRadii.length = activeBodies.length;
     for (let bodyIndex = 0; bodyIndex < activeBodies.length; bodyIndex += 1) {
       const body = activeBodies[bodyIndex];
-      if (body.clearOccupying || body.inChain || this.isBodyMotionLocked(body)) {
+      // A selected chain target must remain selectable, but it should still
+      // follow the board as the pile settles. Only clearing targets and
+      // explicit movement effects are position-locked.
+      if (body.clearOccupying || this.isBodyMotionLocked(body)) {
         lockedBodies.add(body);
       }
       contactRadii[bodyIndex] = this.getPhysicsContactRadius(body);
@@ -12296,7 +12312,7 @@ class Game {
     }
 
     for (const body of activeBodies) {
-      if (!body.inChain) this.resolveFieldBoundary(body, { soft: true, locked: isLocked(body) });
+      this.resolveFieldBoundary(body, { soft: true, locked: isLocked(body) });
       finalizeTsumPhysicsBody(body, { locked: isLocked(body) });
     }
     this.physicsBroadphaseStats = Object.freeze({

@@ -44,7 +44,7 @@ function makeBody(id, x, y, options = {}) {
   return body;
 }
 
-const isLocked = (body) => body.inChain || body.clearOccupying || body.frozen;
+const isLocked = (body) => body.clearOccupying || body.frozen;
 const radiusOf = (body) => getPhysicsContactRadius(body, (entry) => entry.radius);
 
 function resolveBoundary(body) {
@@ -197,8 +197,8 @@ test("frozen overlay geometry supports large and cheat-scaled effective radii", 
   );
 });
 
-test("fixed, frozen, chained, and clear-occupying Tsums keep position and angle", () => {
-  for (const flag of ["frozen", "inChain", "clearOccupying"]) {
+test("frozen and clear-occupying Tsums keep position and angle", () => {
+  for (const flag of ["frozen", "clearOccupying"]) {
     const body = makeBody(`locked-${flag}`, 200, 300, { [flag]: true, vx: 4, vy: 4 });
     const angle = body.physicsState.angle;
     stepBodies([body]);
@@ -207,6 +207,13 @@ test("fixed, frozen, chained, and clear-occupying Tsums keep position and angle"
     assert.equal(body.physicsState.angle, angle);
     assert.equal(body.physicsState.angularVelocity, 0);
   }
+});
+
+test("chained Tsums continue falling with the rest of the board", () => {
+  const body = makeBody("chained-falling", 200, 300, { inChain: true });
+  stepBodies([body]);
+  assert.ok(body.y > 300);
+  assert.equal(body.physicsState.lockedLastStep, false);
 });
 
 test("FAN response supports quick repeated strengthening and wakes bodies", () => {

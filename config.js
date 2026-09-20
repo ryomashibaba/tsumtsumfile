@@ -82,16 +82,16 @@ export const TSUM_TYPES = [
 export const FIXED_SUB_TSUM_IDS_BY_MY_TSUM = Object.freeze({
   coingain: { 3: ["jafarGenie", "grim"], 4: ["guidingMoana", "jafarGenie", "grim"], 5: ["coronationElsa", "jamilViper", "jafarGenie", "grim"] },
   coronationElsa: { 3: ["jafarGenie", "grim"], 4: ["jafarGenie", "grogu", "grim"], 5: ["jamilViper", "jafarGenie", "grogu", "grim"] },
-  captainLightyear: { 3: ["jafarGenie", "grim"], 4: ["gaston", "perfumeAlice", "grim"], 5: ["perfumeAlice", "jamilViper", "jafarGenie", "grim"] },
+  captainLightyear: { 3: ["jafarGenie", "grim"], 4: ["perfumeAlice", "jamilViper", "finalBattleHook"], 5: ["perfumeAlice", "jamilViper", "jafarGenie", "grim"] },
   namine: { 3: ["jafarGenie", "grim"], 4: ["jafarGenie", "grogu", "grim"], 5: ["jamilViper", "jafarGenie", "grogu", "grim"] },
   gaston: { 3: ["guidingMoana", "grogu"], 4: ["coronationElsa", "grogu", "grim"], 5: ["guidingMoana", "perfumeAlice", "grogu", "grim"] },
   guidingMoana: { 3: ["jafarGenie", "grim"], 4: ["jafarGenie", "grogu", "grim"], 5: ["jamilViper", "jafarGenie", "grogu", "grim"] },
-  perfumeAlice: { 3: ["grogu", "grim"], 4: ["gaston", "grogu", "grim"], 5: ["jamilViper", "jafarGenie", "grogu", "grim"] },
+  perfumeAlice: { 3: ["grogu", "grim"], 4: ["captainLightyear", "jamilViper", "finalBattleHook"], 5: ["jamilViper", "jafarGenie", "grogu", "grim"] },
   jamilViper: { 3: ["snowQueenElsa", "jafarGenie"], 4: ["guidingMoana", "jafarGenie", "grogu"], 5: ["coronationElsa", "jafarGenie", "grogu", "grim"] },
   snowQueenElsa: { 3: ["jafarGenie", "grim"], 4: ["jamilViper", "jafarGenie", "grim"], 5: ["perfumeAlice", "jamilViper", "jafarGenie", "grim"] },
   liliaVanrouge: { 3: ["perfumeAlice", "grogu"], 4: ["guidingMoana", "jafarGenie", "grogu"], 5: ["guidingMoana", "perfumeAlice", "jafarGenie", "grogu"] },
   finalBattleHook: { 3: ["perfumeAlice", "grogu"], 4: ["captainLightyear", "perfumeAlice", "jamilViper"], 5: ["guidingMoana", "perfumeAlice", "jamilViper", "grogu"] },
-  judyNick: { 3: ["grim"], 4: ["jamilViper", "grim"], 5: ["jamilViper", "jafarGenie", "grim"] }
+  judyNick: { 3: ["grim"], 4: ["jamilViper", "finalBattleHook"], 5: ["jamilViper", "jafarGenie", "grim"] }
 });
 
 const TSUM_ARTWORK_BY_ID = {

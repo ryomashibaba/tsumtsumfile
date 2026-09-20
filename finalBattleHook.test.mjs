@@ -319,6 +319,51 @@ test('successful chain emits separate manual and diagonal events and never clear
   assert.equal(game.tsums.includes(angry), false);
 });
 
+test('strongest mode commits the exact three selected identities despite overlaps and intervening Hooks', () => {
+  const harness = makeSkillHarness(6);
+  const { handler, ctx, game, session, clearCalls, physicalA, physicalB, diagonal } = harness;
+  const intervening = node('hook-between', 207, 360);
+  diagonal.x = physicalA.x;
+  diagonal.y = physicalA.y;
+  game.tsums.push(intervening);
+  let committedChain = null;
+  game.finishChain = () => {
+    committedChain = game.chain.slice();
+    game.dragging = false;
+    game.chain = [];
+    game.chainSet = new Set();
+    game.chainTypeId = null;
+    game.chainRule = null;
+    handler.onChainCommit(ctx, session, committedChain);
+    committedChain.forEach((entry) => { entry.inChain = false; });
+  };
+
+  assert.equal(
+    handler.onStrongestModeChain(ctx, session, [physicalA, session.data.angryHook, physicalB]),
+    true
+  );
+  assert.deepEqual(
+    committedChain.map((entry) => entry.id),
+    ['hook-a', session.data.angryHook.id, 'hook-b']
+  );
+  assert.equal(committedChain.includes(diagonal), false);
+  assert.equal(committedChain.includes(intervening), false);
+  assert.deepEqual(clearCalls[0].targets, [physicalA, physicalB]);
+});
+
+test('strongest mode revalidates selected Hook identities immediately before committing', () => {
+  const harness = makeSkillHarness(1);
+  const { handler, ctx, session, physicalA, physicalB } = harness;
+  physicalB.removing = true;
+
+  assert.equal(
+    handler.onStrongestModeChain(ctx, session, [physicalA, session.data.angryHook, physicalB]),
+    false
+  );
+  assert.equal(harness.game.dragging, false);
+  assert.deepEqual(harness.game.chain, []);
+});
+
 test('only ACTIVE_INPUT consumes the 1800 ms budget', () => {
   const harness = makeSkillHarness(3);
   const { handler, ctx, session } = harness;
