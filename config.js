@@ -95,7 +95,7 @@ export const FIXED_SUB_TSUM_IDS_BY_MY_TSUM = Object.freeze({
 });
 
 const TSUM_ARTWORK_BY_ID = {
-  coronationElsa: { imageSrc: "./tsum_image/戴冠式エルサ.png?v=tsum-images-5" },
+  coronationElsa: { imageSrc: "./tsum_image/戴冠式エルサ.png?v=tsum-images-5", artworkScale: 1.1 },
   captainLightyear: { imageSrc: "./tsum_image/キャプテンライトイヤー.png?v=tsum-images-5" },
   namine: { imageSrc: "./tsum_image/ナミネ.png?v=tsum-images-5" },
   gaston: { imageSrc: "./tsum_image/ガストン.png?v=tsum-images-5" },
