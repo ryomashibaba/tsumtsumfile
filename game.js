@@ -1795,7 +1795,12 @@ class SkillRuntimeManager {
 
   activate(skillId, level, activationData = null) {
     const handler = SkillRegistry[skillId];
-    if (!handler || this.pendingActivation || this.isInputLocked()) {
+    if (
+      !handler
+      || this.pendingActivation
+      || this.isInputLocked()
+      || (skillId === FINAL_BATTLE_HOOK_TYPE_ID && this.isFinalBattleHookActive())
+    ) {
       return false;
     }
     const presentation = SKILL_TIMING_TABLE[skillId]?.presentation;
@@ -1828,7 +1833,7 @@ class SkillRuntimeManager {
 
   activateNow(skillId, level, activationData = null) {
     const handler = SkillRegistry[skillId];
-    if (!handler) {
+    if (!handler || (skillId === FINAL_BATTLE_HOOK_TYPE_ID && this.isFinalBattleHookActive())) {
       return false;
     }
     const ctx = this.createContext(handler, level, null, activationData);
@@ -1887,6 +1892,11 @@ class SkillRuntimeManager {
 
   isInputLocked() {
     return !!this.pendingActivation || this.timingPauses.length > 0;
+  }
+
+  isFinalBattleHookActive() {
+    return this.pendingActivation?.skillId === FINAL_BATTLE_HOOK_TYPE_ID
+      || this.getSessionsByHandlerId(FINAL_BATTLE_HOOK_TYPE_ID).length > 0;
   }
 
   captureHeldFinalBattleHookInput(pos, pointerId) {
@@ -6179,6 +6189,12 @@ class Game {
   isSkillReadyForActivation() {
     if (this.myTsum.id === "judyNick") {
       return !!this.getJudyNickReadySkillMode();
+    }
+    if (
+      this.myTsum.id === FINAL_BATTLE_HOOK_TYPE_ID
+      && this.skillRuntime?.isFinalBattleHookActive?.()
+    ) {
+      return false;
     }
     if (this.myTsum.id === "coingain" && this.getCoingainSession()) {
       return false;
@@ -10799,6 +10815,13 @@ class Game {
       return false;
     }
     if (this.myTsum.id === "coingain" && this.getCoingainSession()) {
+      this.triggerSkillButtonFeedback("not-ready");
+      return false;
+    }
+    if (
+      this.myTsum.id === FINAL_BATTLE_HOOK_TYPE_ID
+      && this.skillRuntime?.isFinalBattleHookActive?.()
+    ) {
       this.triggerSkillButtonFeedback("not-ready");
       return false;
     }

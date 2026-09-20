@@ -228,6 +228,24 @@ test('held input during every Final Battle Hook presentation resumes only after 
   }
 });
 
+test('Final Battle Hook cannot be reactivated until its active session ends', () => {
+  const { runtime } = makeHeldInputRuntimeHarness();
+
+  assert.equal(runtime.activate('finalBattleHook', 1), true);
+  assert.equal(runtime.activate('finalBattleHook', 1), false, 'activation presentation is protected');
+
+  runtime.updateRaw(1970);
+  runtime.updateRaw(20);
+  assert.equal(runtime.isFinalBattleHookActive(), true);
+  assert.equal(runtime.activate('finalBattleHook', 1), false, 'active input is protected');
+
+  const session = runtime.getSessionsByHandlerId('finalBattleHook')[0];
+  runtime.endSession(session, 'manual');
+  assert.equal(runtime.isFinalBattleHookActive(), false);
+  runtime.updateRaw(400);
+  assert.equal(runtime.activate('finalBattleHook', 1), true, 'activation is restored after the skill ends');
+});
+
 test('held Final Battle Hook input can resume from the Angry Hook', () => {
   const harness = makeHeldInputRuntimeHarness();
   assert.equal(harness.runtime.activateNow('finalBattleHook', 1), true);
