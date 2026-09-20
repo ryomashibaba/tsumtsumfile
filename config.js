@@ -113,7 +113,7 @@ const TSUM_ARTWORK_BY_ID = {
   },
   judyNickJudy: { imageSrc: "./tsum_image/ジュディ＆ニック_ジュディ-.png?v=tsum-images-5" },
   judyNickNickMate: { imageSrc: "./tsum_image/ジュディ＆ニック_ニック.png?v=tsum-images-5" },
-  jafarGenie: { imageSrc: "./tsum_image/ジャファー.png?v=tsum-images-5" },
+  jafarGenie: { imageSrc: "./tsum_image/ジャファー.png?v=tsum-images-5", artworkScale: 1.1 },
   genie: { imageSrc: "./tsum_image/ジーニー.png?v=tsum-images-5" },
   pumbaa: { imageSrc: "./tsum_image/プンバァ.png?v=tsum-images-5" },
   grogu: { imageSrc: "./tsum_image/グローグー.png?v=tsum-images-5" },
