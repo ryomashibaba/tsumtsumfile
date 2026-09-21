@@ -294,7 +294,7 @@ export const SKILL_TABLES = {
   judyNick: {
     cost: [25, 24, 23, 22, 21, 20],
     durationSec: [7.0, 7.6, 8.2, 8.8, 9.4, 10.0],
-    bubbleRadius: [58, 62, 66, 70, 74, 78],
+    bubbleRadius: [69.6, 74.4, 79.2, 84, 88.8, 93.6],
     nickFreezeRadius: [56, 64, 72, 80, 88, 96],
     countScoreMultiplier: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     countChargeRate: [1.0, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55],
