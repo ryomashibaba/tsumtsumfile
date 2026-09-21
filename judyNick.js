@@ -73,7 +73,13 @@ export class DualGaugeSystem {
     }
   }
 
-  activateSkill() {
+  activateSkill(preferredMode = null) {
+    if (preferredMode === "judy") {
+      return this.judy.isReady ? "judy" : null;
+    }
+    if (preferredMode === "nick") {
+      return this.nick.isReady ? "nick" : null;
+    }
     if (this.judy.isReady) {
       return "judy";
     }
@@ -313,9 +319,9 @@ export class JudyNickGaugeManager {
     );
   }
 
-  activateSkill() {
+  activateSkill(preferredMode = null) {
     this.syncMaxCharge();
-    return this.dualGauge.activateSkill();
+    return this.dualGauge.activateSkill(preferredMode);
   }
 
   consumeSkill(mode) {
@@ -386,6 +392,10 @@ export function registerJudyNickSkill({
 
   function getJudyNickChargeRate(countStage) {
     return SKILL_TABLES.judyNick.countChargeRate[clamp(countStage, 1, 10) - 1];
+  }
+
+  function getJudyNickScoreMultiplier(countStage) {
+    return SKILL_TABLES.judyNick.countScoreMultiplier[clamp(countStage, 1, 10) - 1];
   }
 
   function getStackIndex(stackCount, maxLength) {
@@ -613,6 +623,7 @@ export function registerJudyNickSkill({
       if (typeof request.chargeMultiplier !== "number" || request.chargeMultiplier === 1) {
         request.chargeMultiplier = getJudyNickChargeRate(countStage);
       }
+      request.scoreMultiplier = (request.scoreMultiplier || 1) * getJudyNickScoreMultiplier(countStage);
       return request;
     },
     onEnd(ctx, session) {
@@ -627,6 +638,7 @@ export function registerJudyNickSkill({
     getJudyNickCountCorrectionType,
     getJudyNickOverlayCorrectionType,
     getJudyNickChargeRate,
+    getJudyNickScoreMultiplier,
     getStackIndex,
     isJudyNickPairTypeId
   };

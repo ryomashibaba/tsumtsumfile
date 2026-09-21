@@ -793,7 +793,10 @@ test("JudyNick repeated reactivation alternates Judy and Nick", () => {
   modes.push(harness.activate("nick").data.currentMode);
 
   assert.deepEqual(modes, ["judy", "nick", "judy", "nick"]);
-  assert.equal(harness.activate("judy").data.countStage, 5);
+  const reactivated = harness.activate("judy");
+  assert.equal(reactivated.data.countStage, 5);
+  assert.equal(reactivated.data.currentMode, "judy");
+  assert.equal(reactivated.remainingMs, 7000);
   assert.deepEqual(harness.gaugeEvents, [
     "start:judy",
     "end:judy", "start:nick",

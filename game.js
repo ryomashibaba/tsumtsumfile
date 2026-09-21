@@ -2865,6 +2865,60 @@ class InputRouter {
     this.board = board;
     this.runtime = runtime;
     this.clear = clear;
+    this.pendingBubbleGesture = null;
+  }
+
+  beginBubbleGesture(pos, pointerId) {
+    if (this.game.isGameplayInputLocked?.({ ignoreActionLock: true })) {
+      return false;
+    }
+    const bubble = this.board.findBubbleAt(pos);
+    if (!bubble || this.board.getResolvedType(bubble.node)?.id !== "judyNickJudy") {
+      return false;
+    }
+    if (!this.game.startChain(bubble.node, pos)) {
+      return false;
+    }
+    this.pendingBubbleGesture = {
+      pointerId,
+      node: bubble.node,
+      start: { x: pos.x, y: pos.y },
+      dragged: false
+    };
+    return true;
+  }
+
+  trackBubbleGesture(pos, pointerId) {
+    const pending = this.pendingBubbleGesture;
+    if (!pending || pending.pointerId !== pointerId) {
+      return false;
+    }
+    if (distance(pending.start.x, pending.start.y, pos.x, pos.y) >= 8) {
+      pending.dragged = true;
+    }
+    return true;
+  }
+
+  finishBubbleGesture(pos, pointerId, cancelled = false) {
+    const pending = this.pendingBubbleGesture;
+    if (!pending || pending.pointerId !== pointerId) {
+      return false;
+    }
+    this.pendingBubbleGesture = null;
+    const isTap = !cancelled && !pending.dragged && (this.game.chain?.length || 0) <= 1;
+    if (!isTap) {
+      if (cancelled) {
+        this.game.cancelActiveChain();
+        return true;
+      }
+      return false;
+    }
+    this.game.cancelActiveChain();
+    return this.handleTap({ x: pending.node.x, y: pending.node.y });
+  }
+
+  reset() {
+    this.pendingBubbleGesture = null;
   }
 
   handleTap(pos) {
@@ -5370,7 +5424,11 @@ class Game {
     }
     if (!this.actionLock && pointInCircle(SKILL_BUTTON_RECT.x + SKILL_BUTTON_RECT.w * 0.5, SKILL_BUTTON_RECT.y + SKILL_BUTTON_RECT.h * 0.5, SKILL_BUTTON_RECT.w * 0.5, pos.x, pos.y)) {
       this.noteAction();
-      this.attemptSkillActivation(false);
+      this.attemptSkillActivation(false, this.getJudyNickSkillButtonModeAt(pos));
+      return;
+    }
+    if (!this.actionLock && this.inputRouter.beginBubbleGesture(pos, event.pointerId)) {
+      this.noteAction();
       return;
     }
     if (!this.actionLock && this.inputRouter.handleTap(pos)) {
@@ -5507,6 +5565,7 @@ class Game {
   onPointerMove(event) {
     const rect = this.canvas.getBoundingClientRect();
     const pos = this.getPointerPosition(event, rect);
+    this.inputRouter.trackBubbleGesture(pos, event.pointerId);
     const isManualChain = (
       this.dragging &&
       this.manualDragPoint &&
@@ -5540,6 +5599,13 @@ class Game {
       return;
     }
     if (this.state === "playing" && this.inputRouter.handlePointerUp(this.dragPointer)) {
+      return;
+    }
+    if (this.state === "playing" && this.inputRouter.finishBubbleGesture(
+      this.dragPointer,
+      event.pointerId,
+      event.type === "pointercancel"
+    )) {
       return;
     }
     if (this.state === "playing" && this.dragging) {
@@ -6042,6 +6108,16 @@ class Game {
     this.chainRule = null;
   }
 
+  cancelActiveChain() {
+    this.dragging = false;
+    (this.chain || []).forEach((tsum) => { tsum.inChain = false; });
+    this.chain = [];
+    this.chainSet = new Set();
+    this.chainTypeId = null;
+    this.chainRule = null;
+    this.gameFeel?.setChain(0);
+  }
+
   finishActiveChainForCoingainLottery() {
     if (!this.dragging || !Array.isArray(this.chain) || this.chain.length < 2) {
       return false;
@@ -6198,11 +6274,20 @@ class Game {
     return clamp(this.getJudyNickSession()?.data?.countStage || 1, 1, 10);
   }
 
-  getJudyNickReadySkillMode() {
+  getJudyNickReadySkillMode(preferredMode = null) {
     if (this.myTsum.id !== "judyNick" || !this.judyNickGaugeManager) {
       return null;
     }
-    return this.judyNickGaugeManager.activateSkill();
+    return this.judyNickGaugeManager.activateSkill(preferredMode);
+  }
+
+  getJudyNickSkillButtonModeAt(pos) {
+    if (this.myTsum.id !== "judyNick") {
+      return null;
+    }
+    const centerX = SKILL_BUTTON_RECT.x + SKILL_BUTTON_RECT.w * 0.5;
+    const centerY = SKILL_BUTTON_RECT.y + SKILL_BUTTON_RECT.h * 0.5;
+    return (pos.x - centerX) + (pos.y - centerY) <= 0 ? "judy" : "nick";
   }
 
   isSkillReadyForActivation() {
@@ -10351,6 +10436,7 @@ class Game {
     this.chainSet.clear();
     this.chainTypeId = null;
     this.chainRule = null;
+    this.inputRouter.reset();
     this.aiAutoPlayTimer = 0;
     this.resetAiChainAnimationState();
     this.aiLastState = null;
@@ -10795,7 +10881,7 @@ class Game {
     );
   }
 
-  attemptSkillActivation(fromKeyboard) {
+  attemptSkillActivation(fromKeyboard, preferredMode = null) {
     if (this.state !== "playing" || this.isGameplayInputLocked() || this.dragging) {
       return false;
     }
@@ -10803,7 +10889,7 @@ class Game {
       return false;
     }
     if (this.myTsum.id === "judyNick") {
-      const mode = this.getJudyNickReadySkillMode();
+      const mode = this.getJudyNickReadySkillMode(preferredMode);
       if (!mode) {
         this.triggerSkillButtonFeedback("not-ready");
         this.addFloatingText(SKILL_BUTTON_RECT.x + SKILL_BUTTON_RECT.w * 0.5, SKILL_BUTTON_RECT.y + SKILL_BUTTON_RECT.h + 20, "NOT READY", "#ff8787", 16, 0.55);
