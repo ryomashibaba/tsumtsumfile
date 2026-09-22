@@ -95,6 +95,78 @@ test("Judy and Nick charge only the opposite gauge while a skill is active", () 
   assert.equal(manager.dualGauge.getNickGauge().charge, 0);
 });
 
+function createJudyNickOverlayHarness(previousMode) {
+  const manager = new JudyNickGaugeManager({ selectedSkillLevel: 1 });
+  manager.startSkill(previousMode);
+  const previousType = previousMode === "judy"
+    ? { id: "judyNickJudy", score: 170 }
+    : { id: "judyNickNickMate", score: 170 };
+  const overlayTarget = { id: `${previousMode}-overlay`, x: 100, y: 200, type: previousType };
+  const session = {
+    id: "judy-nick-1",
+    level: 1,
+    remainingMs: 1000,
+    data: {
+      currentMode: previousMode,
+      countStage: 1,
+      judyLayerIds: [],
+      nickLayerIds: []
+    }
+  };
+  const overlayRequests = [];
+  const ctx = {
+    level: 1,
+    activationData: { judyNickMode: previousMode },
+    game: {
+      judyNickPreparedMode: previousMode,
+      judyNickGaugeManager: manager,
+      myTsum: { id: "judyNick" },
+      tsums: [],
+      pushCenterMessage() {}
+    },
+    runtime: { getSessionsByHandlerId: () => [session] },
+    board: {
+      getResolvedType: (node) => node.type,
+      getBubbleNodesBySession: () => previousMode === "judy" ? [overlayTarget] : [],
+      getJudyNickMovingFrozenNodes: () => previousMode === "nick" ? [overlayTarget] : [],
+      hasBubble: () => false,
+      hasFreezeKind: () => false,
+      nextGroupId: () => "group",
+      applyMovingFreeze() {}
+    },
+    clearBySource() {},
+    applyBubble() {},
+    clear: {
+      beginClear(request) {
+        overlayRequests.push(request);
+        return true;
+      }
+    }
+  };
+  return { ctx, manager, overlayRequests };
+}
+
+test("JudyNick overlay switches the blocked gauge before returning from activation", () => {
+  for (const [previousMode, nextMode, blockedGauge, chargingType] of [
+    ["judy", "nick", "nick", "judyNickJudy"],
+    ["nick", "judy", "judy", "judyNickNickMate"]
+  ]) {
+    const { ctx, manager, overlayRequests } = createJudyNickOverlayHarness(previousMode);
+
+    const session = Game.SkillRegistry.judyNick.onActivate(ctx);
+
+    assert.equal(session.data.currentMode, nextMode);
+    assert.equal(manager.dualGauge[`${blockedGauge}ChargeBlocked`], true);
+    assert.equal(manager.dualGauge[`${previousMode}ChargeBlocked`], false);
+    assert.equal(overlayRequests.length, 1);
+    assert.equal(overlayRequests[0].meta.judyNickSuppressGaugeCharge, true);
+
+    manager.onClear(chargingType, 3, 1, { activeMode: nextMode });
+    assert.equal(manager.dualGauge[blockedGauge].charge, 0);
+    assert.equal(manager.dualGauge[nextMode === "judy" ? "nick" : "judy"].charge, 1);
+  }
+});
+
 function createJudyBubbleInputHarness(nodes) {
   const clearRequests = [];
   const board = {

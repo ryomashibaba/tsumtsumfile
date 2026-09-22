@@ -553,6 +553,9 @@ export function registerJudyNickSkill({
         session.data.currentMode = nextMode;
         const overlayRequest = buildJudyNickOverlayRequest(ctx, session, previousMode, session.data.countStage);
         if (overlayRequest) {
+          // Switching modes must lock the incoming mode before an overlay clear
+          // can return from this activation. The overlay itself suppresses charge.
+          ctx.game.judyNickGaugeManager?.startSkill(nextMode);
           ctx.clearBySource(session.id);
           if (previousMode === "nick" && nextMode === "judy") {
             convertJudyNickSwitchSubTsums(ctx);
