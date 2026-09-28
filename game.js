@@ -1836,6 +1836,7 @@ class SkillRuntimeManager {
     if (!handler || (skillId === FINAL_BATTLE_HOOK_TYPE_ID && this.isFinalBattleHookActive())) {
       return false;
     }
+    this.game.moveActiveClearAsideForSkill?.(skillId);
     const ctx = this.createContext(handler, level, null, activationData);
     const session = handler.onActivate(ctx);
     if (!session) {
@@ -2589,6 +2590,9 @@ class ClearPipeline {
       return false;
     }
     this.prepareCoinFlightPlan(prepared);
+    if (prepared.source !== "chain") {
+      this.game.excludeDeferredClearTargets?.(prepared.targets);
+    }
 
     if (prepared.source === "chain") {
       if (this.game.pendingClear?.sequentialChain) {
@@ -2793,7 +2797,7 @@ class ClearPipeline {
     }
     this.game.flushPostChainCleanup();
 
-    if (!preserveActiveClear && this.game.timeUp && !this.game.dragging && !this.game.actionLock) {
+    if (!preserveActiveClear && this.game.timeUp && !this.game.dragging && !this.game.actionLock && !this.game.deferredSkillInput) {
       this.game.finishRun();
     }
   }
@@ -3313,6 +3317,9 @@ class Game {
     this.actionLock = false;
     this.pendingClear = null;
     this.pendingChainClearQueue = [];
+    this.deferredSkillInput = null;
+    this.heldBombInput = null;
+    this.consumedPointerIds = new Set();
     this.skillChargeFlights = [];
     this.coinFlights = [];
     this.tempLockTimer = 0;
@@ -5156,6 +5163,11 @@ class Game {
     this.actionLock = false;
     this.pendingClear = null;
     this.pendingChainClearQueue = [];
+    this.deferredSkillInput = null;
+    this.heldBombInput = null;
+    this.consumedPointerIds = new Set();
+    this.manualDragPointerId = null;
+    this.manualDragPoint = null;
     this.skillChargeFlights = [];
     this.coinFlights = [];
     this.coinBonus = 0;
@@ -5298,8 +5310,8 @@ class Game {
       return;
     }
     const pos = this.getPointerPosition(event);
-    this.dragPointer = pos;
-    if (!this.dragging) {
+    if (this.manualDragPointerId === null) {
+      this.dragPointer = pos;
       this.manualDragPoint = pos;
       this.manualDragPointerId = event.pointerId;
     }
@@ -5419,12 +5431,15 @@ class Game {
     if (this.skillRuntime.captureHeldFinalBattleHookInput(pos, event.pointerId)) {
       return;
     }
-    if (this.isGameplayInputLocked({ ignoreActionLock: true })) {
-      return;
-    }
-    if (!this.actionLock && pointInCircle(SKILL_BUTTON_RECT.x + SKILL_BUTTON_RECT.w * 0.5, SKILL_BUTTON_RECT.y + SKILL_BUTTON_RECT.h * 0.5, SKILL_BUTTON_RECT.w * 0.5, pos.x, pos.y)) {
+    if (pointInCircle(SKILL_BUTTON_RECT.x + SKILL_BUTTON_RECT.w * 0.5, SKILL_BUTTON_RECT.y + SKILL_BUTTON_RECT.h * 0.5, SKILL_BUTTON_RECT.w * 0.5, pos.x, pos.y)) {
       this.noteAction();
       this.attemptSkillActivation(false, this.getJudyNickSkillButtonModeAt(pos));
+      return;
+    }
+    if (this.manualDragPointerId !== event.pointerId || this.deferredSkillInput) {
+      return;
+    }
+    if (this.isGameplayInputLocked({ ignoreActionLock: true })) {
       return;
     }
     if (!this.actionLock && this.inputRouter.beginBubbleGesture(pos, event.pointerId)) {
@@ -5438,7 +5453,7 @@ class Game {
     if (this.actionLock && this.canBombCancelActiveChain()) {
       const activeBomb = this.findBombAt(pos.x, pos.y);
       if (activeBomb) {
-        this.explodeBomb(activeBomb);
+        this.heldBombInput = { bomb: activeBomb, pointerId: event.pointerId };
         return;
       }
     }
@@ -5447,7 +5462,7 @@ class Game {
     }
     const bomb = this.findBombAt(pos.x, pos.y);
     if (bomb) {
-      this.explodeBomb(bomb);
+      this.heldBombInput = { bomb, pointerId: event.pointerId };
       return;
     }
     if (this.inputRouter.handleChainStart(pos)) {
@@ -5563,6 +5578,12 @@ class Game {
   }
 
   onPointerMove(event) {
+    if (this.manualDragPointerId !== null && event.pointerId !== this.manualDragPointerId) {
+      return;
+    }
+    if (this.deferredSkillInput) {
+      return;
+    }
     const rect = this.canvas.getBoundingClientRect();
     const pos = this.getPointerPosition(event, rect);
     this.inputRouter.trackBubbleGesture(pos, event.pointerId);
@@ -5588,6 +5609,30 @@ class Game {
   }
 
   onPointerUp(event) {
+    if (this.consumedPointerIds?.delete(event.pointerId)) {
+      if (this.manualDragPointerId === event.pointerId) {
+        this.manualDragPointerId = null;
+        this.manualDragPoint = null;
+      }
+      this.skillRuntime.releaseHeldFinalBattleHookInput(event.pointerId);
+      if (event.type === "pointercancel" && this.deferredSkillInput) {
+        this.deferredSkillInput.chain = null;
+        this.deferredSkillInput.bomb = null;
+      }
+      return;
+    }
+    if (this.heldBombInput?.pointerId === event.pointerId) {
+      const held = this.heldBombInput;
+      this.heldBombInput = null;
+      if (this.manualDragPointerId === event.pointerId) {
+        this.manualDragPointerId = null;
+        this.manualDragPoint = null;
+      }
+      if (event.type !== "pointercancel" && !this.deferredSkillInput && this.state === "playing") {
+        this.explodeBomb(held.bomb);
+      }
+      return;
+    }
     if (this.manualDragPointerId !== null && event.pointerId !== this.manualDragPointerId) {
       return;
     }
@@ -5595,6 +5640,13 @@ class Game {
     this.manualDragPoint = null;
     this.manualDragPointerId = null;
     this.skillRuntime.releaseHeldFinalBattleHookInput(event.pointerId);
+    if (this.deferredSkillInput) {
+      if (event.type === "pointercancel") {
+        this.deferredSkillInput.chain = null;
+        this.deferredSkillInput.bomb = null;
+      }
+      return;
+    }
     if (this.state === "playing" && this.isCoingainInputLocked()) {
       return;
     }
@@ -5609,7 +5661,8 @@ class Game {
       return;
     }
     if (this.state === "playing" && this.dragging) {
-      this.finishChain();
+      if (event.type === "pointercancel") this.cancelActiveChain();
+      else this.finishChain();
     }
   }
 
@@ -6405,6 +6458,221 @@ class Game {
 
   isGameplayInputLocked({ ignoreActionLock = false } = {}) {
     return (!ignoreActionLock && !!this.actionLock) || !!this.skillRuntime?.isInputLocked?.();
+  }
+
+  beginDeferredSkillInput() {
+    if (this.deferredSkillInput) return null;
+    if (!this.dragging && !this.heldBombInput && !this.pendingClear?.sequentialChain) return null;
+    const presentation = SKILL_TIMING_TABLE[this.myTsum.id]?.presentation;
+    const moving = this.skillVisualsEnabled === false || presentation?.pausePhysics === false;
+    const deferred = {
+      skillId: this.myTsum.id,
+      moving,
+      ready: false,
+      activationStarted: false,
+      chain: this.dragging ? this.chain.slice() : null,
+      chainWasValid: this.dragging && this.chain.length >= 3,
+      bomb: this.heldBombInput?.bomb || null,
+      clear: null,
+      clearQueue: [],
+      startedTargetIds: new Set()
+    };
+    if (this.dragging) this.cancelActiveChain();
+    if (deferred.bomb) this.heldBombInput = null;
+    if ((deferred.chain || deferred.bomb) && this.manualDragPointerId !== null) {
+      this.consumedPointerIds?.add(this.manualDragPointerId);
+    }
+    if (!moving && this.pendingClear?.sequentialChain) {
+      deferred.clear = this.pendingClear;
+      deferred.clearQueue = this.pendingChainClearQueue;
+      deferred.startedTargetIds = new Set(this.pendingClear.targets.filter((target) => target.removing || target.dead).map((target) => target.id));
+      this.pendingClear = null;
+      this.pendingChainClearQueue = [];
+      this.actionLock = false;
+    }
+    this.deferredSkillInput = deferred;
+    return deferred;
+  }
+
+  restoreDeferredSkillInput(deferred) {
+    if (!deferred || this.deferredSkillInput !== deferred) return;
+    this.deferredSkillInput = null;
+    if (deferred.clear) {
+      this.pendingClear = deferred.clear;
+      this.pendingChainClearQueue = deferred.clearQueue;
+      this.actionLock = true;
+    }
+    if (deferred.chain) {
+      this.dragging = true;
+      this.chain = deferred.chain;
+      this.chainSet = new Set(deferred.chain.map((tsum) => tsum.id));
+      deferred.chain.forEach((tsum) => { tsum.inChain = true; });
+      this.chainTypeId = this.boardState.getResolvedType(deferred.chain[0])?.id || null;
+      this.chainRule = this.getChainBehaviorForStart(deferred.chain[0]);
+    }
+    if (deferred.bomb) this.heldBombInput = { bomb: deferred.bomb, pointerId: this.manualDragPointerId };
+    if (this.manualDragPointerId !== null) this.consumedPointerIds?.delete(this.manualDragPointerId);
+  }
+
+  moveActiveClearAsideForSkill(skillId) {
+    const deferred = this.deferredSkillInput;
+    if (!deferred || deferred.skillId !== skillId) return;
+    deferred.activationStarted = true;
+    if (!this.pendingClear) return;
+    if (!deferred.clear) {
+      deferred.clear = this.pendingClear;
+      deferred.clearQueue = this.pendingChainClearQueue;
+      deferred.startedTargetIds = new Set(this.pendingClear.targets.filter((target) => target.removing || target.dead).map((target) => target.id));
+    }
+    this.pendingClear = null;
+    this.pendingChainClearQueue = [];
+    this.actionLock = false;
+  }
+
+  excludeDeferredClearTargets(targets) {
+    const deferred = this.deferredSkillInput;
+    if (!deferred || !targets?.length) return;
+    const taken = new Set(targets.filter((target) => !deferred.startedTargetIds.has(target.id)).map((target) => target.id));
+    this.pruneDeferredClearTargets(taken);
+    for (const target of targets) {
+      if (taken.has(target.id)) {
+        target.clearOccupying = false;
+        target.inChain = false;
+      }
+    }
+  }
+
+  pruneDeferredClearTargets(taken) {
+    const deferred = this.deferredSkillInput;
+    const info = deferred?.clear;
+    if (!taken.size) return;
+    const prune = (entry) => {
+      if (entry.sequentialSplashGroupsByTrigger) {
+        for (const [key, group] of entry.sequentialSplashGroupsByTrigger) {
+          if (taken.has(key)) {
+            for (const target of group) {
+              if (!deferred.startedTargetIds.has(target.id)) taken.add(target.id);
+            }
+            entry.sequentialSplashGroupsByTrigger.delete(key);
+          }
+        }
+      }
+      const primary = entry.sequentialPrimaryTargets || entry.targets;
+      const removedBeforeCursor = primary.slice(0, entry.nextRemoveIndex || 0).filter((target) => taken.has(target.id)).length;
+      entry.targets = entry.targets.filter((target) => !taken.has(target.id));
+      entry.sequentialPrimaryTargets = primary.filter((target) => !taken.has(target.id));
+      entry.nextRemoveIndex = Math.max(0, (entry.nextRemoveIndex || 0) - removedBeforeCursor);
+      entry.chainLength = entry.targets.length;
+      if (entry.sequentialSplashGroupsByTrigger) {
+        for (const [key, group] of entry.sequentialSplashGroupsByTrigger) {
+          entry.sequentialSplashGroupsByTrigger.set(key, group.filter((target) => !taken.has(target.id)));
+        }
+      }
+    };
+    if (info) prune(info);
+    deferred.clearQueue = deferred.clearQueue.filter((entry) => {
+      prune(entry);
+      return entry.targets.length > 0;
+    });
+    if (info && !info.targets.length) deferred.clear = null;
+  }
+
+  runDeferredInputAction(action, deferred) {
+    if (!this.pendingClear) {
+      action();
+      return;
+    }
+    const primary = this.pendingClear;
+    const primaryQueue = this.pendingChainClearQueue;
+    this.pendingClear = null;
+    this.pendingChainClearQueue = [];
+    this.actionLock = false;
+    try {
+      action();
+      deferred.clear = this.pendingClear;
+      deferred.clearQueue = this.pendingChainClearQueue;
+    } finally {
+      this.pendingClear = primary;
+      this.pendingChainClearQueue = primaryQueue;
+      this.actionLock = true;
+    }
+  }
+
+  updateDeferredSkillInput(dt) {
+    const deferred = this.deferredSkillInput;
+    if (!deferred?.ready) return;
+    const skillBusy = !!(this.skillRuntime?.pendingActivation || this.skillRuntime?.timingPauses?.length || this.pendingClear);
+    const taken = new Set([deferred.clear, ...deferred.clearQueue]
+      .filter(Boolean)
+      .flatMap((entry) => entry.targets)
+      .filter((target) => (target.dead || target.removing) && !deferred.startedTargetIds.has(target.id))
+      .map((target) => target.id));
+    this.pruneDeferredClearTargets(taken);
+    if (!deferred.clear && deferred.clearQueue.length && (deferred.moving || !skillBusy)) {
+      const next = deferred.clearQueue.shift();
+      const primary = this.pendingClear;
+      const primaryQueue = this.pendingChainClearQueue;
+      this.pendingClear = null;
+      this.pendingChainClearQueue = deferred.clearQueue;
+      this.clearPipeline.prepareSequentialChainClear(next);
+      deferred.clear = this.pendingClear;
+      deferred.clearQueue = this.pendingChainClearQueue;
+      deferred.startedTargetIds = new Set(deferred.clear.targets.filter((target) => target.removing || target.dead).map((target) => target.id));
+      this.pendingClear = primary;
+      this.pendingChainClearQueue = primaryQueue;
+      this.actionLock = !!(primary || deferred.clear);
+    }
+    if (deferred.moving || !skillBusy) {
+      if (deferred.chain && !deferred.clear && (deferred.activationStarted || !this.pendingClear)) {
+        const chain = deferred.chain.filter((tsum) => tsum && !tsum.dead && !tsum.removing && this.tsums.includes(tsum));
+        deferred.chain = null;
+        if (chain.length && deferred.chainWasValid) {
+          this.runDeferredInputAction(() => {
+            if (!this.inputRouter?.handleChainCommit?.(chain)) {
+              this.resolveChain(chain, { committedBeforeSkill: true });
+            }
+          }, deferred);
+        }
+      }
+      if (deferred.bomb && !deferred.clear && (deferred.activationStarted || !this.pendingClear)) {
+        const bomb = deferred.bomb;
+        deferred.bomb = null;
+        if (!bomb.dead && this.bombs.includes(bomb)) {
+          this.runDeferredInputAction(() => this.explodeBomb(bomb), deferred);
+        }
+      }
+    }
+    if (deferred.clear && (deferred.moving || !skillBusy)) {
+      if (!this.pendingClear) {
+        this.pendingClear = deferred.clear;
+        this.pendingChainClearQueue = deferred.clearQueue;
+        deferred.clear = null;
+        deferred.clearQueue = [];
+        this.actionLock = true;
+      } else if (deferred.moving) {
+        const primary = this.pendingClear;
+        const primaryQueue = this.pendingChainClearQueue;
+        this.pendingClear = deferred.clear;
+        this.pendingChainClearQueue = deferred.clearQueue;
+        if (!this.clearPipeline.updateSequentialChainClear(deferred.clear, dt)) {
+          deferred.clear.timer -= dt;
+          if (deferred.clear.timer <= 0) this.finalizePendingClear(deferred.clear);
+        }
+        if (this.pendingClear) {
+          for (const target of this.pendingClear.targets) {
+            if (target.removing || target.dead) deferred.startedTargetIds.add(target.id);
+          }
+        }
+        deferred.clear = this.pendingClear;
+        deferred.clearQueue = this.pendingChainClearQueue;
+        this.pendingClear = primary;
+        this.pendingChainClearQueue = primaryQueue;
+        this.actionLock = !!(primary || deferred.clear);
+      }
+    }
+    if (deferred.activationStarted && !deferred.chain && !deferred.bomb && !deferred.clear && !deferred.clearQueue.length && !skillBusy) {
+      this.deferredSkillInput = null;
+    }
   }
 
   getLiliaSession() {
@@ -10409,6 +10677,11 @@ class Game {
   }
 
   startGame(options = {}) {
+    this.deferredSkillInput = null;
+    this.heldBombInput = null;
+    this.consumedPointerIds = new Set();
+    this.manualDragPointerId = null;
+    this.manualDragPoint = null;
     this.clearAiLearningRestartTimer();
     if (this.gameFeel) {
       this.gameFeel.enabled = this.role === "player" && !this.aiLearningMode;
@@ -10882,7 +11155,10 @@ class Game {
   }
 
   attemptSkillActivation(fromKeyboard, preferredMode = null) {
-    if (this.state !== "playing" || this.isGameplayInputLocked() || this.dragging) {
+    if (this.state !== "playing" || this.deferredSkillInput || this.isGameplayInputLocked({ ignoreActionLock: true })) {
+      return false;
+    }
+    if (this.actionLock && !this.pendingClear?.sequentialChain) {
       return false;
     }
     if (this.paused || this.isCoingainInputLocked()) {
@@ -10896,8 +11172,13 @@ class Game {
         return false;
       }
       this.judyNickPreparedMode = mode;
+      const deferred = this.beginDeferredSkillInput?.() || null;
       const used = this.executeSkill(this.myTsum.id, this.selectedSkillLevel, { judyNickMode: mode });
       if (used) {
+        if (deferred) {
+          deferred.ready = true;
+          this.updateDeferredSkillInput?.(0);
+        }
         this.judyNickGaugeManager.consumeSkill(mode);
         this.skillSystem.consume();
         this.gameFeel?.emit('skill-activate');
@@ -10906,6 +11187,7 @@ class Game {
           this.addFloatingText(SKILL_BUTTON_RECT.x + SKILL_BUTTON_RECT.w * 0.5, SKILL_BUTTON_RECT.y + SKILL_BUTTON_RECT.h + 20, "SKILL!", "#ffe8a2", 16, 0.6);
         }
       }
+      if (!used) this.restoreDeferredSkillInput?.(deferred);
       return used;
     }
     if (!this.skillSystem.ready) {
@@ -10924,14 +11206,20 @@ class Game {
       this.triggerSkillButtonFeedback("not-ready");
       return false;
     }
+    const deferred = this.beginDeferredSkillInput?.() || null;
     const used = this.skillSystem.use();
     if (used) {
+      if (deferred) {
+        deferred.ready = true;
+        this.updateDeferredSkillInput?.(0);
+      }
       this.gameFeel?.emit('skill-activate');
       this.triggerSkillButtonFeedback("ready");
       if (fromKeyboard) {
         this.addFloatingText(SKILL_BUTTON_RECT.x + SKILL_BUTTON_RECT.w * 0.5, SKILL_BUTTON_RECT.y + SKILL_BUTTON_RECT.h + 20, "SKILL!", "#ffe8a2", 16, 0.6);
       }
     }
+    if (!used) this.restoreDeferredSkillInput?.(deferred);
     return used;
   }
 
@@ -11171,8 +11459,8 @@ class Game {
     this.resolveChain(chain);
   }
 
-  resolveChain(chain) {
-    if (chain.length < 3) {
+  resolveChain(chain, { committedBeforeSkill = false } = {}) {
+    if (chain.length < 3 && !committedBeforeSkill) {
       chain.forEach((tsum) => { tsum.inChain = false; });
       return;
     }
@@ -12219,7 +12507,7 @@ class Game {
   }
 
   executeSkill(type, level, activationData = null) {
-    if (this.isGameplayInputLocked()) {
+    if (this.isGameplayInputLocked({ ignoreActionLock: true }) || (this.actionLock && this.deferredSkillInput?.skillId !== type)) {
       return false;
     }
     this.noteAction();
@@ -12781,10 +13069,12 @@ class Game {
     if (this.state !== "playing" || this.runFinished) {
       return;
     }
+    if (this.deferredSkillInput) return;
     if ((this.coinFlights?.length || 0) > 0) {
       return;
     }
     this.runFinished = true;
+    this.heldBombInput = null;
     if (this.persistenceEnabled) {
       this.plays += 1;
     }
@@ -13147,6 +13437,7 @@ class Game {
         }
       }
     }
+    this.updateDeferredSkillInput?.(dt);
 
     this.updateCheatSpawnScheduler?.(gameplayDt);
 
@@ -13201,7 +13492,7 @@ class Game {
       this.timeUp = false;
     }
 
-    if (this.timeUp && !this.dragging && !this.actionLock && !this.pendingClear) {
+    if (this.timeUp && !this.dragging && !this.actionLock && !this.pendingClear && !this.deferredSkillInput) {
       this.finishRun();
     }
   }
