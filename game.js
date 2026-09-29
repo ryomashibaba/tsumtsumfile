@@ -47,7 +47,7 @@ import {
   drawStarPath
 } from './config.js?v=coin-flights-1';
 
-import { UIRenderer } from './ui.js?v=skill-active-1';
+import { UIRenderer } from './ui.js?v=advanced-settings-2';
 import { JudyNickGaugeManager, registerJudyNickSkill, resolveJudyNickActivationMode } from './judyNick.js?v=skill-visuals-1';
 import {
   LILIA_CHAIN_TYPE,
@@ -159,7 +159,7 @@ import {
 } from './tsumSpatialHash.js?v=high-body-count-1';
 import { GameFeelController, calculateVisualChainCount } from './gameFeel.js?v=game-feel-1';
 import { CHAIN_INPUT_TUNING, collectSegmentCandidates, shouldArmBacktrack, shouldBacktrack } from './chainInput.js?v=segment-chain-1';
-import { ChainTelemetry } from './chainTelemetry.js?v=segment-chain-1';
+import { ChainTelemetry } from './chainTelemetry.js?v=advanced-settings-2';
 import {
   ADVANCED_SETTINGS_RECTS,
   DEBUG_ENTRIES,
