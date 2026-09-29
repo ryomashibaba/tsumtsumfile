@@ -1,6 +1,6 @@
 # iPhone chain input QA
 
-Open the local game on the iPhone with `?chainTelemetry` appended to the URL. The small panel is display only and does not capture touches. For detailed values, Safari Web Inspector can evaluate `window.chainTelemetry.snapshot()`. Remove the query parameter for ordinary play.
+On the iPhone Home Screen Web App, open **詳細設定 → Developer → 現在のデバッグ → Chain Input Telemetry** from the Tsum selection screen. Turn **計測** on, then choose whether **表示** should show the compact overlay during play. The selection persists across launches. **計測値をリセット** starts a fresh sample window. `?chainTelemetry` remains available for PC development and emergency access; the saved overlay preference still controls visibility. For detailed values, Safari Web Inspector can evaluate `window.chainTelemetry.snapshot()` while measurement is enabled.
 
 The panel shows recent average / p95 / maximum values for frame time, coalesced samples per pointermove, event distance, input processing time, candidates examined, Tsums added, rendering time, and physics time. It also shows rAF and pointermove frequency, long frames (over 25 ms), input-circle crossings, rejected crossings, backtracks, and chain start failures. Counters accumulate since page load; sampled timing values retain the latest 256 observations.
 

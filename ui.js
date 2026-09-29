@@ -48,6 +48,7 @@ import {
 } from './skillActiveVisuals.js?v=skill-active-1';
 import { drawGameFeelField, drawGameFeelHud } from './gameFeel.js?v=game-feel-1';
 import { sampleCoinFlight } from './coinFlights.js?v=coin-flights-1';
+import { ADVANCED_SETTINGS_RECTS, DEBUG_ENTRIES, isChainTelemetryEnabled, orderDebugEntries } from './advancedSettings.js?v=advanced-settings-1';
 
 let sharedFeltTexture = null;
 
@@ -1586,9 +1587,105 @@ export class UIRenderer {
       subtitle: "アイテム選択へ",
       size: 25
     });
+    this.drawButton(ctx, ADVANCED_SETTINGS_RECTS.entry, "詳細設定", {
+      fill: "#355873",
+      glow: "#527d99",
+      size: 11
+    });
     if (this.profile().drawDecorations) {
       this.drawTsumTsumLogo(ctx);
     }
+    if (this.game.advancedSettingsOpen) this.drawAdvancedSettings(ctx);
+  }
+
+  drawAdvancedSettings(ctx) {
+    const game = this.game;
+    const r = ADVANCED_SETTINGS_RECTS;
+    const section = game.advancedSettingsSection || "developer";
+    ctx.save();
+    ctx.fillStyle = "rgba(0,18,43,0.74)";
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    makeRoundedRectPath(ctx, 19, 96, 376, 548, 25);
+    ctx.fillStyle = "#073b66";
+    ctx.fill();
+    ctx.strokeStyle = "#65e7ff";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    this.drawStitchedRoundedRect(ctx, 27, 104, 360, 532, 20, 0.55);
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#ffffff";
+    ctx.font = '800 23px "Trebuchet MS", "Yu Gothic", sans-serif';
+    ctx.fillText("詳細設定", 40, 137);
+    this.drawButton(ctx, r.close, "閉じる", { fill: "#3c6582", size: 12 });
+
+    for (const [key, label] of [["game", "ゲーム"], ["display", "表示"], ["developer", "Developer"]]) {
+      this.drawButton(ctx, r[key], label, {
+        fill: section === key ? "#149abb" : "#2c536c",
+        glow: section === key ? "#75eaff" : "#33586e",
+        size: key === "developer" ? 12 : 15
+      });
+    }
+
+    if (section === "game") {
+      this.drawGlassPanel(ctx, 42, 249, 330, 154, 18, 0.7);
+      ctx.fillStyle = "#c9f4ff";
+      ctx.font = '700 15px "Trebuchet MS", "Yu Gothic", sans-serif';
+      ctx.fillText("ゲーム設定", 61, 282);
+      ctx.font = '500 13px "Trebuchet MS", "Yu Gothic", sans-serif';
+      ctx.fillText("今後の設定はこちらに追加します。", 61, 320);
+    } else if (section === "display") {
+      this.drawGlassPanel(ctx, 42, 249, 330, 154, 18, 0.7);
+      ctx.fillStyle = "#c9f4ff";
+      ctx.font = '700 15px "Trebuchet MS", "Yu Gothic", sans-serif';
+      ctx.fillText("表示", 61, 277);
+      this.drawButton(ctx, r.renderQuality, `軽量化：${this.profile().label || "通常"}`, {
+        fill: "#28718c", size: 16
+      });
+    } else {
+      const entries = orderDebugEntries(DEBUG_ENTRIES);
+      const current = entries[0];
+      const other = entries.slice(1);
+      ctx.fillStyle = "#90eaff";
+      ctx.font = '800 13px "Trebuchet MS", "Yu Gothic", sans-serif';
+      ctx.fillText("現在のデバッグ", 48, 250);
+      this.drawGlassPanel(ctx, 42, 266, 330, 205, 18, 0.78);
+      ctx.fillStyle = "#ffe892";
+      ctx.font = '800 11px "Trebuchet MS", "Yu Gothic", sans-serif';
+      ctx.fillText("現在 / QA", 57, 286);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = '800 17px "Trebuchet MS", sans-serif';
+      ctx.fillText(current?.label || "Debug Tool", 57, 311);
+      ctx.fillStyle = "#b9e9f6";
+      ctx.font = '500 12px "Trebuchet MS", "Yu Gothic", sans-serif';
+      ctx.fillText(current?.description || "", 57, 332);
+      if (current?.id === "chainTelemetry") {
+        const enabled = isChainTelemetryEnabled(game.advancedSettings, game.chainTelemetryQueryForced);
+        this.drawButton(ctx, r.telemetry, game.chainTelemetryQueryForced && !game.advancedSettings?.chainTelemetryEnabled
+          ? "計測 URLでON" : `計測 ${enabled ? "ON" : "OFF"}`, {
+          fill: enabled ? "#169b86" : "#4a5f73", size: 14
+        });
+        this.drawButton(ctx, r.overlay, `表示 ${game.advancedSettings?.chainTelemetryOverlay ? "ON" : "OFF"}`, {
+          fill: game.advancedSettings?.chainTelemetryOverlay ? "#287ca4" : "#4a5f73", size: 14
+        });
+        this.drawButton(ctx, r.reset, "計測値をリセット", { fill: "#365e79", size: 14 });
+      }
+      this.drawButton(ctx, r.other, `その他のデバッグ  ${game.otherDebugExpanded ? "▲" : "▼"}`, {
+        fill: "#294f69", size: 14
+      });
+      if (game.otherDebugExpanded) {
+        ctx.fillStyle = "#c1eaf6";
+        ctx.font = '600 12px "Trebuchet MS", "Yu Gothic", sans-serif';
+        if (other.length) {
+          for (let i = 0; i < Math.min(3, other.length); i += 1) {
+            ctx.fillText(other[i].label, 61, 555 + i * 23);
+          }
+        } else {
+          ctx.fillText("Physics / Render / Skill / AI などを追加予定", 61, 559);
+        }
+      }
+    }
+    ctx.restore();
   }
 
   drawTitlePageArrow(ctx, rect, direction, enabled) {

@@ -160,6 +160,14 @@ import {
 import { GameFeelController, calculateVisualChainCount } from './gameFeel.js?v=game-feel-1';
 import { CHAIN_INPUT_TUNING, collectSegmentCandidates, shouldArmBacktrack, shouldBacktrack } from './chainInput.js?v=segment-chain-1';
 import { ChainTelemetry } from './chainTelemetry.js?v=segment-chain-1';
+import {
+  ADVANCED_SETTINGS_RECTS,
+  DEBUG_ENTRIES,
+  loadAdvancedSettings,
+  orderDebugEntries,
+  saveAdvancedSettings,
+  isChainTelemetryEnabled
+} from './advancedSettings.js?v=advanced-settings-1';
 
 const TITLE_TSUMS_PER_PAGE = 10;
 const JUDY_NICK_MOVING_FREEZE_KIND = "judyNickMovingIce";
@@ -3185,12 +3193,15 @@ class Game {
     this.chainRule = null;
     this.chainBacktrackArmed = false;
     this.chainSelectedAt = new Map();
-    this.chainTelemetry = this.role === "player" && typeof location !== "undefined" &&
-      new URLSearchParams(location.search).has("chainTelemetry") ? new ChainTelemetry() : null;
-    if (this.chainTelemetry) {
-      window.chainTelemetry = this.chainTelemetry;
-      this.chainTelemetry.show();
-    }
+    this.advancedSettingsStorage = this.persistenceEnabled && typeof localStorage !== "undefined" ? localStorage : null;
+    this.advancedSettings = loadAdvancedSettings(this.advancedSettingsStorage);
+    this.advancedSettingsOpen = false;
+    this.advancedSettingsSection = "developer";
+    this.otherDebugExpanded = false;
+    this.chainTelemetryQueryForced = typeof location !== "undefined" &&
+      new URLSearchParams(location.search).has("chainTelemetry");
+    this.chainTelemetry = null;
+    this.syncChainTelemetry();
     this.strongestModeEnabled = false;
     this.strongestModeStepInterval = 0;
     this.strongestModeStepTimer = 0;
@@ -5672,6 +5683,14 @@ class Game {
   }
 
   handleTitlePointer(pos) {
+    if (this.advancedSettingsOpen) {
+      this.handleAdvancedSettingsPointer(pos);
+      return;
+    }
+    if (rectContains(ADVANCED_SETTINGS_RECTS.entry, pos.x, pos.y)) {
+      this.openAdvancedSettings();
+      return;
+    }
     const pageButtons = this.getTitlePageButtonRects();
     if (rectContains(pageButtons.previous, pos.x, pos.y)) {
       this.changeTitleCharacterPage(-1);
@@ -5830,6 +5849,75 @@ class Game {
       w,
       h
     }));
+  }
+
+  openAdvancedSettings() {
+    this.advancedSettingsOpen = true;
+    this.advancedSettingsSection = "developer";
+    this.otherDebugExpanded = false;
+    this.syncChainTelemetry();
+  }
+
+  closeAdvancedSettings() {
+    this.advancedSettingsOpen = false;
+    this.syncChainTelemetry();
+  }
+
+  handleAdvancedSettingsPointer(pos) {
+    const hit = (rect) => rectContains(rect, pos.x, pos.y);
+    if (hit(ADVANCED_SETTINGS_RECTS.close)) return this.closeAdvancedSettings();
+    for (const section of ["game", "display", "developer"]) {
+      if (hit(ADVANCED_SETTINGS_RECTS[section])) {
+        this.advancedSettingsSection = section;
+        return;
+      }
+    }
+    if (this.advancedSettingsSection === "display") {
+      if (hit(ADVANCED_SETTINGS_RECTS.renderQuality)) this.cycleRenderQualityMode();
+      return;
+    }
+    if (this.advancedSettingsSection !== "developer") return;
+    const currentDebugId = orderDebugEntries(DEBUG_ENTRIES)[0]?.id;
+    if (currentDebugId === "chainTelemetry" && hit(ADVANCED_SETTINGS_RECTS.telemetry)) {
+      this.setChainTelemetryEnabled(!this.advancedSettings.chainTelemetryEnabled);
+    } else if (currentDebugId === "chainTelemetry" && hit(ADVANCED_SETTINGS_RECTS.overlay)) {
+      this.setChainTelemetryOverlay(!this.advancedSettings.chainTelemetryOverlay);
+    } else if (currentDebugId === "chainTelemetry" && hit(ADVANCED_SETTINGS_RECTS.reset)) {
+      this.chainTelemetry?.reset();
+    } else if (hit(ADVANCED_SETTINGS_RECTS.other)) {
+      this.otherDebugExpanded = !this.otherDebugExpanded;
+    }
+  }
+
+  syncChainTelemetry() {
+    const enabled = this.role === "player" &&
+      isChainTelemetryEnabled(this.advancedSettings, this.chainTelemetryQueryForced);
+    if (enabled && !this.chainTelemetry) this.chainTelemetry = new ChainTelemetry();
+    if (!enabled && this.chainTelemetry) {
+      this.chainTelemetry.hide();
+      this.chainTelemetry = null;
+    }
+    if (this.chainTelemetry) {
+      if (this.advancedSettings?.chainTelemetryOverlay && !this.advancedSettingsOpen) this.chainTelemetry.show();
+      else this.chainTelemetry.hide();
+    }
+    if (this.role === "player" && typeof window !== "undefined") window.chainTelemetry = this.chainTelemetry;
+    return enabled;
+  }
+
+  setChainTelemetryEnabled(enabled) {
+    this.advancedSettings ||= loadAdvancedSettings(null);
+    this.advancedSettings.chainTelemetryEnabled = enabled === true;
+    saveAdvancedSettings(this.advancedSettingsStorage, this.advancedSettings);
+    return this.syncChainTelemetry();
+  }
+
+  setChainTelemetryOverlay(visible) {
+    this.advancedSettings ||= loadAdvancedSettings(null);
+    this.advancedSettings.chainTelemetryOverlay = visible === true;
+    saveAdvancedSettings(this.advancedSettingsStorage, this.advancedSettings);
+    this.syncChainTelemetry();
+    return this.advancedSettings.chainTelemetryOverlay;
   }
 
   getTitleCharacterPageCount() {
