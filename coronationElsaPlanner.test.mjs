@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { coronationElsaSkillHandler } from "./game.js";
+import { normalizeCheatSettings } from "./cheatSettings.js";
 import {
   CORONATION_ELSA_PLANNER_CONFIG,
   buildCoronationElsaPlannerAdjacency,
@@ -86,6 +87,8 @@ const makeGame = (nodes, options = {}) => {
     tsums: nodes,
     boardState,
     selectedSkillLevel: options.level || 6,
+    cheatSettings: normalizeCheatSettings(options.cheatSettings),
+    isCheatActive: () => !!options.cheatSettings?.enabled,
     myTsum: { id: options.myTsumId || "red" },
     elapsed: options.elapsed ?? 12.5,
     strongestModeCoronationElsaNoTraceDurationSec: 0.04,
@@ -252,6 +255,48 @@ test("actual Coronation Elsa onChainCommit and planner simulation freeze the sam
     nodes.map((node) => game.boardState.getFrozenEntriesByKind(node, "coronationElsa").length),
     simulated.nextFreezeLayerCounts
   );
+});
+
+test("Coronation Elsa line and frozen-neighbor radii independently control prediction and actual freeze", () => {
+  const makeScenario = (cheatSettings) => {
+    const nodes = [
+      makeNode("a", 100, 220),
+      makeNode("b", 150, 220),
+      makeNode("c", 200, 220),
+      makeNode("line-only", 270, 250),
+      makeNode("prior", 300, 400),
+      makeNode("surround-only", 300, 455)
+    ];
+    return makeGame(nodes, { coronationLayers: { prior: 1 }, cheatSettings });
+  };
+  for (const [lineRadius, surroundRadius, expectedLine, expectedSurround] of [
+    [20, 70, false, true],
+    [40, 20, true, false]
+  ]) {
+    const game = makeScenario({ enabled: true, coronationElsaLineRadius: lineRadius, coronationElsaSurroundRadius: surroundRadius });
+    const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+    assert.equal(snapshot.lineRadius, lineRadius);
+    assert.equal(snapshot.surroundRadius, surroundRadius);
+    const chain = game.tsums.slice(0, 3);
+    const chainIndices = chain.map((node) => getCoronationElsaPlannerNodeIndex(snapshot, node.id));
+    const simulated = simulateCoronationElsaFreeze(snapshot, snapshot.initialState, chainIndices);
+    const predictedIds = simulated.targetIndices.map((index) => snapshot.nodes[index].id);
+    assert.equal(predictedIds.includes("line-only"), expectedLine);
+    assert.equal(predictedIds.includes("surround-only"), expectedSurround);
+    let appliedIds = [];
+    const ctx = {
+      game,
+      board: game.boardState,
+      level: 6,
+      applyFreeze(ids) { appliedIds = ids.slice(); }
+    };
+    assert.equal(coronationElsaSkillHandler.onChainCommit(ctx, { id: "session" }, chain), true);
+    assert.deepEqual(appliedIds, predictedIds);
+  }
+  const disabled = makeScenario({ enabled: false, coronationElsaLineRadius: 0, coronationElsaSurroundRadius: 0 });
+  const defaultSnapshot = buildCoronationElsaPlannerSnapshot(disabled, 6);
+  assert.equal(defaultSnapshot.lineRadius, 78 * 0.58);
+  assert.equal(defaultSnapshot.surroundRadius, 78);
 });
 
 test("planner enumerates a legal upper central diagonal 3-chain without edge or stability filters", () => {

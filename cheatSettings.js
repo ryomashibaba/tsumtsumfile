@@ -10,6 +10,8 @@ export const DEFAULT_CHEAT_SETTINGS = Object.freeze({
   largeTsumChance: 1,
   gravityMultiplier: 1,
   tsumDiameter: 58,
+  coronationElsaLineRadius: null,
+  coronationElsaSurroundRadius: null,
   autoSkill: false,
   skillCosts: Object.freeze({}),
   coinCorrections: Object.freeze({})
@@ -35,6 +37,24 @@ function normalizeNumber(value, fallback, min, max, decimals = 0) {
   if (!Number.isFinite(numeric)) return fallback;
   const factor = 10 ** decimals;
   return Math.max(min, Math.min(max, Math.round(numeric * factor) / factor));
+}
+
+function normalizeOptionalFreezeRadius(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? normalizeNumber(numeric, null, 0, 999, 2) : null;
+}
+
+export function resolveCoronationElsaFreezeRadii(settings, baseRadius) {
+  const defaultSurroundRadius = Math.max(0, Number(baseRadius) || 0);
+  const defaultLineRadius = defaultSurroundRadius * 0.58;
+  if (!settings?.enabled) {
+    return { lineRadius: defaultLineRadius, surroundRadius: defaultSurroundRadius };
+  }
+  return {
+    lineRadius: normalizeOptionalFreezeRadius(settings.coronationElsaLineRadius) ?? defaultLineRadius,
+    surroundRadius: normalizeOptionalFreezeRadius(settings.coronationElsaSurroundRadius) ?? defaultSurroundRadius
+  };
 }
 
 export function normalizeCheatSettings(value = {}) {
@@ -78,6 +98,8 @@ export function normalizeCheatSettings(value = {}) {
     largeTsumChance: normalizeNumber(source.largeTsumChance, DEFAULT_CHEAT_SETTINGS.largeTsumChance, 0, 100, 1),
     gravityMultiplier: normalizeNumber(source.gravityMultiplier, DEFAULT_CHEAT_SETTINGS.gravityMultiplier, 0.1, 10, 1),
     tsumDiameter: normalizeNumber(source.tsumDiameter, DEFAULT_CHEAT_SETTINGS.tsumDiameter, 1, 100),
+    coronationElsaLineRadius: normalizeOptionalFreezeRadius(source.coronationElsaLineRadius),
+    coronationElsaSurroundRadius: normalizeOptionalFreezeRadius(source.coronationElsaSurroundRadius),
     autoSkill: source.autoSkill === true,
     skillCosts,
     coinCorrections

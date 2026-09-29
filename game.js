@@ -84,7 +84,7 @@ import {
   parseCoinCorrectionType,
   reconcileGaugeCharge,
   resolveSkillCost
-} from './cheatSettings.js?v=cheat-settings-3';
+} from './cheatSettings.js?v=cheat-settings-4';
 import {
   DEFAULT_LARGE_TSUM_SPAWN_CHANCE,
   LARGE_TSUM_CLEAR_WEIGHT,
@@ -125,7 +125,7 @@ import {
   profileCoronationElsaPlanner,
   solveCoronationElsaStrongestModePlan,
   simulateCoronationElsaFreeze
-} from './coronationElsaPlanner.js?v=coronation-elsa-final-trace-settle-2';
+} from './coronationElsaPlanner.js?v=coronation-elsa-freeze-width-1';
 import {
   STRONGEST_MODE_CORONATION_ELSA_BOARD_TRACE_READINESS_WAIT_REASON,
   STRONGEST_MODE_CORONATION_ELSA_PRE_TAP_SETTLE_WAIT_REASON,
@@ -8601,7 +8601,7 @@ class Game {
         .filter((candidate) => candidate.direction === direction)
         .slice(0, previewCandidateLimitPerDirection)
     ));
-    const lineRadius = skillValue("coronationElsa", "freezeRadius", this.selectedSkillLevel) * 0.58;
+    const lineRadius = plannerSnapshot.lineRadius;
     const existingFrozenNodes = this.boardState.getFrozenNodesByKind("coronationElsa");
     const rankByIceProximity = searchTier !== "primary58" && existingFrozenNodes.length > 0;
     const getEndpointIceDistance = (chain) => {

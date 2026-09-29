@@ -270,6 +270,8 @@ test("the global skill visual toggle persists and releases active skill timing w
         largeTsumChance: 1,
         gravityMultiplier: 1,
         tsumDiameter: 58,
+        coronationElsaLineRadius: null,
+        coronationElsaSurroundRadius: null,
         autoSkill: false,
         skillCosts: {},
         coinCorrections: {}
@@ -294,6 +296,8 @@ test("the global skill visual toggle persists and releases active skill timing w
         largeTsumChance: 1,
         gravityMultiplier: 1,
         tsumDiameter: 58,
+        coronationElsaLineRadius: null,
+        coronationElsaSurroundRadius: null,
         autoSkill: false,
         skillCosts: {},
         coinCorrections: {}

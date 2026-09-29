@@ -14,6 +14,7 @@ import {
   calculateEffectiveClearCount,
   getTsumClearWeight
 } from "./bombLogic.js?v=tsum-images-5";
+import { resolveCoronationElsaFreezeRadii } from "./cheatSettings.js?v=cheat-settings-4";
 
 const CORONATION_ELSA_FREEZE_KIND = "coronationElsa";
 const MIN_TRACE_LENGTH = 3;
@@ -190,6 +191,11 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
   if (!game || !Array.isArray(game.tsums) || !game.boardState) {
     throw new TypeError("A live Game with tsums and boardState is required");
   }
+  const freezeRadius = getFreezeRadius(level);
+  const { lineRadius, surroundRadius } = resolveCoronationElsaFreezeRadii(
+    game.isCheatActive?.() ? game.cheatSettings : null,
+    freezeRadius
+  );
   let anyFrozenMask = 0n;
   let coronationFrozenMask = 0n;
   let otherFrozenMask = 0n;
@@ -375,9 +381,9 @@ export function buildCoronationElsaPlannerSnapshot(game, level = game?.selectedS
   });
   return Object.freeze({
     level: clamp(level, 1, 6),
-    freezeRadius: getFreezeRadius(level),
-    lineRadius: getFreezeRadius(level) * 0.58,
-    surroundRadius: getFreezeRadius(level),
+    freezeRadius,
+    lineRadius,
+    surroundRadius,
     nodes: freezeArray(nodes),
     indexById,
     anyFrozenMask,

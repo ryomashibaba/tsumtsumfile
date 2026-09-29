@@ -7,6 +7,7 @@ import {
   getSkillCostKey,
   normalizeCheatSettings,
   reconcileGaugeCharge,
+  resolveCoronationElsaFreezeRadii,
   resolveSkillCost,
   settingValueFromSlider
 } from "./cheatSettings.js";
@@ -21,6 +22,8 @@ test("cheat settings normalize old, invalid, boundary, and special values", () =
     largeTsumChance: 1,
     gravityMultiplier: 1,
     tsumDiameter: 58,
+    coronationElsaLineRadius: null,
+    coronationElsaSurroundRadius: null,
     autoSkill: false,
     skillCosts: {},
     coinCorrections: {}
@@ -42,12 +45,42 @@ test("cheat settings normalize old, invalid, boundary, and special values", () =
     largeTsumChance: 100,
     gravityMultiplier: 0.1,
     tsumDiameter: 100,
+    coronationElsaLineRadius: null,
+    coronationElsaSurroundRadius: null,
     autoSkill: true,
     skillCosts: { alice: 0, "judyNick:nick": "unlimited" },
     coinCorrections: { "coingain:skill:coingainBase": -15, huge: 999 }
   });
   assert.equal(settingValueFromSlider(999, CHEAT_SPECIAL.UNLIMITED), 999);
   assert.equal(settingValueFromSlider(1000, CHEAT_SPECIAL.UNLIMITED), "unlimited");
+});
+
+test("Coronation Elsa freeze radii keep level defaults and normalize independent cheat overrides", () => {
+  const oldSave = normalizeCheatSettings({ enabled: true });
+  assert.deepEqual(resolveCoronationElsaFreezeRadii(oldSave, 78), {
+    lineRadius: 78 * 0.58,
+    surroundRadius: 78
+  });
+  const overrides = normalizeCheatSettings({
+    enabled: true,
+    coronationElsaLineRadius: 12.345,
+    coronationElsaSurroundRadius: 1200
+  });
+  assert.equal(overrides.coronationElsaLineRadius, 12.35);
+  assert.equal(overrides.coronationElsaSurroundRadius, 999);
+  assert.deepEqual(resolveCoronationElsaFreezeRadii(overrides, 78), {
+    lineRadius: 12.35,
+    surroundRadius: 999
+  });
+  assert.deepEqual(resolveCoronationElsaFreezeRadii({ ...overrides, enabled: false }, 78), {
+    lineRadius: 78 * 0.58,
+    surroundRadius: 78
+  });
+  assert.deepEqual(resolveCoronationElsaFreezeRadii(normalizeCheatSettings(), 78), {
+    lineRadius: 78 * 0.58,
+    surroundRadius: 78
+  });
+  assert.equal(normalizeCheatSettings({ coronationElsaLineRadius: "bad" }).coronationElsaLineRadius, null);
 });
 
 test("skill cost overrides are character-specific and keep Judy and Nick separate", () => {

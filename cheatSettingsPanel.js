@@ -2,8 +2,10 @@ import {
   CHEAT_SPECIAL,
   displaySettingValue,
   getSkillCostKey,
+  resolveCoronationElsaFreezeRadii,
   settingValueFromSlider
-} from "./cheatSettings.js?v=cheat-settings-3";
+} from "./cheatSettings.js?v=cheat-settings-4";
+import { SKILL_TABLES, clamp } from "./config.js?v=coin-flights-1";
 
 function element(tag, className, text = "") {
   const node = document.createElement(tag);
@@ -100,8 +102,10 @@ export class CheatSettingsPanel {
     number.value = String(value);
     number.setAttribute("aria-label", `${label} 数値`);
     const unit = element("span", "cheat-control__unit", suffix);
+    const decimals = String(step).split(".")[1]?.length || 0;
     const commit = (raw) => {
-      const next = Math.max(min, Math.min(max, Number(raw) || min));
+      const clamped = Math.max(min, Math.min(max, Number(raw) || min));
+      const next = Number((min + Math.round((clamped - min) / step) * step).toFixed(decimals));
       slider.value = String(next);
       number.value = String(next);
       onChange(next);
@@ -200,6 +204,31 @@ export class CheatSettingsPanel {
     }));
 
     const characterId = this.game.myTsum?.id || "";
+    if (characterId === "coronationElsa") {
+      const level = clamp(Number(this.game.selectedSkillLevel) || 1, 1, 6);
+      const baseRadius = SKILL_TABLES.coronationElsa.freezeRadius[level - 1];
+      const defaults = resolveCoronationElsaFreezeRadii(null, baseRadius);
+      body.appendChild(this.createNumericRangeControl({
+        label: "直線上の凍結半径",
+        value: this.game.cheatSettings.coronationElsaLineRadius ?? defaults.lineRadius,
+        min: 0,
+        max: 999,
+        step: 0.01,
+        suffix: "px",
+        defaultLabel: `現在Lvの初期値 ${defaults.lineRadius.toFixed(2)}px`,
+        onChange: (coronationElsaLineRadius) => this.game.updateCheatSettings({ coronationElsaLineRadius })
+      }));
+      body.appendChild(this.createNumericRangeControl({
+        label: "凍結済みツム周囲の凍結半径",
+        value: this.game.cheatSettings.coronationElsaSurroundRadius ?? defaults.surroundRadius,
+        min: 0,
+        max: 999,
+        step: 0.01,
+        suffix: "px",
+        defaultLabel: `現在Lvの初期値 ${defaults.surroundRadius.toFixed(2)}px`,
+        onChange: (coronationElsaSurroundRadius) => this.game.updateCheatSettings({ coronationElsaSurroundRadius })
+      }));
+    }
     const defaultCost = this.game.getDefaultSkillCost(characterId);
     if (characterId === "judyNick") {
       for (const [mode, label] of [["judy", "ジュディ 必要数"], ["nick", "ニック 必要数"]]) {
