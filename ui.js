@@ -2079,6 +2079,18 @@ export class UIRenderer {
       ctx.stroke();
     }
 
+    const tail = this.game.manualDragPointerId != null ? this.game.dragPointer : null;
+    if (tail) {
+      const last = this.game.chain[this.game.chain.length - 1];
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(tail.x, tail.y);
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(255,255,220,0.65)";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    }
+
     ctx.shadowBlur = profile.drawBodyShadows ? 10 + anticipation * 3 : 0;
     ctx.shadowColor = "rgba(255,255,255,0.95)";
     ctx.strokeStyle = chainColors[anticipation];

@@ -158,6 +158,8 @@ import {
   shouldUseHighBodyCountBroadphase
 } from './tsumSpatialHash.js?v=high-body-count-1';
 import { GameFeelController, calculateVisualChainCount } from './gameFeel.js?v=game-feel-1';
+import { CHAIN_INPUT_TUNING, collectSegmentCandidates, shouldArmBacktrack, shouldBacktrack } from './chainInput.js?v=segment-chain-1';
+import { ChainTelemetry } from './chainTelemetry.js?v=segment-chain-1';
 
 const TITLE_TSUMS_PER_PAGE = 10;
 const JUDY_NICK_MOVING_FREEZE_KIND = "judyNickMovingIce";
@@ -484,8 +486,12 @@ class Tsum {
           const isMyTsum = this.game.isMyTsumTypeId(displayType.id);
           const renderProfile = this.game.getRenderQualityProfile();
           const anticipation = highlighted && renderProfile.gameFeelScale > 0 ? (this.game.gameFeel?.chain?.level || 0) : 0;
-          const pulseAmount = 0.04 + anticipation * 0.008;
-          const pulse = highlighted ? 1 + Math.sin(time * 16 + this.x * 0.03) * pulseAmount : 1;
+          const pulseAmount = 0.02 + anticipation * 0.005;
+          const selectedAt = highlighted ? this.game.chainSelectedAt?.get(this.id) : null;
+          const selectionAge = selectedAt == null ? Infinity : performance.now() - selectedAt;
+          const selectionPulse = Math.max(0, 1 - selectionAge / CHAIN_INPUT_TUNING.selectionPulseMs) *
+            (CHAIN_INPUT_TUNING.selectionPulseScale - 1);
+          const pulse = highlighted ? 1 + Math.sin(time * 16 + this.x * 0.03) * pulseAmount + selectionPulse : 1;
           const deformation = liliaBat || !renderProfile.useBodyDeformation
             ? { angle: 0, compression: 0, contactAngle: 0, motionStretch: 0, motionAngle: 0 }
             : getTsumRenderDeformation(this);
@@ -3177,6 +3183,14 @@ class Game {
     this.chainSet = new Set();
     this.chainTypeId = null;
     this.chainRule = null;
+    this.chainBacktrackArmed = false;
+    this.chainSelectedAt = new Map();
+    this.chainTelemetry = this.role === "player" && typeof location !== "undefined" &&
+      new URLSearchParams(location.search).has("chainTelemetry") ? new ChainTelemetry() : null;
+    if (this.chainTelemetry) {
+      window.chainTelemetry = this.chainTelemetry;
+      this.chainTelemetry.show();
+    }
     this.strongestModeEnabled = false;
     this.strongestModeStepInterval = 0;
     this.strongestModeStepTimer = 0;
@@ -5193,12 +5207,15 @@ class Game {
 
 
   render() {
+    const measure = this.chainTelemetry ? performance.now() : 0;
     this.gameFeel?.capturePendingFrame(this.canvas);
     this.ctx.clearRect(0, 0, this.width, this.height);
     this.ui.render(this.ctx);
+    if (this.chainTelemetry) this.chainTelemetry.sample("renderMs", performance.now() - measure);
   }
 
   tick(dt, shouldRender = true) {
+    if (this.managedLoop && this.chainTelemetry) this.chainTelemetry.frame(performance.now());
     if (this.isAiFastTrainingSimulationActive()) {
       const maxSubsteps = 8;
       const speed = Math.max(1, this.aiFastTrainingSpeed || 1);
@@ -5234,6 +5251,7 @@ class Game {
   }
 
   loop(timestamp) {
+    this.chainTelemetry?.frame(timestamp);
     const dt = Math.min((timestamp - this.lastFrame) / 1000, 0.05);
     this.lastFrame = timestamp;
     this.tick(dt, true);
@@ -5469,9 +5487,11 @@ class Game {
       this.noteAction();
       return;
     }
-    const tsum = this.findTsumAt(pos.x, pos.y);
+    const tsum = this.findChainStartTsumAt(pos.x, pos.y);
     if (tsum) {
-      this.startChain(tsum, pos);
+      if (!this.startChain(tsum, pos)) this.chainTelemetry?.count("startFailures");
+    } else {
+      this.chainTelemetry?.count("startFailures");
     }
   }
 
@@ -5512,6 +5532,8 @@ class Game {
       this.chainSet = new Set();
       this.chainTypeId = null;
       this.chainRule = null;
+      this.chainBacktrackArmed = false;
+      this.chainSelectedAt?.clear();
     }
     this.resetAiChainAnimationState();
     console.log("[AI] chain animation cancelled");
@@ -5546,37 +5568,6 @@ class Game {
     return points;
   }
 
-  interpolateManualDragPoints(points, maxPoints = 64, step = 6) {
-    const interpolated = [];
-    let previous = this.manualDragPoint;
-    for (const point of points) {
-      if (!previous) {
-        interpolated.push(point);
-        previous = point;
-        continue;
-      }
-      const segmentDistance = distance(previous.x, previous.y, point.x, point.y);
-      const segmentSteps = Math.max(1, Math.ceil(segmentDistance / step));
-      for (let i = 1; i <= segmentSteps; i += 1) {
-        const ratio = i / segmentSteps;
-        interpolated.push({
-          x: lerp(previous.x, point.x, ratio),
-          y: lerp(previous.y, point.y, ratio)
-        });
-      }
-      previous = point;
-    }
-    if (interpolated.length <= maxPoints) {
-      return interpolated;
-    }
-    const limited = [];
-    for (let i = 0; i < maxPoints; i += 1) {
-      const index = Math.round((i * (interpolated.length - 1)) / (maxPoints - 1));
-      limited.push(interpolated[index]);
-    }
-    return limited;
-  }
-
   onPointerMove(event) {
     if (this.manualDragPointerId !== null && event.pointerId !== this.manualDragPointerId) {
       return;
@@ -5584,8 +5575,10 @@ class Game {
     if (this.deferredSkillInput) {
       return;
     }
+    const measure = this.chainTelemetry ? performance.now() : 0;
     const rect = this.canvas.getBoundingClientRect();
     const pos = this.getPointerPosition(event, rect);
+    const moveDistance = this.manualDragPoint ? distance(this.manualDragPoint.x, this.manualDragPoint.y, pos.x, pos.y) : 0;
     this.inputRouter.trackBubbleGesture(pos, event.pointerId);
     const isManualChain = (
       this.dragging &&
@@ -5594,18 +5587,30 @@ class Game {
     );
     if (!isManualChain) {
       this.processDragPoint(pos);
+      this.chainTelemetry?.move(measure, 1, moveDistance, performance.now() - measure, 0, 0, 0, 0);
       return;
     }
     if (this.processDragPoint(pos, false, false)) {
       this.manualDragPoint = pos;
+      this.chainTelemetry?.move(measure, 1, moveDistance, performance.now() - measure, 0, 0, 0, 0);
       return;
     }
     const points = this.getManualDragPoints(event, rect);
-    const interpolatedPoints = this.interpolateManualDragPoints(points);
-    for (const point of interpolatedPoints) {
-      this.processDragPoint(point, true);
+    const totals = { examined: 0, added: 0, crossed: 0, rejected: 0 };
+    let previous = this.manualDragPoint;
+    for (const point of points) {
+      const result = this.extendChainSegment(previous, point);
+      totals.examined += result.examined;
+      totals.added += result.added;
+      totals.crossed += result.crossed;
+      totals.rejected += result.rejected;
+      previous = point;
     }
     this.manualDragPoint = pos;
+    this.dragPointer = pos;
+    this.noteAction();
+    this.chainTelemetry?.move(measure, points.length, moveDistance, performance.now() - measure,
+      totals.examined, totals.added, totals.crossed, totals.rejected);
   }
 
   onPointerUp(event) {
@@ -6159,6 +6164,8 @@ class Game {
     this.chainSet = new Set();
     this.chainTypeId = null;
     this.chainRule = null;
+    this.chainBacktrackArmed = false;
+    this.chainSelectedAt?.clear();
   }
 
   cancelActiveChain() {
@@ -6168,6 +6175,8 @@ class Game {
     this.chainSet = new Set();
     this.chainTypeId = null;
     this.chainRule = null;
+    this.chainBacktrackArmed = false;
+    this.chainSelectedAt?.clear();
     this.gameFeel?.setChain(0);
   }
 
@@ -11027,6 +11036,20 @@ class Game {
     return candidate;
   }
 
+  findChainStartTsumAt(x, y) {
+    let candidate = null;
+    let bestDistance = Infinity;
+    for (const tsum of this.tsums) {
+      if (tsum.dead || tsum.removing || tsum.clearOccupying || this.boardState.isFrozen(tsum) || !this.isTsumInPlayArea(tsum)) continue;
+      const d = distance(x, y, tsum.x, tsum.y);
+      if (d <= this.getBodyRadius(tsum) * CHAIN_INPUT_TUNING.startRadiusScale && d < bestDistance) {
+        candidate = tsum;
+        bestDistance = d;
+      }
+    }
+    return candidate;
+  }
+
   findBombAt(x, y) {
     for (let i = this.bombs.length - 1; i >= 0; i -= 1) {
       const bomb = this.bombs[i];
@@ -11380,6 +11403,10 @@ class Game {
     this.chainSet = new Set([tsum.id]);
     this.chainRule = chainRule;
     this.chainTypeId = this.boardState.getResolvedType(tsum).id;
+    this.chainBacktrackArmed = false;
+    this.chainSelectedAt ||= new Map();
+    this.chainSelectedAt.clear();
+    this.chainSelectedAt.set(tsum.id, performance.now());
     this.dragPointer = pos;
     this.gameFeel?.setChain(calculateVisualChainCount(this.chain), tsum.x, tsum.y);
     this.noteAction();
@@ -11387,56 +11414,57 @@ class Game {
   }
 
   extendChain(pos) {
-    if (!this.dragging || this.chain.length === 0) {
-      return;
-    }
-    this.dragPointer = pos;
-    const last = this.chain[this.chain.length - 1];
+    return Game.prototype.extendChainSegment.call(this, pos, pos, 1);
+  }
+
+  extendChainSegment(from, to, maxAdded = Infinity) {
+    const stats = { examined: 0, added: 0, crossed: 0, rejected: 0 };
+    if (!this.dragging || !this.chain.length || !from || !to) return stats;
+    this.dragPointer = to;
+    const current = this.chain[this.chain.length - 1];
     if (this.chain.length > 1) {
-      const backtrackTarget = this.chain[this.chain.length - 2];
-      const dBacktrackCursor = distance(pos.x, pos.y, backtrackTarget.x, backtrackTarget.y);
-      if (dBacktrackCursor <= this.getBodyRadius(backtrackTarget) * 1.3) {
-        const removed = this.chain.pop();
-        if (removed) {
-          removed.inChain = false;
-          this.chainSet.delete(removed.id);
-          const current = this.chain[this.chain.length - 1];
-          this.gameFeel?.setChain(calculateVisualChainCount(this.chain), current?.x || pos.x, current?.y || pos.y);
-        }
-        return;
+      const previous = this.chain[this.chain.length - 2];
+      if (!this.chainBacktrackArmed && shouldArmBacktrack(from, to, current, this.getBodyRadius(current))) {
+        this.chainBacktrackArmed = true;
+      }
+      if (this.chainBacktrackArmed && shouldBacktrack(from, to, current, previous, this.getBodyRadius(previous))) {
+        current.inChain = false;
+        this.chain.pop();
+        this.chainSet.delete(current.id);
+        this.chainSelectedAt?.delete(current.id);
+        this.chainBacktrackArmed = false;
+        this.chainTelemetry?.count("backtracks");
+        this.gameFeel?.setChain(calculateVisualChainCount(this.chain), previous.x, previous.y);
+        return stats;
       }
     }
-
-    let candidate = null;
-    let bestCursorDist = Infinity;
-    for (const tsum of this.tsums) {
-      if (tsum.dead || tsum.removing || tsum.clearOccupying || tsum.inChain || this.boardState.isFrozen(tsum) || !this.isTsumInPlayArea(tsum)) {
+    const { hits, examined } = collectSegmentCandidates(
+      from, to, this.tsums,
+      (tsum) => this.getBodyRadius(tsum) * CHAIN_INPUT_TUNING.extensionRadiusScale,
+      (tsum) => !tsum.dead && !tsum.removing && !tsum.clearOccupying && !tsum.inChain &&
+        !this.boardState.isFrozen(tsum) && this.isTsumInPlayArea(tsum)
+    );
+    stats.examined = examined;
+    stats.crossed = hits.length;
+    for (const { node: candidate } of hits) {
+      const typeId = this.boardState.getResolvedType(candidate).id;
+      const last = this.chain[this.chain.length - 1];
+      if (candidate.inChain || (typeId !== this.chainTypeId && !this.chainRule?.allowedTypeIds?.has(typeId)) ||
+        !this.canExtendActiveChain(last, candidate, CHAIN_CONNECT_MARGIN)) {
+        stats.rejected += 1;
         continue;
       }
-      if (this.boardState.getResolvedType(tsum).id !== this.chainTypeId) {
-        if (!this.chainRule?.allowedTypeIds?.has(this.boardState.getResolvedType(tsum).id)) {
-          continue;
-        }
-      }
-      const dCursor = distance(pos.x, pos.y, tsum.x, tsum.y);
-      if (dCursor > this.getBodyRadius(tsum) * 1.3 + CHAIN_INPUT_MARGIN) {
-        continue;
-      }
-      if (!this.canExtendActiveChain(last, tsum, CHAIN_CONNECT_MARGIN)) {
-        continue;
-      }
-      if (dCursor < bestCursorDist) {
-        bestCursorDist = dCursor;
-        candidate = tsum;
-      }
-    }
-
-    if (candidate) {
       candidate.inChain = true;
       this.chain.push(candidate);
       this.chainSet.add(candidate.id);
+      this.chainSelectedAt ||= new Map();
+      this.chainSelectedAt.set(candidate.id, performance.now());
+      this.chainBacktrackArmed = false;
       this.gameFeel?.setChain(calculateVisualChainCount(this.chain), candidate.x, candidate.y);
+      stats.added += 1;
+      if (stats.added >= maxAdded) break;
     }
+    return stats;
   }
 
   finishChain() {
@@ -11446,6 +11474,8 @@ class Game {
     this.chainSet = new Set();
     this.chainTypeId = null;
     this.chainRule = null;
+    this.chainBacktrackArmed = false;
+    this.chainSelectedAt?.clear();
     this.gameFeel?.setChain(0);
     if (chain.length < 3) {
       chain.forEach((tsum) => { tsum.inChain = false; });
@@ -13448,12 +13478,14 @@ class Game {
       }]));
       this.physicsAccumulator += dt / FIXED_STEP;
       let steps = 0;
+      const physicsMeasure = this.chainTelemetry ? performance.now() : 0;
       while (this.physicsAccumulator >= 1 && steps < 5) {
         this.stepPhysicsFrame();
         this.strongestModeCoronationElsaPhysicsStepCount += 1;
         this.physicsAccumulator -= 1;
         steps += 1;
       }
+      if (this.chainTelemetry && steps) this.chainTelemetry.sample("physicsMs", performance.now() - physicsMeasure);
       for (const tsum of this.tsums) {
         tsum.update(dt);
       }
