@@ -198,6 +198,37 @@ test("Judy and Nick expose ten independent count corrections plus the overlay", 
   assert.deepEqual(controls.map((entry) => entry.defaultValue), [-9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 0]);
 });
 
+test("Final Battle Hook exposes one skill coin correction for both manual and diagonal clears", () => {
+  const controls = Game.prototype.getCoinCorrectionControls.call({
+    myTsum: { id: "finalBattleHook", skillType: "finalBattleHook" },
+    selectedSkillLevel: 5
+  });
+  assert.deepEqual(controls, [{
+    route: "default",
+    label: "スキル中（既定 -1）",
+    defaultValue: -1
+  }]);
+
+  const game = {
+    role: "player",
+    myTsum: { id: "finalBattleHook", coinCorrectionType: "correction_0" },
+    cheatSettings: normalizeCheatSettings({
+      enabled: true,
+      coinCorrections: { "finalBattleHook:skill:default": 4 }
+    }),
+    isCheatActive: Game.prototype.isCheatActive,
+    getCheatCoinCorrection: Game.prototype.getCheatCoinCorrection,
+    createCoinCorrectionTable: Game.prototype.createCoinCorrectionTable
+  };
+  for (const correctionType of ["correction_-1", "correction_-2"]) {
+    assert.equal(
+      Game.prototype.getCoinCalculationContext.call(game, null, correctionType).correctionType,
+      "correction_4"
+    );
+  }
+  assert.equal(Game.prototype.getCoinCalculationContext.call(game).correctionType, "correction_0");
+});
+
 test("Tsum diameter is clamped and updates normal and large live bodies", () => {
   assert.equal(normalizeCheatSettings({ tsumDiameter: 0 }).tsumDiameter, 1);
   assert.equal(normalizeCheatSettings({ tsumDiameter: 101 }).tsumDiameter, 100);

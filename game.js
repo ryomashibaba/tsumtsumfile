@@ -5131,7 +5131,12 @@ class Game {
       });
       return controls;
     } else {
-      for (const field of ["coinCorrectionType", "specialBombCoinCorrectionType"]) {
+      for (const field of [
+        "coinCorrectionType",
+        "specialBombCoinCorrectionType",
+        "manualCoinCorrectionType",
+        "diagonalCoinCorrectionType"
+      ]) {
         if (table[field]?.[levelIndex]) types.push(table[field][levelIndex]);
       }
     }
