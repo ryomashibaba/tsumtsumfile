@@ -615,6 +615,99 @@ test("Coronation Elsa ICE_TAP_READY adds no fixed wait to an initially stable bo
   assert.equal(ready.stablePhysicsTicks, 0);
 });
 
+test("Coronation Elsa consumes moving ice after 100ms without restarting for component or refill changes", () => {
+  const { harness, ice, falling } = makeCoronationElsaIceTapReadinessHarness();
+  const target = { type: "freeze", target: ice };
+  assert.equal(harness.evaluateStrongestModeCoronationElsaIceTapReadiness(target).ready, false);
+  harness.elapsed += 0.06;
+  harness.strongestModeCoronationElsaPhysicsStepCount += 1;
+  harness.strongestModeCoronationElsaFreezeRevision += 1;
+  falling.y += 2;
+  assert.equal(harness.evaluateStrongestModeCoronationElsaIceTapReadiness(target).ready, false);
+  // Expiry must work even if physics did not advance on this call.
+  harness.elapsed += 0.04;
+  const ready = harness.evaluateStrongestModeCoronationElsaIceTapReadiness(target);
+  assert.equal(ready.ready, true);
+  assert.equal(ready.physicallyReady, false);
+  assert.equal(ready.waitLimitReached, true);
+  assert.ok(Math.abs(ready.waitElapsedMs - 100) < 1e-6);
+  ice.removing = true;
+  assert.equal(harness.evaluateStrongestModeCoronationElsaIceTapReadiness(target).ready, false);
+});
+
+test("Coronation Elsa ice wait starts fresh for a new skill session", () => {
+  const { harness, ice } = makeCoronationElsaIceTapReadinessHarness();
+  const target = { type: "freeze", target: ice };
+  harness.evaluateStrongestModeCoronationElsaIceTapReadiness(target);
+  harness.elapsed += 0.15;
+  harness.getActiveSkillSession = () => ({ id: "new-session" });
+  const result = harness.evaluateStrongestModeCoronationElsaIceTapReadiness(target);
+  assert.equal(result.ready, false);
+  assert.equal(result.waitElapsedMs, 0);
+});
+
+test("Coronation Elsa commits planned identities when smaller overlapping Tsums would intercept coordinate input", () => {
+  const planned = [
+    { id: "a", x: 100, y: 300, type: { id: "red" } },
+    { id: "b", x: 101, y: 300, type: { id: "red" } },
+    { id: "c", x: 102, y: 300, type: { id: "red" } }
+  ];
+  const intercept = { id: "intercept", x: 101, y: 299.9, type: { id: "red" } };
+  let committed;
+  const harness = Object.assign(Object.create(Game.prototype), {
+    myTsum: { id: "coronationElsa" },
+    tsums: [intercept, ...planned],
+    boardState: { getResolvedType: (node) => node.type },
+    getActiveSkillSession: () => ({ id: "session" }),
+    isStrongestModeBusy: () => false,
+    validateStrongestModeCoronationElsaPlannedChain: (chain) => ({ valid: chain.every((node) => !node.removing) }),
+    isGameplayInputLocked: () => false,
+    getChainBehaviorForStart: () => ({ allowedTypeIds: new Set(["red"]) }),
+    getStrongestModeCoronationElsaSkillSummary: () => null,
+    noteAction() {},
+    skillRuntime: {
+      dispatchChainStart() { assert.fail("exact Coronation chain must not use coordinate input"); },
+      dispatchDrag() { assert.fail("exact Coronation chain must not use coordinate input"); }
+    },
+    inputRouter: { handleChainCommit(chain) { committed = chain; return true; } },
+    flushPostChainCleanup() {}
+  });
+  assert.equal(harness.performStrongestModeChain(planned), true);
+  assert.deepEqual(committed, planned);
+  assert.equal(intercept.inChain, undefined);
+  assert.ok(planned.every((node) => node.inChain === false));
+  planned[1].removing = true;
+  committed = null;
+  assert.equal(harness.performStrongestModeChain(planned), false);
+  assert.equal(committed, null);
+});
+
+test("InputRouter taps the selected Coronation ice identity and rejects its removal rather than switching components", () => {
+  const selected = { id: "selected", x: 100, y: 400 };
+  const intercept = { id: "intercept", x: 100, y: 399 };
+  let tapped;
+  const router = Object.assign(Object.create(InputRouter.prototype), {
+    game: {
+      tsums: [intercept, selected], myTsum: { id: "red" },
+      getLiveTsumCount: () => 2,
+      pushCodexDebugLog() {}, logCodexCoronationPayload() {}
+    },
+    board: {
+      findFrozenGroupAt: () => intercept,
+      hasFreezeKind: () => true,
+      getFrozenEntry: () => ({ freezeKind: "generic" }),
+      getFrozenTapInfo(node) { tapped = node; return { targets: [node] }; }
+    },
+    clear: { beginClear: () => true }
+  });
+  assert.equal(router.handleTap({ x: 100, y: 400 }, { frozenTarget: selected }), true);
+  assert.equal(tapped, selected);
+  selected.removing = true;
+  tapped = null;
+  assert.equal(router.handleTap({ x: 100, y: 400 }, { frozenTarget: selected }), false);
+  assert.equal(tapped, null);
+});
+
 test("Coronation Elsa InputRouter cannot bypass ICE_TAP_READY", () => {
   const frozen = { id: "ice", x: 100, y: 400 };
   let tapInfoRequested = false;

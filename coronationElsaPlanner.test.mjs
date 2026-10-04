@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { coronationElsaSkillHandler } from "./game.js";
+import { Game, coronationElsaSkillHandler } from "./game.js";
 import { normalizeCheatSettings } from "./cheatSettings.js";
 import {
   CORONATION_ELSA_PLANNER_CONFIG,
@@ -1200,4 +1200,281 @@ test("Phase B permits a four-chain when depth is equal and its real terminal coi
   assert.equal(plan.diagnostics.selectedFirstChainLength, 4);
   assert.equal(plan.terminal.effectiveClearCount, 4);
   assert.equal(plan.terminal.rawCoins, 1);
+});
+
+test("streaming enumeration confirms a safe trace before enumerating the remaining dense paths", () => {
+  const game = makeGame(Array.from({ length: 100 }, (_, i) => makeNode(`dense-${i}`, 100 + i % 10, 300 + Math.floor(i / 10))));
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  let confirmed = false;
+  const result = enumerateCoronationElsaPlannerTraces(snapshot, adjacency, snapshot.initialState, {
+    lengths: [3, 4, 5, 6], shouldAbort: () => confirmed,
+    onSafeCandidate: () => { confirmed = true; }
+  });
+  assert.equal(result.aborted, true);
+  assert.equal(result.rawCandidateCount, 1);
+  assert.equal(result.safeTraceCandidateCount, 1);
+});
+
+test("large-board progressive search resumes beyond leading starts after repeated budget expiry", () => {
+  const nodes = Array.from({ length: 97 }, (_, i) => makeNode(`single-${i}`, 350, 500, `single-${i}`));
+  nodes.push(makeNode("late-a", 70, 300), makeNode("late-b", 100, 300), makeNode("late-c", 130, 300));
+  const game = makeGame(nodes);
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+  const continuation = {};
+  let plan;
+  let waits = 0;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    let ticks = 0;
+    plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+      continuation, now: () => ticks++, deadlineMs: 35,
+      config: { highBodyCandidateLimit: 1 }
+    });
+    if (plan.action === "trace") break;
+    assert.equal(plan.waitReason, "WAIT_FOR_PLANNER_BUDGET");
+    waits += 1;
+  }
+  assert.ok(waits > 0);
+  assert.equal(plan.action, "trace");
+  assert.deepEqual(new Set(plan.chainIds), new Set(["late-a", "late-b", "late-c"]));
+});
+
+test("an incomplete adjacency waits and resumes instead of declaring that no trace exists", () => {
+  const game = makeGame(Array.from({ length: 100 }, (_, i) => makeNode(`node-${i}`, 100 + i, 300)));
+  const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+  const continuation = {};
+  let adjacency;
+  let waits = 0;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    let checks = 0;
+    adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot, { continuation, shouldAbort: () => ++checks > 20 });
+    if (!adjacency.aborted) break;
+    const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency);
+    assert.equal(plan.action, "wait");
+    assert.equal(plan.diagnostics.timeoutStage, "adjacency");
+    waits += 1;
+  }
+  assert.ok(waits > 0);
+  assert.equal(adjacency.aborted, false);
+  assert.ok(adjacency.contexts[0].neighborsByNode[0].length > 0);
+  assert.equal(buildCoronationElsaPlannerAdjacency(game, snapshot, { continuation }), adjacency);
+});
+
+test("spatial adjacency matches exact live rules for small, mixed, large and unlimited-distance Tsums", () => {
+  const nodes = Array.from({ length: 120 }, (_, i) => makeNode(`node-${i}`, (i % 12) * 36, Math.floor(i / 12) * 45, `type-${i % 3}`, {
+    radius: [0.5, 5, 14.5, 29, 43.5][i % 5]
+  }));
+  for (const unlimitedDistance of [false, true]) {
+    const game = makeGame(nodes, {
+      getChainBehaviorForStart: (node) => ({ mode: "normal", allowedTypeIds: new Set([node.type.id]), unlimitedDistance })
+    });
+    game.canConnectWithChainRule = Game.prototype.canConnectWithChainRule;
+    const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+    const brute = buildCoronationElsaPlannerAdjacency(game, snapshot);
+    game.getChainConnectionSearchRadius = Game.prototype.getChainConnectionSearchRadius;
+    const spatial = buildCoronationElsaPlannerAdjacency(game, snapshot);
+    assert.deepEqual(spatial, brute);
+  }
+});
+
+test("dense cheat boards retain safe progress and prediction/commit parity across count, radius, gravity and spawn modes", () => {
+  for (const count of [45, 100, 200, 500, 999]) {
+    for (const diameter of [100, 58, 29, 10, 1]) {
+      for (const gravityMultiplier of [0.1, 1, 5, 10]) {
+        for (const spawnRate of ["instant", 30]) {
+          const spacing = Math.min(12, diameter);
+          const nodes = Array.from({ length: count }, (_, i) => makeNode(`n-${i}`, 50 + (i % 25) * spacing,
+            300 + Math.floor(i / 25) * Math.min(6, spacing),
+            i < 3 ? "red" : (count < 81 ? `single-${i}` : `type-${i % 5}`),
+            { radius: diameter / 2, vy: gravityMultiplier, vx: gravityMultiplier * 0.2 }));
+          const flowStates = Object.fromEntries(nodes.map((node) => [node.id, { settled: false, stableSupport: true }]));
+          const game = makeGame(nodes, {
+            flowStates, cheatSettings: { enabled: true, boardTarget: count, tsumDiameter: diameter, gravityMultiplier, spawnRate }
+          });
+          game.canConnectWithChainRule = Game.prototype.canConnectWithChainRule;
+          game.getChainConnectionSearchRadius = Game.prototype.getChainConnectionSearchRadius;
+          const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+          const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+          const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, {
+            config: { hardBudgetMs: 1000, softBudgetMs: 1000, highBodyCandidateLimit: 2 }
+          });
+          assert.equal(plan.action, "trace", JSON.stringify({ count, diameter, gravityMultiplier, spawnRate }));
+          assert.equal(plan.diagnostics.selectedUnsafeNewlyFrozenCount, 0);
+          const chain = plan.chainIds.map((id) => nodes.find((node) => node.id === id));
+          const simulation = simulateCoronationElsaFreeze(snapshot, snapshot.initialState, chain.map((node) => getCoronationElsaPlannerNodeIndex(snapshot, node.id)));
+          let frozenIds;
+          coronationElsaSkillHandler.onChainCommit({ game, board: game.boardState, level: 6, applyFreeze: (ids) => { frozenIds = ids; } }, { id: "matrix" }, chain);
+          assert.deepEqual(frozenIds, simulation.targetIndices.map((index) => nodes[index].id));
+        }
+      }
+    }
+  }
+});
+
+test("a large board only uses budget-expiry tap fallback when ice exists and the caller's wait has expired", () => {
+  const nodes = Array.from({ length: 100 }, (_, i) => makeNode(`n-${i}`, 100 + i % 10, 300));
+  for (const hasIce of [false, true]) {
+    const game = makeGame(nodes, { coronationLayers: hasIce ? { "n-0": 1 } : {} });
+    const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+    const adjacency = buildCoronationElsaPlannerAdjacency(game, snapshot);
+    for (const allowBudgetTap of [false, true]) {
+      const plan = solveCoronationElsaStrongestModePlan(snapshot, adjacency, { now: () => 10, deadlineMs: 0, allowBudgetTap });
+      assert.equal(plan.action, hasIce && allowBudgetTap ? "tap" : "wait");
+      if (plan.action === "tap") assert.equal(plan.tapNodeId, "n-0");
+    }
+  }
+});
+
+test("spatial ice propagation and one-contact splash match a brute-force oracle on large mixed-radius boards", () => {
+  for (const diameter of [1, 10, 58]) {
+    const nodes = Array.from({ length: 999 }, (_, i) => makeNode(`n-${i}`, 25 + (i % 30) * 12, 180 + Math.floor(i / 30) * 10,
+      `type-${i % 5}`, { radius: diameter / 2 * (i % 7 === 0 ? 1.5 : 1), isLarge: i % 7 === 0 }));
+    const layers = Object.fromEntries(nodes.filter((_, i) => i % 3 === 0).map((node) => [node.id, 2]));
+    const game = makeGame(nodes, { coronationLayers: layers });
+    const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+    const remaining = new Set(snapshot.nodes.filter((node) => node.coronationFrozen).map((node) => node.index));
+    const expected = [];
+    while (remaining.size) {
+      const queue = [remaining.values().next().value];
+      remaining.delete(queue[0]);
+      for (let head = 0; head < queue.length; head += 1) {
+        const a = snapshot.nodes[queue[head]];
+        for (const index of Array.from(remaining)) {
+          const b = snapshot.nodes[index];
+          if (Math.hypot(a.x - b.x, a.y - b.y) <= Math.max(78, a.effectiveRadius + b.effectiveRadius + 3)) {
+            remaining.delete(index); queue.push(index);
+          }
+        }
+      }
+      const splash = snapshot.nodes.filter((node) => !node.coronationFrozen && queue.filter((index) => {
+        const frozen = snapshot.nodes[index];
+        return Math.hypot(node.x - frozen.x, node.y - frozen.y) <= node.effectiveRadius + frozen.effectiveRadius + 29 * 0.02;
+      }).length === 1).map((node) => node.index);
+      expected.push({ component: new Set(queue), targets: new Set(queue.concat(splash)) });
+    }
+    const evaluation = evaluateCoronationElsaTapComponents(snapshot);
+    assert.equal(evaluation.components.length, expected.length);
+    for (const component of evaluation.components) {
+      const oracle = expected.find((entry) => entry.component.has(component.tapNodeIndex));
+      assert.deepEqual(new Set(component.componentIndices), oracle.component);
+      assert.deepEqual(new Set(component.targetIndices), oracle.targets);
+      assert.equal(component.additionalClearCount, oracle.component.size);
+    }
+  }
+});
+
+test("zero and maximum freeze-radius overrides preserve the exact frozen-neighbor expansion on a 999-body board", () => {
+  const nodes = Array.from({ length: 999 }, (_, i) => makeNode(`n-${i}`, 40 + (i % 30) * 10, 280 + Math.floor(i / 30) * 6,
+    `type-${i % 5}`, { radius: 0.5 }));
+  for (const lineRadius of [0, 999]) {
+    for (const surroundRadius of [0, 999]) {
+      const game = makeGame(nodes, { coronationLayers: { "n-900": 2, "n-950": 1 },
+        cheatSettings: { enabled: true, coronationElsaLineRadius: lineRadius, coronationElsaSurroundRadius: surroundRadius } });
+      const snapshot = buildCoronationElsaPlannerSnapshot(game, 6);
+      const simulated = simulateCoronationElsaFreeze(snapshot, snapshot.initialState, [0, 5, 10]);
+      const prior = [900, 950];
+      const expectedSurround = nodes.filter((node, index) => !prior.includes(index) && prior.some((center) => (
+        Math.hypot(node.x - nodes[center].x, node.y - nodes[center].y) <= surroundRadius
+      ))).map((node) => getCoronationElsaPlannerNodeIndex(snapshot, node.id));
+      assert.deepEqual(new Set(simulated.surroundTargetIndices), new Set(expectedSurround));
+      assert.equal(simulated.nextFreezeLayerCounts[900], 3);
+      assert.equal(simulated.nextFreezeLayerCounts[950], 2);
+      if (lineRadius === 999 || surroundRadius === 999) assert.equal(simulated.targetIndices.length, 999);
+      // The same cached geometry remains correct for a different chain.
+      assert.deepEqual(simulateCoronationElsaFreeze(snapshot, snapshot.initialState, [1, 6, 11]).surroundTargetIndices,
+        simulated.surroundTargetIndices);
+    }
+  }
+});
+
+test("live planner context, identity execution and freeze/tap remain consistent through a 999-body cycle", () => {
+  const nodes = Array.from({ length: 999 }, (_, i) => makeNode(`n-${i}`, 40 + (i % 30) * 10, 280 + Math.floor(i / 30) * 6,
+    `type-${i % 5}`, { radius: 5 }));
+  const harness = Object.assign(Object.create(Game.prototype), makeGame(nodes, {
+    cheatSettings: { enabled: true, boardTarget: 999, tsumDiameter: 10, gravityMultiplier: 10, spawnRate: "instant" }
+  }), {
+    bombs: [], strongestModeEnabled: true,
+    myTsum: { id: "coronationElsa" },
+    strongestModeCoronationElsaPlannerFrameRevision: 1,
+    strongestModeCoronationElsaFreezeRevision: 0,
+    strongestModeCoronationElsaPhysicsStepCount: 1,
+    strongestModeCoronationElsaPlannerFrameCallCount: 0,
+    strongestModeCoronationElsaPlannerCallsSinceTrace: 0,
+    strongestModeCoronationElsaPlannerBlockedTotalMs: 0,
+    getActiveSkillSession: () => ({ id: "integration" }),
+    getStrongestModeCoronationElsaSkillSummary: () => null,
+    getStrongestModeCoronationElsaFlowSafetyContext: Game.prototype.getStrongestModeCoronationElsaFlowSafetyContext,
+    getStrongestModeCoronationElsaFlowSafetyState: Game.prototype.getStrongestModeCoronationElsaFlowSafetyState,
+    canConnectWithChainRule: Game.prototype.canConnectWithChainRule,
+    getPhysicsBodies: () => nodes,
+    getBodyCollisionX: (body) => body.x, getBodyCollisionY: (body) => body.y,
+    isBodySettled: () => true, isBodyMotionLocked: () => false,
+    getStrongestModeCoronationElsaSafePlayableY: () => 220,
+    getFieldFloorY: () => 700,
+    isStrongestModeBusy: () => false,
+    isGameplayInputLocked: () => false,
+    noteAction() {}
+  });
+  harness.resetStrongestModeCoronationElsaSettleOpportunityState();
+  const decision = harness.planStrongestModeCoronationElsaAction({ deadlineMs: performance.now() + 1000 });
+  assert.equal(decision.plan.action, "trace");
+  assert.equal(decision.plan.diagnostics.highBodyCount, true);
+  assert.equal(decision.chain.strongestModeCoronationElsaValidationToken.validation.valid, true);
+  harness.inputRouter = { handleChainCommit(chain) {
+    assert.deepEqual(chain.map((node) => node.id), decision.plan.chainIds);
+    return coronationElsaSkillHandler.onChainCommit({ game: harness, board: harness.boardState, level: 6,
+      applyFreeze(ids, spec) {
+        for (const id of ids) harness.boardState.freezeLayer.set(id, [...(harness.boardState.freezeLayer.get(id) || []), spec]);
+        harness.strongestModeCoronationElsaFreezeRevision += 1;
+      }
+    }, { id: "integration" }, chain);
+  } };
+  assert.equal(harness.performStrongestModeChain(decision.chain), true);
+  const frozen = harness.boardState.getFrozenNodesByKind("coronationElsa");
+  assert.ok(frozen.length >= 3);
+  harness.boardState.hasFreezeKind = (node) => harness.boardState.isFrozen(node);
+  const latest = buildCoronationElsaPlannerSnapshot(harness, 6);
+  const tap = evaluateCoronationElsaTapComponents(latest).best;
+  const target = nodes[tap.tapNodeIndex];
+  assert.equal(harness.evaluateStrongestModeCoronationElsaIceTapReadiness({ target }).ready, true);
+  assert.equal(tap.connectedFrozenCount, frozen.length);
+  assert.ok(tap.componentIndices.includes(getCoronationElsaPlannerNodeIndex(latest, decision.chain[0].id)));
+  // Moving a node invalidates the previous validation token and graph work.
+  nodes[0].x += 100;
+  harness.strongestModeCoronationElsaPlannerFrameRevision += 1;
+  assert.equal(harness.isCoronationElsaPlannerRevisionCurrent(decision.chain.strongestModeCoronationElsaValidationToken.revision), false);
+  const freshContext = harness.buildCoronationElsaPlannerContext({ deadlineMs: performance.now() + 1000 });
+  assert.equal(freshContext.snapshot.nodes[0].x, nodes[0].x);
+  assert.notEqual(freshContext.adjacency, decision.chain.strongestModeCoronationElsaValidationToken.context.adjacency);
+});
+
+test("moving geometry invalidates suspended paths but rotates starts to reach a late legal chain", () => {
+  const nodes = Array.from({ length: 97 }, (_, i) => makeNode(`single-${i}`, 350, 500, `single-${i}`));
+  nodes.push(makeNode("late-a", 70, 300), makeNode("late-b", 100, 300), makeNode("late-c", 130, 300));
+  const harness = Object.assign(Object.create(Game.prototype), makeGame(nodes), {
+    strongestModeCoronationElsaPlannerFrameRevision: 0,
+    strongestModeCoronationElsaFreezeRevision: 0,
+    strongestModeCoronationElsaPhysicsStepCount: 0,
+    strongestModeCoronationElsaPlannerFrameCallCount: 0,
+    strongestModeCoronationElsaPlannerCallsSinceTrace: 0,
+    strongestModeCoronationElsaPlannerBlockedTotalMs: 0,
+    isBodyMotionLocked: () => false, isBodySettled: () => true,
+    getStrongestModeCoronationElsaSkillSummary: () => null
+  });
+  harness.resetStrongestModeCoronationElsaSettleOpportunityState();
+  let decision;
+  let lastWork;
+  for (let frame = 0; frame < 60; frame += 1) {
+    nodes[0].x += 0.1;
+    harness.strongestModeCoronationElsaPlannerFrameRevision += 1;
+    harness.elapsed += 1 / 60;
+    let ticks = 0;
+    decision = harness.planStrongestModeCoronationElsaAction({ now: () => ticks++, deadlineMs: 250 });
+    if (lastWork) assert.notEqual(harness.strongestModeCoronationElsaProgressiveSearch.continuation, lastWork);
+    lastWork = harness.strongestModeCoronationElsaProgressiveSearch.continuation;
+    if (decision.plan.action === "trace") break;
+  }
+  assert.equal(decision.plan.action, "trace");
+  assert.deepEqual(new Set(decision.plan.chainIds), new Set(["late-a", "late-b", "late-c"]));
 });

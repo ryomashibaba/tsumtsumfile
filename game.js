@@ -117,6 +117,7 @@ import {
   CORONATION_ELSA_PLANNER_CONFIG,
   buildCoronationElsaPlannerAdjacency,
   buildCoronationElsaPlannerSnapshot,
+  createCoronationElsaSpatialQuery,
   evaluateCoronationElsaFinalTraceSettleRisk,
   evaluateCoronationElsaIceTapReadiness,
   evaluateCoronationElsaTapComponents,
@@ -125,7 +126,7 @@ import {
   profileCoronationElsaPlanner,
   solveCoronationElsaStrongestModePlan,
   simulateCoronationElsaFreeze
-} from './coronationElsaPlanner.js?v=coronation-elsa-freeze-width-1';
+} from './coronationElsaPlanner.js?v=coronation-elsa-high-body-1';
 import {
   STRONGEST_MODE_CORONATION_ELSA_BOARD_TRACE_READINESS_WAIT_REASON,
   STRONGEST_MODE_CORONATION_ELSA_PRE_TAP_SETTLE_WAIT_REASON,
@@ -283,6 +284,8 @@ const buildStrongestModeCoronationElsaFlowSupportStates = (game, physicsBodies =
     (!body.inChain || body.clearOccupying)
   ));
   const supportBodiesByBody = new Map(bodies.map((body) => [body, []]));
+  const maxRadius = bodies.reduce((max, body) => Math.max(max, getRadius(body)), 0);
+  const querySupport = createCoronationElsaSpatialQuery(bodies, Math.max(8, maxRadius * 2 + 1.5), getX, getY);
   const floorSupportedBodies = new Set();
   for (const body of bodies) {
     const bodyRadius = getRadius(body);
@@ -292,7 +295,7 @@ const buildStrongestModeCoronationElsaFlowSupportStates = (game, physicsBodies =
     if ((body.y || 0) + bodyRadius >= floorY - 0.5) floorSupportedBodies.add(body);
     const bodyX = getX(body);
     const bodyY = getY(body);
-    for (const other of bodies) {
+    for (const other of querySupport(bodyX, bodyY, bodyRadius + maxRadius + 1.5)) {
       if (other === body) continue;
       const dx = getX(other) - bodyX;
       const dy = getY(other) - bodyY;
@@ -2939,11 +2942,13 @@ class InputRouter {
     this.pendingBubbleGesture = null;
   }
 
-  handleTap(pos) {
+  handleTap(pos, { frozenTarget = null } = {}) {
     if (this.game.isGameplayInputLocked?.({ ignoreActionLock: true })) {
       return false;
     }
-    const frozen = this.board.findFrozenGroupAt(pos);
+    if (frozenTarget && (frozenTarget.dead || frozenTarget.removing || frozenTarget.clearOccupying ||
+      !this.game.tsums.includes(frozenTarget) || !this.board.hasFreezeKind(frozenTarget, "coronationElsa"))) return false;
+    const frozen = frozenTarget || this.board.findFrozenGroupAt(pos);
     if (frozen) {
       const frozenEntry = this.board.getFrozenEntry(frozen);
       const isCoronationElsaFrozenTap = frozenEntry?.freezeKind === "coronationElsa";
@@ -6914,6 +6919,11 @@ class Game {
     return dLast <= maxChainDist + margin;
   }
 
+  getChainConnectionSearchRadius(rule, from, maxRadius) {
+    if (rule.unlimitedDistance || rule.mode === "namine") return Infinity;
+    return Math.max(MAX_CHAIN_DIST * 0.65, (this.getBodyRadius(from) + maxRadius) * 1.6);
+  }
+
   getCoronationElsaPlannerCacheKeys() {
     const geometryParts = [];
     const supportParts = [];
@@ -7009,8 +7019,12 @@ class Game {
       adjacency = this.strongestModeCoronationElsaAdjacencyCache.value;
       adjacencyCacheHit = true;
     } else {
+      if (this.strongestModeCoronationElsaAdjacencyWork?.key !== keys.geometryKey) {
+        this.strongestModeCoronationElsaAdjacencyWork = { key: keys.geometryKey, continuation: {} };
+      }
       adjacency = buildCoronationElsaPlannerAdjacency(this, snapshot, {
-        shouldAbort: () => clock() >= deadlineMs
+        shouldAbort: () => clock() >= deadlineMs,
+        continuation: this.strongestModeCoronationElsaAdjacencyWork.continuation
       });
       if (!adjacency.aborted) {
         this.strongestModeCoronationElsaAdjacencyCache = Object.freeze({
@@ -7050,6 +7064,17 @@ class Game {
     this.strongestModeCoronationElsaPlannerFrameCallCount += 1;
     this.strongestModeCoronationElsaPlannerCallsSinceTrace += 1;
     const context = this.buildCoronationElsaPlannerContext({ clock, now: clock, deadlineMs });
+    const searchKey = [context.revision.geometryKey, context.snapshot.coronationFrozenMask,
+      context.snapshot.otherFrozenMask, context.snapshot.inflowUnsafeMask,
+      context.snapshot.lineRadius, context.snapshot.surroundRadius, this.selectedSkillLevel,
+      context.snapshot.initialState.freezeLayerCounts.join(",")].join("|");
+    const oldSearch = this.strongestModeCoronationElsaProgressiveSearch;
+    if (oldSearch?.key !== searchKey) {
+      // Rotate starts even when moving geometry invalidates a suspended iterator.
+      this.strongestModeCoronationElsaProgressiveSearch = {
+        key: searchKey, continuation: { startOffset: oldSearch ? (oldSearch.continuation.nextStartIndex ?? oldSearch.continuation.startOffset ?? 0) + 1 : 0 }
+      };
+    }
     const solveStartedAt = clock();
     const solverDeadlineMs = Math.max(
       solveStartedAt,
@@ -7061,11 +7086,20 @@ class Game {
       {
         ...(options.plannerOptions || {}),
         now: options.plannerOptions?.now || clock,
+        continuation: this.strongestModeCoronationElsaProgressiveSearch.continuation,
+        searchContinued: oldSearch?.key === searchKey,
+        allowBudgetTap: Number.isFinite(this.strongestModeCoronationElsaBudgetWaitStartedAt) &&
+          ((this.elapsed || 0) - this.strongestModeCoronationElsaBudgetWaitStartedAt) * 1000 >= CORONATION_ELSA_PLANNER_CONFIG.iceTapWaitMaxMs,
         deadlineMs: solverDeadlineMs,
         exactDeadlineMs: Math.min(solverDeadlineMs, startedAt + CORONATION_ELSA_PLANNER_CONFIG.exactBudgetMs),
         targetDeadlineMs: Math.min(solverDeadlineMs, startedAt + CORONATION_ELSA_PLANNER_CONFIG.targetBudgetMs)
       }
     );
+    if (basePlan.action === "trace" || !context.snapshot.coronationFrozenMask) {
+      this.strongestModeCoronationElsaBudgetWaitStartedAt = null;
+    } else if (basePlan.waitReason === "WAIT_FOR_PLANNER_BUDGET" && !Number.isFinite(this.strongestModeCoronationElsaBudgetWaitStartedAt)) {
+      this.strongestModeCoronationElsaBudgetWaitStartedAt = this.elapsed || 0;
+    }
     const solveMs = clock() - solveStartedAt;
     this.updateStrongestModeCoronationElsaSettleWaveFromPlan(basePlan);
     const opportunity = evaluateCoronationElsaSettleOpportunity({
@@ -7152,6 +7186,9 @@ class Game {
   }
 
   resetStrongestModeCoronationElsaSettleOpportunityState() {
+    this.strongestModeCoronationElsaProgressiveSearch = null;
+    this.strongestModeCoronationElsaAdjacencyWork = null;
+    this.strongestModeCoronationElsaBudgetWaitStartedAt = null;
     this.strongestModeCoronationElsaSettleWaveId = 0;
     this.strongestModeCoronationElsaSettleWaveOpen = false;
     this.strongestModeCoronationElsaForceNextSpawnWave = false;
@@ -7234,7 +7271,8 @@ class Game {
         ? this.boardState.findFrozenGroupAt?.({ x: specialTarget.x, y: specialTarget.y })
         : null
     );
-    if (!target || !this.boardState.hasFreezeKind?.(target, "coronationElsa")) {
+    if (!target || target.dead || target.removing || target.clearOccupying ||
+      !this.tsums.includes(target) || !this.boardState.hasFreezeKind?.(target, "coronationElsa")) {
       const result = Object.freeze({
         ready: false,
         physicallyReady: false,
@@ -7256,7 +7294,8 @@ class Game {
 
     const sessionId = this.getActiveSkillSession?.("coronationElsa")?.id || "no-session";
     const physicsStepCount = this.strongestModeCoronationElsaPhysicsStepCount || 0;
-    const cacheKey = `${sessionId}:${physicsStepCount}:${this.strongestModeCoronationElsaFreezeRevision || 0}:${String(target.id)}`;
+    const elapsedSec = Math.max(0, this.elapsed || 0);
+    const cacheKey = `${sessionId}:${physicsStepCount}:${this.strongestModeCoronationElsaFreezeRevision || 0}:${String(target.id)}:${elapsedSec}`;
     if (this.strongestModeCoronationElsaIceTapReadinessCache?.key === cacheKey) {
       return this.strongestModeCoronationElsaIceTapReadinessCache.result;
     }
@@ -7271,15 +7310,6 @@ class Game {
     const previous = this.strongestModeCoronationElsaIceTapReadinessState?.key === key
       ? this.strongestModeCoronationElsaIceTapReadinessState
       : null;
-
-    if (
-      previous &&
-      previous.lastPhysicsStepCount === physicsStepCount &&
-      previous.lastResult?.tapImpactSignature === physical.tapImpactSignature &&
-      previous.lastResult?.physicallyReady === physical.physicallyReady
-    ) {
-      return previous.lastResult;
-    }
 
     let blockedEver = previous?.blockedEver || false;
     let stablePhysicsTicks = previous?.stablePhysicsTicks || 0;
@@ -7307,6 +7337,17 @@ class Game {
       blockReason = ready ? null : "WAIT_FOR_STABLE_PHYSICS_TICKS";
     }
 
+    const waitState = this.strongestModeCoronationElsaIceTapReadinessState;
+    const waitStartedElapsedSec = waitState?.sessionId === sessionId && Number.isFinite(waitState.waitStartedElapsedSec)
+      ? waitState.waitStartedElapsedSec
+      : (ready ? null : elapsedSec);
+    const waitElapsedMs = waitStartedElapsedSec == null ? 0 : Math.max(0, (elapsedSec - waitStartedElapsedSec) * 1000);
+    const waitLimitReached = !ready && waitElapsedMs + 1e-6 >= CORONATION_ELSA_PLANNER_CONFIG.iceTapWaitMaxMs;
+    if (waitLimitReached) {
+      ready = true;
+      blockReason = null;
+    }
+
     const result = Object.freeze({
       ...physical,
       ready,
@@ -7315,10 +7356,14 @@ class Game {
       blockedEver,
       stablePhysicsTicks,
       requiredStablePhysicsTicks,
-      physicsStepCount
+      physicsStepCount,
+      waitElapsedMs,
+      waitLimitReached
     });
     this.strongestModeCoronationElsaIceTapReadinessState = Object.freeze({
       key,
+      sessionId,
+      waitStartedElapsedSec,
       blockedEver,
       stablePhysicsTicks,
       lastPhysicsStepCount: physicsStepCount,
@@ -7329,6 +7374,8 @@ class Game {
     const summary = this.getStrongestModeCoronationElsaSkillSummary?.();
     if (summary) {
       summary.iceTapReady = ready;
+      summary.iceTapWaitElapsedMs = waitElapsedMs;
+      summary.iceTapWaitLimitReached = waitLimitReached;
       summary.iceTapBlockReason = blockReason;
       summary.iceTapStablePhysicsTicks = stablePhysicsTicks;
       summary.iceTapRequiredStablePhysicsTicks = requiredStablePhysicsTicks;
@@ -9252,7 +9299,11 @@ class Game {
       }
       return false;
     }
-    const tapped = this.inputRouter.handleTap({ x: specialTarget.x, y: specialTarget.y });
+    const target = specialTarget.target;
+    const tapped = this.inputRouter.handleTap(
+      { x: target?.x ?? specialTarget.x, y: target?.y ?? specialTarget.y },
+      { frozenTarget: target || null }
+    );
     if (!tapped) {
       if (options.planValidated) {
         this.strongestModeCoronationElsaPendingTapPrediction = null;
@@ -9659,6 +9710,10 @@ class Game {
     if (!summary || !plan?.diagnostics) return;
     const diagnostics = plan.diagnostics;
     summary.plannerRunCount += 1;
+    if (plan.mode === "progressive") summary.plannerProgressiveRunCount = (summary.plannerProgressiveRunCount || 0) + 1;
+    if (diagnostics.searchContinued) summary.plannerSearchContinuedCount = (summary.plannerSearchContinuedCount || 0) + 1;
+    if (diagnostics.budgetTapFallback) summary.plannerBudgetTapFallbackCount = (summary.plannerBudgetTapFallbackCount || 0) + 1;
+    if (Number.isFinite(diagnostics.firstSafeCandidateMs)) summary.plannerFirstSafeCandidateMs = diagnostics.firstSafeCandidateMs;
     if (plan.mode === "exact") summary.plannerExactRunCount += 1;
     if (plan.mode === "beam") summary.plannerBeamRunCount += 1;
     if (plan.mode === "exact") summary.plannerExactSearchSamplesMs.push(Math.max(0, diagnostics.searchTimeMs || 0));
@@ -10009,7 +10064,11 @@ class Game {
       minSecondsBetweenChainStarts: summary.minSecondsBetweenChainStarts,
       minFirstTsumAgeAtChainStart: summary.minFirstTsumAgeAtChainStart,
       minNewestSpawnAgeAtChainStart: summary.minNewestSpawnAgeAtChainStart,
-      plannerMode: summary.plannerBeamRunCount > 0 ? "beam" : "exact",
+      plannerMode: summary.plannerProgressiveRunCount > 0 ? "progressive" : (summary.plannerBeamRunCount > 0 ? "beam" : "exact"),
+      plannerProgressiveRunCount: summary.plannerProgressiveRunCount || 0,
+      plannerSearchContinuedCount: summary.plannerSearchContinuedCount || 0,
+      plannerBudgetTapFallbackCount: summary.plannerBudgetTapFallbackCount || 0,
+      plannerFirstSafeCandidateMs: summary.plannerFirstSafeCandidateMs ?? null,
       plannerRunCount: summary.plannerRunCount,
       plannerExactRunCount: summary.plannerExactRunCount,
       plannerBeamRunCount: summary.plannerBeamRunCount,
@@ -10135,6 +10194,8 @@ class Game {
       iceTapReadyToTapPhysicsTicks: summary.iceTapReadyToTapPhysicsTicks,
       tapFutureTraceRelevantPendingCount: summary.tapFutureTraceRelevantPendingCount,
       iceTapReady: summary.iceTapReady,
+      iceTapWaitElapsedMs: summary.iceTapWaitElapsedMs || 0,
+      iceTapWaitLimitReached: !!summary.iceTapWaitLimitReached,
       iceTapBlockReason: summary.iceTapBlockReason,
       iceTapStablePhysicsTicks: summary.iceTapStablePhysicsTicks,
       iceTapRequiredStablePhysicsTicks: summary.iceTapRequiredStablePhysicsTicks,
@@ -10592,7 +10653,9 @@ class Game {
       }
       return committed;
     }
-    if (chain.strongestModeCoronationElsaSource === "planner") {
+    const exactCoronationChain = this.myTsum?.id === "coronationElsa" && !!this.getActiveSkillSession?.("coronationElsa");
+    if (exactCoronationChain || chain.strongestModeCoronationElsaSource === "planner") {
+      if (new Set(chain.map((node) => node.id)).size !== chain.length) return false;
       const validation = this.validateStrongestModeCoronationElsaPlannedChain(chain);
       if (!validation.valid) return false;
       const summary = this.getStrongestModeCoronationElsaSkillSummary();
@@ -10725,13 +10788,21 @@ class Game {
       console.log("[CORONATION ELSA CHAIN START]", coronationElsaChainStartLog);
     }
     const firstPosition = { x: chain[0].x, y: chain[0].y };
-    const skillHandledStart = this.skillRuntime.dispatchChainStart(firstPosition);
+    const skillHandledStart = !exactCoronationChain && this.skillRuntime.dispatchChainStart(firstPosition);
     if (!skillHandledStart && !this.startChain(chain[0], firstPosition)) {
       return false;
     }
     for (let i = 1; i < chain.length; i += 1) {
       const position = { x: chain[i].x, y: chain[i].y };
-      if (!this.skillRuntime.dispatchDrag(position)) {
+      if (exactCoronationChain) {
+        const node = chain[i];
+        node.inChain = true;
+        this.chain.push(node);
+        this.chainSet.add(node.id);
+        this.chainSelectedAt?.set(node.id, performance.now());
+        this.dragPointer = position;
+        this.gameFeel?.setChain(calculateVisualChainCount(this.chain), node.x, node.y);
+      } else if (!this.skillRuntime.dispatchDrag(position)) {
         this.extendChain(position);
       }
     }

@@ -15,6 +15,7 @@ import {
   getTsumClearWeight
 } from "./bombLogic.js?v=tsum-images-5";
 import { resolveCoronationElsaFreezeRadii } from "./cheatSettings.js?v=cheat-settings-4";
+import { HIGH_BODY_COUNT_BROADPHASE_THRESHOLD } from "./tsumSpatialHash.js";
 
 const CORONATION_ELSA_FREEZE_KIND = "coronationElsa";
 const MIN_TRACE_LENGTH = 3;
@@ -41,6 +42,9 @@ export const CORONATION_ELSA_PLANNER_CONFIG = Object.freeze({
   traceRecoveryWaitMaxMs: 50,
   tracePotentialStablePhysicsTicks: 2,
   iceTapStablePhysicsTicks: 1,
+  iceTapWaitMaxMs: 100,
+  highBodyCountThreshold: HIGH_BODY_COUNT_BROADPHASE_THRESHOLD,
+  highBodyCandidateLimit: 16,
   opportunityCycleWaitBudgetMs: 100,
   opportunityMinPendingAboveSelection: 1,
   opportunitySufficientTraceCount: 4,
@@ -66,8 +70,29 @@ const nowMs = () => (
 
 const bitForIndex = (index) => 1n << BigInt(index);
 const maskHasIndex = (mask, index) => (mask & bitForIndex(index)) !== 0n;
+const freezeGeometryCache = new WeakMap();
 
 const freezeArray = (values) => Object.freeze(Array.from(values));
+
+// Conservative broadphase only: callers still apply their exact rule.
+export function createCoronationElsaSpatialQuery(nodes, cellSize, getX = (node) => node.x, getY = (node) => node.y) {
+  const size = Math.max(1, cellSize);
+  const cells = new Map();
+  for (const node of nodes) {
+    const key = `${Math.floor(getX(node) / size)},${Math.floor(getY(node) / size)}`;
+    if (!cells.has(key)) cells.set(key, []);
+    cells.get(key).push(node);
+  }
+  return (x, y, radius) => {
+    const nearby = [];
+    for (let cy = Math.floor((y - radius) / size); cy <= Math.floor((y + radius) / size); cy += 1) {
+      for (let cx = Math.floor((x - radius) / size); cx <= Math.floor((x + radius) / size); cx += 1) {
+        for (const node of cells.get(`${cx},${cy}`) || []) nearby.push(node);
+      }
+    }
+    return nearby;
+  };
+}
 
 const getFreezeRadius = (level) => {
   const table = SKILL_TABLES.coronationElsa?.freezeRadius || [];
@@ -437,16 +462,39 @@ export function buildCoronationElsaPlannerAdjacency(game, snapshot, options = {}
   if (!game || typeof game.getChainBehaviorForStart !== "function" || typeof game.canConnectWithChainRule !== "function") {
     throw new TypeError("Game chain rule adapters are required to build planner adjacency");
   }
-  const liveById = new Map((game.tsums || []).map((tsum) => [String(tsum?.id), tsum]));
   const shouldAbort = typeof options.shouldAbort === "function" ? options.shouldAbort : () => false;
-  let aborted = false;
+  const work = options.continuation || {};
+  if (work.result) return work.result;
+  if (!work.iterator) work.iterator = buildAdjacencyRows(game, snapshot);
+  let step;
+  while (!shouldAbort()) {
+    step = work.iterator.next();
+    if (step.done) {
+      work.result = step.value;
+      return step.value;
+    }
+  }
+  // An incomplete graph cannot establish that a trace does not exist.
+  return Object.freeze({ aborted: true, nodeCount: snapshot.nodes.length,
+    startContextIndexByNode: freezeArray(Array(snapshot.nodes.length).fill(-1)), contexts: freezeArray([]) });
+}
+
+function* buildAdjacencyRows(game, snapshot) {
+  const liveById = new Map((game.tsums || []).map((tsum) => [String(tsum?.id), tsum]));
+  const eligible = snapshot.nodes.filter((node) => node.baseTraceEligible);
+  const byType = new Map();
+  for (const node of eligible) {
+    if (!byType.has(node.resolvedTypeId)) byType.set(node.resolvedTypeId, []);
+    byType.get(node.resolvedTypeId).push(node);
+  }
+  const spatialQuery = typeof game.getChainConnectionSearchRadius === "function"
+    ? createCoronationElsaSpatialQuery(eligible, 96)
+    : null;
+  const maxRadius = eligible.reduce((max, node) => Math.max(max, node.effectiveRadius), 0);
   const contextByKey = new Map();
   const startContextIndexByNode = Array(snapshot.nodes.length).fill(-1);
   for (const startNode of snapshot.nodes) {
-    if (shouldAbort()) {
-      aborted = true;
-      break;
-    }
+    yield;
     if (!startNode.baseTraceEligible) {
       continue;
     }
@@ -463,41 +511,36 @@ export function buildCoronationElsaPlannerAdjacency(game, snapshot, options = {}
   }
   const contexts = [];
   for (const pendingContext of contextByKey.values()) {
-    if (shouldAbort()) {
-      aborted = true;
-      break;
-    }
     const neighborsByNode = snapshot.nodes.map(() => []);
-    for (const fromNode of snapshot.nodes) {
-      if (shouldAbort()) {
-        aborted = true;
-        break;
-      }
-      if (!fromNode.baseTraceEligible) continue;
+    const allowedNodes = Array.from(pendingContext.rule.allowedTypeIds).flatMap((id) => byType.get(id) || []);
+    const lazy = snapshot.nodes.length >= CORONATION_ELSA_PLANNER_CONFIG.highBodyCountThreshold;
+    for (const fromNode of allowedNodes) {
+      yield;
       const liveFrom = liveById.get(String(fromNode.id));
       if (!liveFrom) continue;
-      for (const candidateNode of snapshot.nodes) {
-        if (shouldAbort()) {
-          aborted = true;
-          break;
+      const buildNeighbors = () => {
+        const searchRadius = game.getChainConnectionSearchRadius?.(pendingContext.rule, liveFrom, maxRadius);
+        const candidates = spatialQuery && Number.isFinite(searchRadius)
+          ? spatialQuery(fromNode.x, fromNode.y, searchRadius)
+          : allowedNodes;
+        const neighbors = [];
+        for (const candidateNode of candidates) {
+          if (candidateNode.index === fromNode.index || !pendingContext.rule.allowedTypeIds.has(candidateNode.resolvedTypeId)) continue;
+          const liveCandidate = liveById.get(String(candidateNode.id));
+          if (liveCandidate && game.canConnectWithChainRule(pendingContext.rule, liveFrom, liveCandidate)) {
+            neighbors.push(candidateNode.index);
+          }
         }
-        if (
-          !candidateNode.baseTraceEligible ||
-          candidateNode.index === fromNode.index
-        ) {
-          continue;
-        }
-        const liveCandidate = liveById.get(String(candidateNode.id));
-        if (
-          liveCandidate &&
-          game.canConnectWithChainRule(pendingContext.rule, liveFrom, liveCandidate)
-        ) {
-          neighborsByNode[fromNode.index].push(candidateNode.index);
-        }
+        return freezeArray(neighbors.sort((first, second) => (
+          String(snapshot.nodes[first].id).localeCompare(String(snapshot.nodes[second].id))
+        )));
+      };
+      if (lazy) {
+        let cached;
+        Object.defineProperty(neighborsByNode, fromNode.index, { get: () => (cached ||= buildNeighbors()) });
+      } else {
+        neighborsByNode[fromNode.index] = buildNeighbors();
       }
-      neighborsByNode[fromNode.index].sort((first, second) => (
-        String(snapshot.nodes[first].id).localeCompare(String(snapshot.nodes[second].id))
-      ));
     }
     const contextIndex = contexts.length;
     for (const startIndex of pendingContext.startIndices) {
@@ -506,11 +549,11 @@ export function buildCoronationElsaPlannerAdjacency(game, snapshot, options = {}
     contexts.push(Object.freeze({
       key: pendingContext.key,
       startIndices: freezeArray(pendingContext.startIndices),
-      neighborsByNode: freezeArray(neighborsByNode.map(freezeArray))
+      neighborsByNode: Object.freeze(neighborsByNode)
     }));
   }
   return Object.freeze({
-    aborted,
+    aborted: false,
     nodeCount: snapshot.nodes.length,
     startContextIndexByNode: freezeArray(startContextIndexByNode),
     contexts: freezeArray(contexts)
@@ -523,8 +566,31 @@ export function simulateCoronationElsaFreeze(snapshot, state, chainIndices) {
   const start = snapshot.nodes[normalizedChain[0]];
   const end = snapshot.nodes[normalizedChain[normalizedChain.length - 1]];
   const lineTargetIndices = [];
-  const priorFrozenIndices = [];
-  const surroundTargetIndices = [];
+  let cache = freezeGeometryCache.get(snapshot);
+  if (!cache) {
+    cache = { states: new Map(), query: createCoronationElsaSpatialQuery(snapshot.nodes, Math.max(8, snapshot.surroundRadius)) };
+    freezeGeometryCache.set(snapshot, cache);
+  }
+  const stateKey = normalizedState.frozenMask;
+  let geometry = cache.states.get(stateKey);
+  if (!geometry) {
+    const priorFrozenIndices = snapshot.nodes.filter((node) => (
+      !node.dead && !node.removing && maskHasIndex(stateKey, node.index)
+    )).map((node) => node.index);
+    const surroundSeen = new Set();
+    for (const centerIndex of priorFrozenIndices) {
+      const center = snapshot.nodes[centerIndex];
+      for (const node of cache.query(center.x, center.y, snapshot.surroundRadius).sort((a, b) => a.index - b.index)) {
+        if (node.dead || node.removing || node.index === centerIndex || maskHasIndex(stateKey, node.index) ||
+          distanceBetween(center, node) > snapshot.surroundRadius) continue;
+        surroundSeen.add(node.index);
+      }
+    }
+    geometry = { priorFrozenIndices, surroundTargetIndices: Array.from(surroundSeen) };
+    if (cache.states.size >= 64) cache.states.clear();
+    cache.states.set(stateKey, geometry);
+  }
+  const { priorFrozenIndices, surroundTargetIndices } = geometry;
 
   for (const node of snapshot.nodes) {
     if (
@@ -534,33 +600,6 @@ export function simulateCoronationElsaFreeze(snapshot, state, chainIndices) {
       distanceToInfiniteLineOrSegment(node, start, end) <= snapshot.lineRadius
     ) {
       lineTargetIndices.push(node.index);
-    }
-    if (
-      !node.dead &&
-      !node.removing &&
-      maskHasIndex(normalizedState.frozenMask, node.index)
-    ) {
-      priorFrozenIndices.push(node.index);
-    }
-  }
-
-  const surroundSeen = new Set();
-  for (const centerIndex of priorFrozenIndices) {
-    const center = snapshot.nodes[centerIndex];
-    for (const node of snapshot.nodes) {
-      if (
-        node.dead ||
-        node.removing ||
-        node.index === centerIndex ||
-        maskHasIndex(normalizedState.frozenMask, node.index) ||
-        distanceBetween(center, node) > snapshot.surroundRadius
-      ) {
-        continue;
-      }
-      if (!surroundSeen.has(node.index)) {
-        surroundSeen.add(node.index);
-        surroundTargetIndices.push(node.index);
-      }
     }
   }
 
@@ -628,6 +667,39 @@ export function evaluateCoronationElsaFreezeTransitionSafety(
   });
 }
 
+function* visitTracePaths(snapshot, adjacency, blockedMask, lengths, work) {
+  for (const targetLength of lengths) {
+    const offset = (work.startOffset || 0) % snapshot.nodes.length;
+    for (let order = 0; order < snapshot.nodes.length; order += 1) {
+      const startNode = snapshot.nodes[(order + offset) % snapshot.nodes.length];
+      work.nextStartIndex = startNode.index;
+      yield null;
+      if (!startNode.baseTraceEligible || maskHasIndex(blockedMask, startNode.index)) continue;
+      const contextIndex = adjacency.startContextIndexByNode[startNode.index];
+      if (!Number.isInteger(contextIndex) || contextIndex < 0) continue;
+      const context = adjacency.contexts[contextIndex];
+      const path = [startNode.index];
+      const used = new Set(path);
+      function* visit(currentIndex) {
+        if (path.length === targetLength) {
+          yield path.slice();
+          return;
+        }
+        for (const candidateIndex of context.neighborsByNode[currentIndex]) {
+          yield null;
+          if (used.has(candidateIndex) || maskHasIndex(blockedMask, candidateIndex)) continue;
+          used.add(candidateIndex);
+          path.push(candidateIndex);
+          yield* visit(candidateIndex);
+          path.pop();
+          used.delete(candidateIndex);
+        }
+      }
+      yield* visit(startNode.index);
+    }
+  }
+}
+
 export function enumerateCoronationElsaPlannerTraces(
   snapshot,
   adjacency,
@@ -652,66 +724,22 @@ export function enumerateCoronationElsaPlannerTraces(
     ? options.onSafeCandidate
     : null;
   const blockedMask = snapshot.otherFrozenMask | normalizedState.frozenMask;
-  const rawPaths = [];
+  const work = options.continuation || {};
+  if (!work.iterator) work.iterator = visitTracePaths(snapshot, adjacency, blockedMask, lengths, work);
+  let rawCandidateCount = 0;
   let aborted = false;
-
-  for (const targetLength of lengths) {
-    if (shouldAbort()) {
-      aborted = true;
-      break;
-    }
-    for (const startNode of snapshot.nodes) {
-      if (shouldAbort()) {
-        aborted = true;
-        break;
-      }
-      if (
-        !startNode.baseTraceEligible ||
-        maskHasIndex(blockedMask, startNode.index)
-      ) {
-        continue;
-      }
-      const contextIndex = adjacency.startContextIndexByNode[startNode.index];
-      if (!Number.isInteger(contextIndex) || contextIndex < 0) {
-        continue;
-      }
-      const context = adjacency.contexts[contextIndex];
-      const path = [startNode.index];
-      const used = new Set(path);
-      const visit = (currentIndex) => {
-        if (shouldAbort()) {
-          aborted = true;
-          return;
-        }
-        if (path.length === targetLength) {
-          rawPaths.push(path.slice());
-          return;
-        }
-        for (const candidateIndex of context.neighborsByNode[currentIndex]) {
-          if (
-            used.has(candidateIndex) ||
-            maskHasIndex(blockedMask, candidateIndex)
-          ) {
-            continue;
-          }
-          used.add(candidateIndex);
-          path.push(candidateIndex);
-          visit(candidateIndex);
-          if (aborted) return;
-          path.pop();
-          used.delete(candidateIndex);
-        }
-      };
-      visit(startNode.index);
-    }
-  }
-
   const pathCandidatesByKey = new Map();
-  for (const path of rawPaths) {
+  let safeCount = 0;
+  while (true) {
     if (shouldAbort()) {
       aborted = true;
       break;
     }
+    const step = work.iterator.next();
+    if (step.done) { work.complete = true; break; }
+    const path = step.value;
+    if (!path) continue;
+    rawCandidateCount += 1;
     const canonicalPathKey = getCanonicalPathKey(snapshot, adjacency, path);
     if (pathCandidatesByKey.has(canonicalPathKey)) {
       continue;
@@ -743,7 +771,14 @@ export function enumerateCoronationElsaPlannerTraces(
       simulation
     });
     pathCandidatesByKey.set(canonicalPathKey, builtCandidate);
-    if (builtCandidate.freezeFlowSafe) onSafeCandidate?.(builtCandidate);
+    if (builtCandidate.freezeFlowSafe) {
+      safeCount += 1;
+      onSafeCandidate?.(builtCandidate);
+      if (safeCount >= (options.maxSafeCandidates ?? Infinity)) {
+        aborted = true;
+        break;
+      }
+    }
   }
   const pathCandidates = Array.from(pathCandidatesByKey.values()).sort((first, second) => (
     first.chainIndices.length - second.chainIndices.length ||
@@ -778,7 +813,7 @@ export function enumerateCoronationElsaPlannerTraces(
     dedupeByNextFrozenMask,
     excludeUnsafeTransitions,
     candidates: freezeArray(candidates),
-    rawCandidateCount: rawPaths.length,
+    rawCandidateCount,
     pathDedupedCandidateCount: pathCandidates.length,
     eligiblePathDedupedCandidateCount: eligiblePathCandidates.length,
     frozenMaskDedupedCandidateCount: candidates.length,
@@ -870,18 +905,23 @@ const getFrozenComponents = (snapshot, frozenMask) => {
     .filter((node) => maskHasIndex(frozenMask, node.index) && !node.dead && !node.removing)
     .map((node) => node.index);
   const remaining = new Set(frozenIndices);
+  const frozenNodes = frozenIndices.map((index) => snapshot.nodes[index]);
+  const maxRadius = frozenNodes.reduce((max, node) => Math.max(max, node.effectiveRadius), 0);
+  const query = createCoronationElsaSpatialQuery(frozenNodes, Math.max(CORONATION_ELSA_ICE_CONNECT_DISTANCE, maxRadius * 2 + 3));
   const components = [];
   while (remaining.size) {
     const startIndex = remaining.values().next().value;
     remaining.delete(startIndex);
     const queue = [startIndex];
     const component = [];
-    while (queue.length) {
-      const index = queue.shift();
+    for (let head = 0; head < queue.length; head += 1) {
+      const index = queue[head];
       component.push(index);
       const node = snapshot.nodes[index];
-      for (const candidateIndex of Array.from(remaining)) {
-        const candidate = snapshot.nodes[candidateIndex];
+      const searchRadius = Math.max(node.effectiveRadius + maxRadius + 3, CORONATION_ELSA_ICE_CONNECT_DISTANCE);
+      for (const candidate of query(node.x, node.y, searchRadius)) {
+        const candidateIndex = candidate.index;
+        if (!remaining.has(candidateIndex)) continue;
         const connectedDistance = Math.max(
           node.effectiveRadius + candidate.effectiveRadius + 3,
           CORONATION_ELSA_ICE_CONNECT_DISTANCE
@@ -911,6 +951,9 @@ export function evaluateCoronationElsaTapComponents(snapshot, state = snapshot.i
     || COIN_CORRECTION_TABLE[DEFAULT_COIN_CORRECTION_TYPE];
   const evaluated = components.map((componentIndices) => {
     const componentSet = new Set(componentIndices);
+    const componentNodes = componentIndices.map((index) => snapshot.nodes[index]);
+    const maxRadius = componentNodes.reduce((max, node) => Math.max(max, node.effectiveRadius), 0);
+    const query = createCoronationElsaSpatialQuery(componentNodes, Math.max(8, maxRadius * 2));
     const splashIndices = [];
     for (const node of snapshot.nodes) {
       if (
@@ -921,8 +964,7 @@ export function evaluateCoronationElsaTapComponents(snapshot, state = snapshot.i
         continue;
       }
       let touchingCount = 0;
-      for (const frozenIndex of componentIndices) {
-        const frozenNode = snapshot.nodes[frozenIndex];
+      for (const frozenNode of query(node.x, node.y, node.effectiveRadius + maxRadius + TSUM_RADIUS * 0.02)) {
         const splashDistance = frozenNode.effectiveRadius + node.effectiveRadius + TSUM_RADIUS * 0.02;
         if (distanceBetween(frozenNode, node) <= splashDistance) {
           touchingCount += 1;
@@ -1023,6 +1065,8 @@ export function evaluateCoronationElsaIceTapReadiness(
   }
 
   const componentNodes = component.componentIndices.map((index) => snapshot.nodes[index]).filter(Boolean);
+  const maxComponentRadius = componentNodes.reduce((max, node) => Math.max(max, node.effectiveRadius), 0);
+  const queryComponent = createCoronationElsaSpatialQuery(componentNodes, Math.max(8, maxComponentRadius * 2));
   const relevantUnstableNodes = [];
   let pendingGeometryCount = 0;
   let activeInflowCount = 0;
@@ -1039,10 +1083,10 @@ export function evaluateCoronationElsaIceTapReadiness(
       x: node.x + node.vx * ticks,
       y: node.y + node.vy * ticks
     }));
-    const aroundFrozenComponent = componentNodes.some((frozenNode) => {
-      const splashDistance = node.effectiveRadius + frozenNode.effectiveRadius + TSUM_RADIUS * 0.02;
-      return predictedPositions.some((position) => distanceBetween(position, frozenNode) <= splashDistance);
-    });
+    const aroundFrozenComponent = predictedPositions.some((position) => (
+      queryComponent(position.x, position.y, node.effectiveRadius + maxComponentRadius + TSUM_RADIUS * 0.02)
+        .some((frozenNode) => distanceBetween(position, frozenNode) <= node.effectiveRadius + frozenNode.effectiveRadius + TSUM_RADIUS * 0.02)
+    ));
     if (!aroundFrozenComponent) continue;
 
     const pendingGeometry = !!(node.activeInflow || node.settlingOpportunity);
@@ -1284,6 +1328,7 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
   const config = { ...CORONATION_ELSA_PLANNER_CONFIG, ...(options.config || {}) };
   const clock = typeof options.now === "function" ? options.now : nowMs;
   const startedAt = clock();
+  const highBodyCount = snapshot.nodes.length >= config.highBodyCountThreshold;
   const outerDeadline = Number.isFinite(options.deadlineMs)
     ? options.deadlineMs
     : startedAt + Math.max(0, config.hardBudgetMs);
@@ -1305,6 +1350,7 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
   let activeDeadline = exactDeadline;
   let timeoutStage = null;
   let bestSafeRootRoute = null;
+  let firstSafeCandidateMs = null;
   let exploredStateCount = 0;
   let memoHitCount = 0;
   let branchPruneCount = 0;
@@ -1331,6 +1377,7 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
   };
   const maskState = (mask) => Object.freeze({ frozenMask: mask, freezeLayerCounts: null });
   const rememberSafeRootCandidate = (candidate) => {
+    if (highBodyCount && firstSafeCandidateMs === null) firstSafeCandidateMs = Math.max(0, clock() - startedAt);
     const transition = candidate.simulation || simulateCoronationElsaFreeze(
       snapshot,
       snapshot.initialState,
@@ -1469,10 +1516,10 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
   const buildResult = (mode, maxDepth, route, extraDiagnostics = {}) => {
     const firstCandidate = route?.route?.[0] || null;
     const budgetTimedOut = extraDiagnostics.budgetTimedOut === true;
-    const terminal = route?.terminal || (budgetTimedOut ? null : evaluateTerminal(snapshot.initialState));
+    const terminal = route?.terminal || ((budgetTimedOut || (highBodyCount && firstCandidate)) ? null : evaluateTerminal(snapshot.initialState));
     const hasActiveInflow = (snapshot.activeInflowMask || 0n) !== 0n;
     const hasWaitableRootReject = (
-      rootSafeTraceCandidateCount === 0 &&
+      !highBodyCount && rootSafeTraceCandidateCount === 0 &&
       rootRawCandidateCount > 0 &&
       rootWaitableUnsafeTraceCandidateCount > 0
     );
@@ -1533,6 +1580,7 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
       terminal,
       diagnostics: {
         plannerMode: mode,
+        highBodyCount,
         searchTimeMs: elapsedMs,
         softBudgetExceeded: elapsedMs >= config.softBudgetMs,
         exploredStateCount,
@@ -1609,6 +1657,35 @@ export function solveCoronationElsaStrongestModePlan(snapshot, adjacency, option
       }
     });
   };
+
+  if (highBodyCount || adjacency.aborted) {
+    if (adjacency.aborted) {
+      const budgetTapFallback = !!options.allowBudgetTap && snapshot.coronationFrozenMask !== 0n;
+      return buildResult("progressive", 0, null, { budgetTimedOut: !budgetTapFallback, budgetTapFallback, timeoutStage: "adjacency" });
+    }
+    const continuation = options.continuation || {};
+    activeDeadline = outerDeadline;
+    const enumeration = enumerateCoronationElsaPlannerTraces(snapshot, adjacency, snapshot.initialState, {
+      lengths: [3], excludeUnsafeTransitions: true, continuation,
+      shouldAbort: () => outerTimedOut() || (!!bestSafeRootRoute && clock() >= qualityDeadline),
+      maxSafeCandidates: config.highBodyCandidateLimit,
+      onSafeCandidate: rememberSafeRootCandidate
+    });
+    rootRawCandidateCount = enumeration.pathDedupedCandidateCount;
+    rootSafeTraceCandidateCount = enumeration.safeTraceCandidateCount;
+    rootDedupedCandidateCount = enumeration.frozenMaskDedupedCandidateCount;
+    rootWaitableUnsafeTraceCandidateCount = enumeration.waitableUnsafeTraceCandidateCount;
+    rootUnsafeTraceCandidateCount = enumeration.unsafeTraceCandidateCount;
+    return buildResult("progressive", bestSafeRootRoute ? 1 : 0, bestSafeRootRoute, {
+      budgetTimedOut: enumeration.aborted && !bestSafeRootRoute && !(options.allowBudgetTap && snapshot.coronationFrozenMask !== 0n),
+      budgetTapFallback: enumeration.aborted && !bestSafeRootRoute && !!options.allowBudgetTap && snapshot.coronationFrozenMask !== 0n,
+      bestSoFarUsed: enumeration.aborted && !!bestSafeRootRoute,
+      searchContinued: !!options.searchContinued,
+      nextStartIndex: continuation.nextStartIndex ?? 0,
+      enumerationComplete: !enumeration.aborted,
+      firstSafeCandidateMs
+    });
+  }
 
   const beamWidthForDepth = (depth) => (
     config.beamWidths.find((entry) => depth >= entry.minDepth && depth <= entry.maxDepth)?.width || 8
