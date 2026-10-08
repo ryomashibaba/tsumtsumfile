@@ -4,7 +4,7 @@ import {
   getSkillCostKey,
   resolveCoronationElsaFreezeRadii,
   settingValueFromSlider
-} from "./cheatSettings.js?v=cheat-settings-4";
+} from "./cheatSettings.js?v=cheat-settings-5";
 import { SKILL_TABLES, clamp } from "./config.js?v=coin-flights-1";
 
 function element(tag, className, text = "") {
@@ -202,6 +202,48 @@ export class CheatSettingsPanel {
       defaultLabel: "0～999個/秒・制限なし盤面の即時は999個/秒",
       onChange: (spawnRate) => this.game.updateCheatSettings({ spawnRate })
     }));
+
+    body.appendChild(this.createNumericRangeControl({
+      label: "チェーン接続距離", value: this.game.cheatSettings.chainDistanceMultiplier,
+      min: 0.5, max: 10, step: 0.1, suffix: "倍", defaultLabel: "初期値 1倍",
+      onChange: (chainDistanceMultiplier) => this.game.updateCheatSettings({ chainDistanceMultiplier })
+    }));
+    const mixedRow = element("label", "cheat-auto-row");
+    const mixed = element("input", "cheat-auto-row__input");
+    mixed.type = "checkbox";
+    mixed.checked = this.game.cheatSettings.allowMixedChains;
+    mixed.addEventListener("change", () => this.game.updateCheatSettings({ allowMixedChains: mixed.checked }));
+    mixedRow.append(mixed, element("strong", "", "異なる種類のツム同士のチェーン"));
+    body.appendChild(mixedRow);
+    const chanceControl = this.createNumericRangeControl({
+      label: "マイツム出現率", value: this.game.cheatSettings.myTsumChance ?? 20,
+      min: 0, max: 100, step: 1, suffix: "%",
+      defaultLabel: "標準では従来の出現率・指定時は残りをサブツムに均等配分（スキルの出現率より優先）",
+      onChange: (myTsumChance) => {
+        this.game.updateCheatSettings({ myTsumChance });
+        standard.textContent = "標準に戻す";
+      }
+    });
+    const standard = element("button", "cheat-special-button", this.game.cheatSettings.myTsumChance == null ? "標準（指定なし）" : "標準に戻す");
+    standard.type = "button";
+    standard.addEventListener("click", () => {
+      this.game.updateCheatSettings({ myTsumChance: null });
+      this.render();
+    });
+    chanceControl.appendChild(standard);
+    body.appendChild(chanceControl);
+    const conversion = element("fieldset", "cheat-control");
+    conversion.appendChild(element("legend", "cheat-control__legend", "盤面一括変換"));
+    const convert = element("button", "cheat-special-button", "全ツムをマイツムに変換");
+    convert.type = "button";
+    const result = element("div", "cheat-control__hint", "プレイ中に使用可能。消去処理・スキル演出中は完了後に使用してください。");
+    result.setAttribute("role", "status");
+    convert.addEventListener("click", () => {
+      const count = this.game.convertBoardToMyTsum();
+      result.textContent = count > 0 ? count + "個のツムを変換しました" : "現在は変換できません";
+    });
+    conversion.append(convert, result);
+    body.appendChild(conversion);
 
     const characterId = this.game.myTsum?.id || "";
     if (characterId === "coronationElsa") {

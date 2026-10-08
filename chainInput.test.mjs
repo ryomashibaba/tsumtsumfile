@@ -153,3 +153,29 @@ test('pointercancel releases the manual chain without committing', () => {
   assert.equal(a.inChain, false);
   assert.equal(b.inChain, false);
 });
+
+
+test('mixed chains and distance multipliers apply to pointer extension only with player cheat enabled', () => {
+  const a = node('a', 0, 0);
+  const b = node('b', 100, 0, 'blue');
+  const game = gameWith([a, b]);
+  game.role = 'player';
+  game.cheatSettings = { enabled: true, allowMixedChains: true, chainDistanceMultiplier: 10 };
+  assert.equal(game.canExtendActiveChain(a, b), true);
+  const expandedRadius = game.getChainConnectionSearchRadius(game.chainRule, a, 10);
+  game.cheatSettings.enabled = false;
+  assert.equal(expandedRadius, game.getChainConnectionSearchRadius(game.chainRule, a, 10) * 10);
+  game.cheatSettings.enabled = true;
+  assert.equal(game.extendChainSegment({ x: 0, y: 0 }, { x: 100, y: 0 }).added, 1);
+  game.cheatSettings.enabled = false;
+  assert.equal(game.canExtendActiveChain(a, b), false);
+  game.cheatSettings.enabled = true;
+  game.cheatSettings.allowMixedChains = false;
+  assert.equal(game.canExtendActiveChain(a, b), false);
+  b.type.id = 'red';
+  game.cheatSettings.chainDistanceMultiplier = 0.5;
+  b.x = 40;
+  assert.equal(game.canExtendActiveChain(a, b), false);
+  game.cheatSettings.enabled = false;
+  assert.equal(game.canExtendActiveChain(a, b), true);
+});

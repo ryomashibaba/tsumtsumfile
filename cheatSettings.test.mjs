@@ -22,6 +22,9 @@ test("cheat settings normalize old, invalid, boundary, and special values", () =
     largeTsumChance: 1,
     gravityMultiplier: 1,
     tsumDiameter: 58,
+    chainDistanceMultiplier: 1,
+    allowMixedChains: false,
+    myTsumChance: null,
     coronationElsaLineRadius: null,
     coronationElsaSurroundRadius: null,
     autoSkill: false,
@@ -45,6 +48,9 @@ test("cheat settings normalize old, invalid, boundary, and special values", () =
     largeTsumChance: 100,
     gravityMultiplier: 0.1,
     tsumDiameter: 100,
+    chainDistanceMultiplier: 1,
+    allowMixedChains: false,
+    myTsumChance: null,
     coronationElsaLineRadius: null,
     coronationElsaSurroundRadius: null,
     autoSkill: true,
@@ -244,4 +250,159 @@ test("Tsum diameter is clamped and updates normal and large live bodies", () => 
   Game.prototype.refreshCheatTsumSizes.call(game);
   assert.equal(normal.baseRadius, 40);
   assert.equal(large.baseRadius, 60);
+});
+
+
+test("common cheat ranges normalize, round-trip and reset old saves", () => {
+  const settings = normalizeCheatSettings({ enabled: true, chainDistanceMultiplier: 99, allowMixedChains: true, myTsumChance: -1 });
+  assert.equal(settings.chainDistanceMultiplier, 10);
+  assert.equal(settings.myTsumChance, 0);
+  assert.equal(normalizeCheatSettings({ chainDistanceMultiplier: 0 }).chainDistanceMultiplier, 0.5);
+  assert.equal(normalizeCheatSettings({ myTsumChance: 101 }).myTsumChance, 100);
+  assert.equal(normalizeCheatSettings({ myTsumChance: 'invalid' }).myTsumChance, null);
+  assert.deepEqual(normalizeCheatSettings(JSON.parse(JSON.stringify(settings))), settings);
+});
+
+test("spawn percentage endpoints and sub-Tsum distribution override only player cheats", () => {
+  const game = Object.create(Game.prototype);
+  game.role = 'player';
+  game.myTsum = { id: 'my' };
+  game.availableTypes = [game.myTsum, { id: 'a' }, { id: 'b' }];
+  const original = { id: 'original' };
+  game.boardState = { chooseSpawnType: () => original };
+  game.cheatSettings = normalizeCheatSettings({ enabled: true, myTsumChance: 100 });
+  game.random = () => 0.999;
+  assert.equal(game.randomTsumType(), game.myTsum);
+  game.cheatSettings.myTsumChance = 0;
+  game.random = () => 0;
+  assert.equal(game.randomTsumType().id, 'a');
+  game.random = () => 0.999;
+  assert.equal(game.randomTsumType().id, 'b');
+  game.cheatSettings.myTsumChance = 40;
+  for (const [roll, id] of [[0.399, 'my'], [0.4, 'a'], [0.699, 'a'], [0.701, 'b']]) {
+    game.random = () => roll;
+    assert.equal(game.randomTsumType().id, id);
+  }
+  game.cheatSettings.enabled = false;
+  assert.equal(game.randomTsumType(), original);
+  game.cheatSettings.enabled = true;
+  game.role = 'cpu';
+  assert.equal(game.randomTsumType(), original);
+  game.role = 'player';
+  game.cheatSettings.myTsumChance = null;
+  assert.equal(game.randomTsumType(), original);
+});
+
+test("board conversion keeps geometry and bombs, cancels input and rejects unsafe states", () => {
+  const game = Object.create(Game.prototype);
+  game.role = 'player';
+  game.cheatSettings = normalizeCheatSettings({ enabled: true });
+  game.state = 'playing';
+  game.myTsum = { id: 'my' };
+  const live = { id: 'live', type: { id: 'sub' }, x: 5, radius: 42, isLarge: true, inChain: true };
+  const dead = { id: 'dead', dead: true, type: { id: 'sub' } };
+  const clearing = { id: 'clearing', clearOccupying: true, type: { id: 'sub' } };
+  const bomb = { id: 'bomb', isBomb: true, type: { id: 'bomb' } };
+  game.tsums = [live, dead, clearing, bomb];
+  game.chain = [live];
+  game.boardState = { transformLayer: new Map([['live', [{}]]]) };
+  game.skillRuntime = { sessions: [] };
+  game.skillRuntime.sessions.push({});
+  assert.equal(game.convertBoardToMyTsum(), 0);
+  game.skillRuntime.sessions = [];
+  game.pendingClear = {};
+  assert.equal(game.convertBoardToMyTsum(), 0);
+  game.pendingClear = null;
+  game.cheatSettings.enabled = false;
+  assert.equal(game.convertBoardToMyTsum(), 0);
+  game.cheatSettings.enabled = true;
+  assert.equal(game.convertBoardToMyTsum(), 1);
+  assert.equal(live.type, game.myTsum);
+  assert.equal(live.radius, 42);
+  assert.equal(live.x, 5);
+  assert.equal(live.inChain, false);
+  assert.equal(game.boardState.transformLayer.size, 0);
+  assert.equal(dead.type.id, 'sub');
+  assert.equal(clearing.type.id, 'sub');
+  assert.equal(bomb.type.id, 'bomb');
+});
+
+
+test("pair My-Tsums split the configured probability and conversion between Judy and Nick", () => {
+  const game = Object.create(Game.prototype);
+  game.role = 'player';
+  game.state = 'playing';
+  game.myTsum = { id: 'judyNick' };
+  const myTypes = game.getCheatMyTsumTypes();
+  game.availableTypes = [...myTypes, { id: 'sub' }];
+  game.cheatSettings = normalizeCheatSettings({ enabled: true, myTsumChance: 100 });
+  for (const [roll, expected] of [[0, 'judyNickJudy'], [0.999, 'judyNickNickMate']]) {
+    game.random = () => roll;
+    assert.equal(game.randomTsumType().id, expected);
+  }
+  game.cheatSettings.myTsumChance = 0;
+  assert.equal(game.randomTsumType().id, 'sub');
+  game.tsums = [{ id: 'a' }, { id: 'b' }];
+  game.boardState = { transformLayer: new Map() };
+  assert.equal(game.convertBoardToMyTsum(), 2);
+  assert.deepEqual(game.tsums.map((tsum) => tsum.type.id), ['judyNickJudy', 'judyNickNickMate']);
+});
+
+
+test("settings panel exposes all common controls and their updates persist through save/load", async () => {
+  const { CheatSettingsPanel } = await import('./cheatSettingsPanel.js');
+  const previousDocument = globalThis.document;
+  const previousStorage = globalThis.localStorage;
+  class Element {
+    constructor(tag) { this.tag = tag; this.children = []; this.listeners = {}; this.attributes = {}; }
+    append(...nodes) { this.children.push(...nodes); }
+    appendChild(node) { this.children.push(node); }
+    replaceChildren() { this.children = []; }
+    setAttribute(key, value) { this.attributes[key] = value; }
+    addEventListener(event, handler) { this.listeners[event] = handler; }
+  }
+  const saved = new Map();
+  globalThis.document = { createElement: (tag) => new Element(tag), body: new Element('body') };
+  globalThis.localStorage = { setItem: (key, value) => saved.set(key, value), getItem: (key) => saved.get(key) };
+  try {
+    const game = Object.create(Game.prototype);
+    game.role = 'player';
+    game.persistenceEnabled = true;
+    game.cheatSettings = normalizeCheatSettings({ enabled: true });
+    game.myTsum = { id: 'alice' };
+    game.tsums = [];
+    game.getDefaultSkillCost = () => 20;
+    game.getCoinCorrectionControls = () => [];
+    let conversions = 0;
+    game.convertBoardToMyTsum = () => { conversions++; return 3; };
+    const panel = new CheatSettingsPanel(game);
+    panel.render();
+    const flatten = (node) => [node, ...node.children.flatMap(flatten)];
+    const nodes = flatten(panel.dialog);
+    const distance = nodes.find((node) => node.attributes['aria-label'] === 'チェーン接続距離 スライダー');
+    assert.equal(distance.min, '0.5');
+    assert.equal(distance.max, '10');
+    distance.value = '2.5';
+    distance.listeners.input();
+    const mixed = nodes.find((node) => node.tag === 'label' && node.children.some((child) => child.textContent === '異なる種類のツム同士のチェーン')).children[0];
+    mixed.checked = true;
+    mixed.listeners.change();
+    const chance = nodes.find((node) => node.attributes['aria-label'] === 'マイツム出現率 数値');
+    chance.value = '75';
+    chance.listeners.input();
+    nodes.find((node) => node.textContent === '全ツムをマイツムに変換').listeners.click();
+    assert.equal(conversions, 1);
+    const restored = game.loadSave();
+    assert.equal(restored.cheatSettings.chainDistanceMultiplier, 2.5);
+    assert.equal(restored.cheatSettings.allowMixedChains, true);
+    assert.equal(restored.cheatSettings.myTsumChance, 75);
+    nodes.find((node) => node.textContent === '標準に戻す').listeners.click();
+    assert.equal(game.loadSave().cheatSettings.myTsumChance, null);
+    game.resetCheatSettings();
+    assert.equal(game.cheatSettings.chainDistanceMultiplier, 1);
+    assert.equal(game.cheatSettings.allowMixedChains, false);
+  } finally {
+    globalThis.document = previousDocument;
+    globalThis.localStorage = previousStorage;
+  }
 });

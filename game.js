@@ -84,7 +84,7 @@ import {
   parseCoinCorrectionType,
   reconcileGaugeCharge,
   resolveSkillCost
-} from './cheatSettings.js?v=cheat-settings-4';
+} from './cheatSettings.js?v=cheat-settings-5';
 import {
   DEFAULT_LARGE_TSUM_SPAWN_CHANCE,
   LARGE_TSUM_CLEAR_WEIGHT,
@@ -5071,6 +5071,38 @@ class Game {
     return this.cheatSettings;
   }
 
+  convertBoardToMyTsum() {
+    if (!this.isCheatActive() || !this.myTsum || this.state !== "playing" || this.timeUp ||
+      this.actionLock || this.pendingClear || this.skillRuntime?.sessions?.length > 0 ||
+      this.skillRuntime?.timingPauses?.length > 0 || this.skillRuntime?.isPresentationActive?.()) return 0;
+    this.cancelActiveChain();
+    const myTypes = this.getCheatMyTsumTypes();
+    let count = 0;
+    for (const tsum of this.tsums) {
+      if (tsum.dead || tsum.removing || tsum.clearOccupying || tsum.isBomb) continue;
+      // Replace the base type permanently; retain size, physics and freeze layers.
+      this.boardState.transformLayer.delete(tsum.id);
+      tsum.type = myTypes[count % myTypes.length];
+      count += 1;
+    }
+    return count;
+  }
+
+  getCheatMyTsumTypes() {
+    if (this.myTsum.id === "judyNick") {
+      return ["judyNickJudy", "judyNickNickMate"].map((id) => TSUM_TYPES.find((type) => type.id === id));
+    }
+    return [this.myTsum];
+  }
+
+  getCheatChainDistanceMultiplier() {
+    return this.isCheatActive?.() ? (this.cheatSettings.chainDistanceMultiplier ?? 1) : 1;
+  }
+
+  allowsCheatMixedChains() {
+    return this.isCheatActive?.() === true && this.cheatSettings.allowMixedChains === true;
+  }
+
   getConfiguredTsumRadius() {
     return this.isCheatActive() ? this.cheatSettings.tsumDiameter / 2 : TSUM_RADIUS;
   }
@@ -6889,11 +6921,12 @@ class Game {
       return false;
     }
     const candidateTypeId = this.boardState.getResolvedType(candidate).id;
-    if (!chainRule.allowedTypeIds.has(candidateTypeId)) {
+    const mixedChains = Game.prototype.allowsCheatMixedChains.call(this);
+    if (!mixedChains && !chainRule.allowedTypeIds.has(candidateTypeId)) {
       return false;
     }
     const lastTypeId = this.boardState.getResolvedType(last).id;
-    if (chainRule.mode === "jamil") {
+    if (!mixedChains && chainRule.mode === "jamil") {
       const lastIsSpecial = isJamilHighScoreNode(this.boardState, last);
       const candidateIsSpecial = isJamilHighScoreNode(this.boardState, candidate);
       if (chainRule.subtypeId) {
@@ -6916,12 +6949,12 @@ class Game {
     }
     const dLast = distance(last.x, last.y, candidate.x, candidate.y);
     const maxChainDist = Math.max(MAX_CHAIN_DIST * 0.65, (this.getBodyRadius(last) + this.getBodyRadius(candidate)) * 1.6);
-    return dLast <= maxChainDist + margin;
+    return dLast <= (maxChainDist + margin) * Game.prototype.getCheatChainDistanceMultiplier.call(this);
   }
 
   getChainConnectionSearchRadius(rule, from, maxRadius) {
     if (rule.unlimitedDistance || rule.mode === "namine") return Infinity;
-    return Math.max(MAX_CHAIN_DIST * 0.65, (this.getBodyRadius(from) + maxRadius) * 1.6);
+    return Math.max(MAX_CHAIN_DIST * 0.65, (this.getBodyRadius(from) + maxRadius) * 1.6) * Game.prototype.getCheatChainDistanceMultiplier.call(this);
   }
 
   getCoronationElsaPlannerCacheKeys() {
@@ -11178,6 +11211,20 @@ class Game {
   }
 
   randomTsumType() {
+    if (this.isCheatActive() && this.cheatSettings.myTsumChance != null) {
+      const myTypes = this.getCheatMyTsumTypes();
+      const myIds = new Set(myTypes.map((type) => type.id));
+      const subTypes = this.availableTypes.filter((type) => !myIds.has(type.id));
+      if (!subTypes.length) return myTypes[0];
+      const roll = this.random();
+      const myChance = this.cheatSettings.myTsumChance / 100;
+      if (roll < myChance || myChance === 1) {
+        return myTypes[Math.min(myTypes.length - 1, Math.floor(roll / myChance * myTypes.length))];
+      }
+      // A single draw assigns the remaining probability evenly to sub-Tsums.
+      const index = Math.min(subTypes.length - 1, Math.floor((roll - myChance) / (1 - myChance) * subTypes.length));
+      return subTypes[index];
+    }
     return this.boardState.chooseSpawnType(
       this.availableTypes,
       this.currentWeights,
@@ -11613,7 +11660,7 @@ class Game {
     for (const { node: candidate } of hits) {
       const typeId = this.boardState.getResolvedType(candidate).id;
       const last = this.chain[this.chain.length - 1];
-      if (candidate.inChain || (typeId !== this.chainTypeId && !this.chainRule?.allowedTypeIds?.has(typeId)) ||
+      if (candidate.inChain || (!Game.prototype.allowsCheatMixedChains.call(this) && typeId !== this.chainTypeId && !this.chainRule?.allowedTypeIds?.has(typeId)) ||
         !this.canExtendActiveChain(last, candidate, CHAIN_CONNECT_MARGIN)) {
         stats.rejected += 1;
         continue;
