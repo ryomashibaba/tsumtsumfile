@@ -161,6 +161,7 @@ import {
 import { GameFeelController, calculateVisualChainCount } from './gameFeel.js?v=game-feel-1';
 import { CHAIN_INPUT_TUNING, collectSegmentCandidates, shouldArmBacktrack, shouldBacktrack } from './chainInput.js?v=segment-chain-1';
 import { ChainTelemetry } from './chainTelemetry.js?v=advanced-settings-2';
+import { completeDopaFlight, getDopaCoinTable, registerDopaSkill, resetDopa } from './dopa.js?v=dopa-1';
 import {
   ADVANCED_SETTINGS_RECTS,
   DEBUG_ENTRIES,
@@ -506,7 +507,7 @@ class Tsum {
           const deformation = liliaBat || !renderProfile.useBodyDeformation
             ? { angle: 0, compression: 0, contactAngle: 0, motionStretch: 0, motionAngle: 0 }
             : getTsumRenderDeformation(this);
-          const r = this.baseRadius * this.scale * extraScale * pulse;
+          const r = this.baseRadius * this.scale * extraScale * pulse * (this.dopaScale || 1);
           const frozenEntry = this.game.boardState?.getFrozenEntry(this) || null;
           const drawLogicalCoronationFreeze = frozenEntry?.freezeKind === "coronationElsa";
 
@@ -2228,7 +2229,8 @@ class ClearPipeline {
     if (!info || !Array.isArray(info.targets)) {
       return null;
     }
-    const resolvedClearCount = clamp(Math.floor(calculateEffectiveClearCount(info)), 0, 317);
+    const resolvedClearCount = Math.max(0, Math.floor(calculateEffectiveClearCount(info)));
+    const coinClearCount = info.meta?.dopa ? resolvedClearCount : Math.min(317, resolvedClearCount);
     const calculation = this.game.getCoinCalculationContext(
       this.game.myTsum.id,
       info.correctionType,
@@ -2240,7 +2242,7 @@ class ClearPipeline {
     info.coinFlightPlan = buildCoinFlightAwardPlan({
       coinTable: calculation.table,
       ...info,
-      effectiveClearCountOverride: resolvedClearCount
+      effectiveClearCountOverride: coinClearCount
     });
     info.coinFlightEmittedTargetIds = previousEmitted;
     info.coinFlightSyntheticEmitted = !!info.coinFlightSyntheticEmitted;
@@ -2783,7 +2785,9 @@ class ClearPipeline {
       clearedTypeCandidates
     });
 
-    this.game.addFloatingText(clearDisplayX, clearDisplayY + 6, `${resolvedClearCount}`, "#fff4b8", 48, 1);
+    if (!info.meta?.dopa) {
+      this.game.addFloatingText(clearDisplayX, clearDisplayY + 6, `${resolvedClearCount}`, "#fff4b8", 48, 1);
+    }
     this.game.gameFeel?.emit('clear', {
       effectiveClearCount: resolvedClearCount,
       source: info.source,
@@ -5200,6 +5204,7 @@ class Game {
 
   // Reset minimal game state (used by menu flows)
   resetGame() {
+    resetDopa(this);
     this.itemSelection = this.blankItemSelection();
     this.activeItems = this.blankItemSelection();
     this.score = 0;
@@ -6523,6 +6528,7 @@ class Game {
   }
 
   getCurrentGameplayPauseState() {
+    if (this.dopaFlight) return { clockPaused: true, physicsPaused: true };
     return resolveGameplayPauseState({
       pendingClear: this.pendingClear,
       coingainClockPaused: this.isCoingainTimerPaused(),
@@ -6596,7 +6602,8 @@ class Game {
   }
 
   isGameplayInputLocked({ ignoreActionLock = false } = {}) {
-    return (!ignoreActionLock && !!this.actionLock) || !!this.skillRuntime?.isInputLocked?.();
+    return !!this.dopaFlight || !!this.pendingClear?.meta?.dopa ||
+      (!ignoreActionLock && !!this.actionLock) || !!this.skillRuntime?.isInputLocked?.();
   }
 
   beginDeferredSkillInput() {
@@ -10883,6 +10890,7 @@ class Game {
   }
 
   startGame(options = {}) {
+    resetDopa(this);
     this.deferredSkillInput = null;
     this.heldBombInput = null;
     this.consumedPointerIds = new Set();
@@ -13126,8 +13134,8 @@ class Game {
       console.error(`[COIN] Correction table not found for type: ${correctionType}`);
       return 0;
     }
-    const clampedCount = clamp(clearCount, 0, 317);
-    if (!table.hasOwnProperty(clampedCount)) {
+    const clampedCount = clearEvent?.meta?.dopa ? Math.max(0, Math.floor(clearCount)) : clamp(clearCount, 0, 317);
+    if (!Number.isFinite(table[clampedCount])) {
       console.error(`[COIN] No entry for clear count ${clampedCount} in table ${correctionType}`);
       return 0;
     }
@@ -13160,7 +13168,7 @@ class Game {
       : this.getCheatCoinCorrection(correctionTypeOverride ? "skill" : "normal", correctionRoute, defaultCorrection);
     const table = COIN_CORRECTION_TABLE[`correction_${requestedCorrection}`]
       || this.createCoinCorrectionTable(requestedCorrection);
-    return { correctionType: `correction_${requestedCorrection}`, table };
+    return { correctionType: `correction_${requestedCorrection}`, table: clearEvent?.meta?.dopa ? getDopaCoinTable(table) : table };
   }
 
   createCoinCorrectionTable(correction) {
@@ -13269,7 +13277,7 @@ class Game {
   }
 
   getBodyRadius(body) {
-    return this.boardState ? this.boardState.getEffectiveRadius(body) : body.radius;
+    return (this.boardState ? this.boardState.getEffectiveRadius(body) : body.radius) * (body.dopaScale || 1);
   }
 
   getPhysicsContactRadius(body) {
@@ -13603,6 +13611,20 @@ class Game {
   }
 
   update(dt) {
+    // DOPA owns presentation time until the last flyer stops. Do not advance
+    // clocks, background, pending clears, gravity, refills, AI or other effects.
+    if (this.state === "playing" && this.dopaFlight) {
+      if (!this.paused) {
+        this.dopaFlight.update(dt);
+        completeDopaFlight(this);
+        this.refreshRenderBodies();
+      }
+      return;
+    }
+    if (this.dopaVisual && !this.paused) {
+      this.dopaVisual.life -= dt;
+      if (this.dopaVisual.life <= 0) this.dopaVisual = null;
+    }
     const gameFeelEnabled = this.role === "player" && !this.aiLearningMode;
     if (this.gameFeel && this.gameFeel.enabled !== gameFeelEnabled) {
       this.gameFeel.enabled = gameFeelEnabled;
@@ -13679,6 +13701,7 @@ class Game {
       }
     }
     this.updateDeferredSkillInput?.(dt);
+    if (this.dopaFlight) return;
 
     this.updateCheatSpawnScheduler?.(gameplayDt);
 
@@ -15333,6 +15356,8 @@ registerLiliaSkill({
   SkillRegistry,
   skillValue
 });
+
+registerDopaSkill({ SkillRegistry, skillValue });
 
 registerFinalBattleHookSkill({
   SkillRegistry,

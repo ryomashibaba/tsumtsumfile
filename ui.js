@@ -37,6 +37,7 @@ import {
 } from './config.js?v=coin-flights-1';
 import { drawLiliaBat } from './lilia.js?v=tsum-images-8';
 import { drawFinalBattleHookOverlay } from './finalBattleHook.js?v=final-battle-hook-1';
+import { drawDopaBackdrop, drawDopaForeground } from './dopa.js?v=dopa-1';
 import { drawTsumArtwork, preloadTsumImages } from './tsumImages.js?v=render-quality-1';
 import { drawSkillPresentation, drawSkillSecondaryVisual } from './skillPresentationVisuals.js?v=render-quality-1';
 import {
@@ -421,6 +422,7 @@ export class UIRenderer {
     }
 
     drawSkillActiveFieldBackground(ctx, this.currentActiveSkillVisualFrame);
+    drawDopaBackdrop(ctx, this.game);
 
     const bodies = this.game.renderBodies.length ? this.game.renderBodies : this.game.getRenderableBodies();
     for (const body of bodies) {
@@ -438,6 +440,7 @@ export class UIRenderer {
     drawFinalBattleHookOverlay(ctx, this.game);
     this.drawChain(ctx);
     drawSkillActiveForeground(ctx, this.currentActiveSkillVisualFrame);
+    drawDopaForeground(ctx, this.game, { hideResult: true });
 
     if (profile.drawDecorations) {
       ctx.save();
@@ -1856,6 +1859,7 @@ export class UIRenderer {
     }
     this.drawFeverBanner(ctx);
     this.drawCenterMessages(ctx);
+    if (this.game.dopaVisual) drawDopaForeground(ctx, this.game, { resultOnly: true });
     this.drawCoingainLotteryOverlay(ctx);
     this.drawCoingainLotteryRoulette(ctx);
     this.drawCoingainFloorGauge(ctx);
