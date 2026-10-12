@@ -44,10 +44,11 @@ test('SL6 release snapshots directions, accelerates overlapping launches, spends
   assert.equal(flight.flyers[1].launched, false);
   assert.ok(flight.flyers.at(-1).launchAt - flight.flyers.at(-2).launchAt < flight.flyers[1].launchAt);
   flight.update(flight.flyers[1].launchAt + 0.001);
-  assert.equal(flight.flyers[0].done, false);
   assert.equal(flight.flyers[1].launched, true);
   assert.equal(flight.flyers[1].ux, snapshotDirection.x);
   assert.equal(flight.flyers[1].uy, snapshotDirection.y);
+  flight.update(flight.flyers.at(-1).launchAt - flight.elapsed + 0.001);
+  assert.ok(flight.flyers.filter(flyer => flyer.launched && !flyer.done).length >= 2, 'later launches still overlap');
   run(flight);
   assert.equal(chain[0].x, 30);
   for (const flyer of flight.flyers) {

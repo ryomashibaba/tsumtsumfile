@@ -7,6 +7,8 @@ export const DOPA_TUNING = Object.freeze({
   launchInterval: 0.105,
   minLaunchInterval: 0.008,
   launchAcceleration: 0.86,
+  earlyLaunchMultiplier: 5,
+  earlyLaunchFraction: 0.65,
   simulationStep: 1 / 240,
   distancePerOrder: 100,
   growth: 1.1,
@@ -61,8 +63,10 @@ export class DopaFlight {
         remaining: this.tuning.distancePerOrder * (index + 1),
         traveled: 0, contacts: new Set()
       };
+      const earlyProgress = Math.min(1, i / Math.max(1, (chain.length - 2) * this.tuning.earlyLaunchFraction));
+      const earlyMultiplier = 1 + (this.tuning.earlyLaunchMultiplier - 1) * (1 - earlyProgress) ** 2;
       launchAt += Math.max(this.tuning.minLaunchInterval,
-        this.tuning.launchInterval / Math.sqrt(chain.length / 3) * this.tuning.launchAcceleration ** i);
+        this.tuning.launchInterval / Math.sqrt(chain.length / 3) * this.tuning.launchAcceleration ** i * earlyMultiplier);
       return flyer;
     });
     // First shot starts on release, with no frame of ordinary board movement.
