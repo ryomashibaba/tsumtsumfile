@@ -10,6 +10,7 @@ export const DOPA_TUNING = Object.freeze({
   simulationStep: 1 / 240,
   distancePerOrder: 100,
   growth: 1.1,
+  maxVisualDiameter: 80,
   trailLife: 0.16,
   maxTrails: 360,
   maxSparks: 100,

@@ -161,7 +161,7 @@ import {
 import { GameFeelController, calculateVisualChainCount } from './gameFeel.js?v=game-feel-1';
 import { CHAIN_INPUT_TUNING, collectSegmentCandidates, shouldArmBacktrack, shouldBacktrack } from './chainInput.js?v=segment-chain-1';
 import { ChainTelemetry } from './chainTelemetry.js?v=advanced-settings-2';
-import { completeDopaFlight, getDopaCoinTable, registerDopaSkill, resetDopa } from './dopa.js?v=dopa-1';
+import { DOPA_TUNING, completeDopaFlight, getDopaCoinTable, registerDopaSkill, resetDopa } from './dopa.js?v=dopa-1';
 import {
   ADVANCED_SETTINGS_RECTS,
   DEBUG_ENTRIES,
@@ -507,7 +507,8 @@ class Tsum {
           const deformation = liliaBat || !renderProfile.useBodyDeformation
             ? { angle: 0, compression: 0, contactAngle: 0, motionStretch: 0, motionAngle: 0 }
             : getTsumRenderDeformation(this);
-          const r = this.baseRadius * this.scale * extraScale * pulse * (this.dopaScale || 1);
+          const visualRadius = this.baseRadius * this.scale * extraScale * pulse * (this.dopaScale || 1);
+          const r = this.dopaScale ? Math.min(visualRadius, DOPA_TUNING.maxVisualDiameter * 0.5) : visualRadius;
           const frozenEntry = this.game.boardState?.getFrozenEntry(this) || null;
           const drawLogicalCoronationFreeze = frozenEntry?.freezeKind === "coronationElsa";
 
