@@ -38,6 +38,7 @@ import {
 import { drawLiliaBat } from './lilia.js?v=tsum-images-8';
 import { drawFinalBattleHookOverlay } from './finalBattleHook.js?v=final-battle-hook-1';
 import { drawDopaBackdrop, drawDopaForeground } from './dopa.js?v=dopa-1';
+import { drawLaserWeave } from './laserWeave.js?v=laser-weave-1';
 import { drawTsumArtwork, preloadTsumImages } from './tsumImages.js?v=render-quality-1';
 import { drawSkillPresentation, drawSkillSecondaryVisual } from './skillPresentationVisuals.js?v=render-quality-1';
 import {
@@ -441,6 +442,7 @@ export class UIRenderer {
     this.drawChain(ctx);
     drawSkillActiveForeground(ctx, this.currentActiveSkillVisualFrame);
     drawDopaForeground(ctx, this.game, { hideResult: true });
+    drawLaserWeave(ctx, this.game, profile);
 
     if (profile.drawDecorations) {
       ctx.save();

@@ -47,7 +47,7 @@ import {
   drawStarPath
 } from './config.js?v=coin-flights-1';
 
-import { UIRenderer } from './ui.js?v=advanced-settings-2';
+import { UIRenderer } from './ui.js?v=laser-weave-1';
 import { JudyNickGaugeManager, registerJudyNickSkill, resolveJudyNickActivationMode } from './judyNick.js?v=skill-visuals-1';
 import {
   LILIA_CHAIN_TYPE,
@@ -162,6 +162,7 @@ import { GameFeelController, calculateVisualChainCount } from './gameFeel.js?v=g
 import { CHAIN_INPUT_TUNING, collectSegmentCandidates, shouldArmBacktrack, shouldBacktrack } from './chainInput.js?v=segment-chain-1';
 import { ChainTelemetry } from './chainTelemetry.js?v=advanced-settings-2';
 import { DOPA_TUNING, completeDopaFlight, getDopaCoinTable, registerDopaSkill, resetDopa } from './dopa.js?v=dopa-1';
+import { registerLaserWeaveSkill, getLaserWeaveSession, isLaserWeaveHeld, resetLaserWeave, updateLaserWeaveVisuals, unlockLaserWeaveAudio } from './laserWeave.js?v=laser-weave-1';
 import {
   ADVANCED_SETTINGS_RECTS,
   DEBUG_ENTRIES,
@@ -2537,6 +2538,7 @@ class ClearPipeline {
     }
     let prepared = this.expandBubbleTargets(request);
     prepared = this.runtime.augmentClear(prepared);
+    if (getLaserWeaveSession(this.game)) prepared.allowBomb = false;
     prepared.targets = this.uniqueTargets(prepared.targets || []);
     if (!prepared.targets.length && prepared.allowEmptyEvent !== true) {
       return null;
@@ -2614,6 +2616,16 @@ class ClearPipeline {
       this.game.excludeDeferredClearTargets?.(prepared.targets);
     }
 
+    if (prepared.clearMode === "simultaneous") {
+      prepared.applyLargeTsumCorrection = prepared.applyLargeTsumCorrection !== false;
+      for (const target of prepared.targets) target.beginRemove();
+      // Reuse awards/refill without replacing an unrelated pre-skill clear or
+      // introducing a frame of input locking for this instant clear.
+      this.finalize(prepared, { preserveActiveClear: true });
+      this.game.refreshRenderBodies?.();
+      return true;
+    }
+
     if (prepared.source === "chain") {
       if (this.game.pendingClear?.sequentialChain) {
         this.enqueueSequentialChainClear(prepared);
@@ -2677,7 +2689,9 @@ class ClearPipeline {
     this.emitSyntheticCoinFlights(info, clearDisplayX, clearDisplayY);
 
     info.targets.forEach((tsum) => {
-      this.game.spawnPopParticles(tsum.x, tsum.y, this.board.getResolvedType(tsum).color);
+      if (!info.meta?.laserWeave) {
+        this.game.spawnPopParticles(tsum.x, tsum.y, this.board.getResolvedType(tsum).color);
+      }
     });
     this.queueMyTsumSkillChargeFlights(info, { includeUndead: true });
 
@@ -2797,6 +2811,7 @@ class ClearPipeline {
       combo: this.game.comboSystem.combo,
       fever: this.game.feverSystem.active,
       createdBomb: bombType || null,
+      visualPolicy: info.meta?.laserWeave ? 'laserWeave' : null,
       color: clearedTypeCandidates[0]?.color || '#fff2a0'
     });
 
@@ -3470,6 +3485,7 @@ class Game {
     this.canvas.addEventListener("pointercancel", (event) => this.onPointerUp(event));
     document.addEventListener("keydown", (event) => {
       if (event.code === "Space" || event.key === " ") {
+        unlockLaserWeaveAudio(this);
         event.preventDefault();
         if (this.state === "playing" && !this.isCoingainInputLocked()) {
           this.attemptSkillActivation(true);
@@ -5206,6 +5222,7 @@ class Game {
   // Reset minimal game state (used by menu flows)
   resetGame() {
     resetDopa(this);
+    resetLaserWeave(this);
     this.itemSelection = this.blankItemSelection();
     this.activeItems = this.blankItemSelection();
     this.score = 0;
@@ -5383,6 +5400,7 @@ class Game {
   }
 
   onPointerDown(event) {
+    unlockLaserWeaveAudio(this);
     if (!this.inputEnabled) {
       return;
     }
@@ -6877,6 +6895,7 @@ class Game {
   }
 
   getChainBehaviorForStart(tsum) {
+    if (isLaserWeaveHeld(this, tsum)) return null;
     const typeId = this.boardState.getResolvedType(tsum).id;
     const perfumeAliceSession = this.getActiveSkillSession("perfumeAlice");
     if (perfumeAliceSession && typeId === this.myTsum.id) {
@@ -6925,6 +6944,7 @@ class Game {
   }
 
   canConnectWithChainRule(chainRule, last, candidate, margin = 0) {
+    if (isLaserWeaveHeld(this, candidate)) return false;
     if (!chainRule) {
       return false;
     }
@@ -10321,6 +10341,7 @@ class Game {
   getStrongestModeChainNodes() {
     return this.tsums.filter((tsum) => (
       tsum &&
+      !isLaserWeaveHeld(this, tsum) &&
       !tsum.dead &&
       !tsum.removing &&
       !tsum.clearOccupying &&
@@ -10892,6 +10913,7 @@ class Game {
 
   startGame(options = {}) {
     resetDopa(this);
+    resetLaserWeave(this);
     this.deferredSkillInput = null;
     this.heldBombInput = null;
     this.consumedPointerIds = new Set();
@@ -11083,7 +11105,7 @@ class Game {
     this.boardState.applyScaleModifiersToSpawn(tsum);
     this.tsums.push(tsum);
     const spawnResult = this.skillRuntime.dispatchSpawn(tsum);
-    if (spawnResult?.replaceWithBombType) {
+    if (spawnResult?.replaceWithBombType && !getLaserWeaveSession(this)) {
       this.boardState.onNodesCleared([tsum]);
       this.tsums = this.tsums.filter((entry) => entry.id !== tsum.id);
       const bomb = new Bomb(this, spawnResult.replaceWithBombType, tsum.x, tsum.y, tsum.vx, tsum.vy);
@@ -11260,6 +11282,7 @@ class Game {
     let candidate = null;
     let bestDistance = Infinity;
     for (const tsum of this.tsums) {
+      if (isLaserWeaveHeld(this, tsum)) continue;
       if (tsum.dead || tsum.removing || tsum.clearOccupying || this.boardState.isFrozen(tsum) || !this.isTsumInPlayArea(tsum)) continue;
       const d = distance(x, y, tsum.x, tsum.y);
       if (d <= this.getBodyRadius(tsum) * CHAIN_INPUT_TUNING.startRadiusScale && d < bestDistance) {
@@ -13038,6 +13061,7 @@ class Game {
   }
 
   resolveGeneratedBombType(effectiveClearCount, clearEvent = {}) {
+    if (getLaserWeaveSession(this)) return null;
     const disableStandardBomb = clearEvent.allowBomb === false
       || clearEvent.disableStandardBomb === true
       || clearEvent.source === "bomb"
@@ -13319,6 +13343,8 @@ class Game {
     if (this.state !== "playing" || this.runFinished) {
       return;
     }
+    const laserSession = getLaserWeaveSession(this);
+    if (laserSession) this.skillRuntime.endSession(laserSession, 'timeout', { skipEndPause: true });
     if (this.deferredSkillInput) return;
     if ((this.coinFlights?.length || 0) > 0) {
       return;
@@ -13637,6 +13663,7 @@ class Game {
     this.strongestModeCoronationElsaPlannerFrameCallCount = 0;
     this.displayedScore = lerp(this.displayedScore, this.score, clamp(dt * 8, 0, 1));
     this.updateEffects(dt);
+    updateLaserWeaveVisuals(this, dt);
     this.gameFeel?.update(dt);
     if (this.skillButtonFeedback.timer > 0) {
       this.skillButtonFeedback.timer = Math.max(0, this.skillButtonFeedback.timer - dt);
@@ -15359,6 +15386,7 @@ registerLiliaSkill({
 });
 
 registerDopaSkill({ SkillRegistry, skillValue });
+registerLaserWeaveSkill({ SkillRegistry, skillValue });
 
 registerFinalBattleHookSkill({
   SkillRegistry,

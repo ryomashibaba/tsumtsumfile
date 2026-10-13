@@ -188,6 +188,8 @@ export class GameFeelController {
     this.sequence += 1;
 
     if (type === 'clear') {
+      // LASER WEAVE holds only its own VFX layer. Keep the board and new trace live.
+      if (payload.visualPolicy === 'laserWeave') return true;
       const count = Math.max(0, Number(payload.effectiveClearCount ?? payload.count) || 0);
       const level = resolveClearLevel(count);
       const x = Number(payload.x) || 0;

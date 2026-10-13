@@ -65,6 +65,7 @@ export const TSUM_TYPES = [
   { id: "finalBattleHook", name: "最終決戦フック船長", emoji: "FH", score: 60, color: "#8f2735", boardColor: "#6f2230", light: "#ffd8ca", dark: "#35131c", accent: "#ff9a75", skillName: "怒れるフック船長", skillType: "finalBattleHook", coinCorrectionType: "correction_0", subEligible: true },
   { id: "judyNick", name: "ジュディ＆ニック", emoji: "JN", score: 170, color: "#f0b34a", boardColors: ["#84c4ff", "#e99148"], light: "#fff7e0", dark: "#b16919", accent: "#ffe7ba", skillName: "ペアスキル", skillType: "judyNick", coinCorrectionType: "correction_0", subEligible: false },
   { id: "dopa", name: "DOPA", emoji: "DP", score: 150, color: "#38e5cf", boardColor: "#38e5cf", light: "#d9fff4", dark: "#08756e", accent: "#97ffe0", skillName: "連鎖フライト", skillType: "dopa", coinCorrectionType: "correction_0", subEligible: false, imageSrc: "./tsum_image/DOPA.svg?v=dopa-1" },
+  { id: "laserWeave", name: "LASER WEAVE", emoji: "LW", score: 150, color: "#8e3544", boardColor: "#8e3544", light: "#f7f4ec", dark: "#162332", accent: "#ba626a", skillName: "レーザーウィーブ", skillType: "laserWeave", coinCorrectionType: "correction_0", subEligible: false, imageSrc: "./tsum_image/LASER_WEAVE.png?v=laser-weave-1" },
   { id: "jafarGenie", name: "ジャファー", emoji: "JF", score: 150, color: "#db171d", boardColor: "#d71920", light: "#ffdad6", dark: "#781018", accent: "#ff7a63", skillName: "サブツム専用", skillType: "auxiliary", coinCorrectionType: "correction_0", selectable: false, subOnly: true, subEligible: true },
   { id: "genie", name: "ジーニー", emoji: "GE", score: 150, color: "#65b9e8", boardColor: "#65b9e8", light: "#e5f8ff", dark: "#286b99", accent: "#a7e4ff", skillName: "サブツム専用", skillType: "auxiliary", coinCorrectionType: "correction_0", selectable: false, subOnly: true, subEligible: true },
   { id: "pumbaa", name: "プンバァ", emoji: "PU", score: 150, color: "#8c4e32", boardColor: "#82452d", light: "#f5d7c4", dark: "#4e251c", accent: "#d98c61", skillName: "サブツム専用", skillType: "auxiliary", coinCorrectionType: "correction_0", selectable: false, subOnly: true, subEligible: true },
@@ -81,6 +82,7 @@ export const TSUM_TYPES = [
 // Board colors are intentionally fixed per my Tsum and board-size.  Each set
 // maximizes the smallest OKLab color distance across all Tsums on that board.
 export const FIXED_SUB_TSUM_IDS_BY_MY_TSUM = Object.freeze({
+  laserWeave: { 3: ["perfumeAlice", "grogu"], 4: ["guidingMoana", "perfumeAlice", "grogu"], 5: ["coronationElsa", "perfumeAlice", "jamilViper", "grogu"] },
   dopa: { 3: ["jafarGenie", "grim"], 4: ["perfumeAlice", "jamilViper", "finalBattleHook"], 5: ["perfumeAlice", "jamilViper", "jafarGenie", "grim"] },
   coingain: { 3: ["jafarGenie", "grim"], 4: ["guidingMoana", "jafarGenie", "grim"], 5: ["coronationElsa", "jamilViper", "jafarGenie", "grim"] },
   coronationElsa: { 3: ["jafarGenie", "grim"], 4: ["jafarGenie", "grogu", "grim"], 5: ["jamilViper", "jafarGenie", "grogu", "grim"] },
@@ -197,6 +199,12 @@ export const COIN_CORRECTION_TABLE = {
 export const DEFAULT_COIN_CORRECTION_TYPE = 'correction_0';
 
 export const SKILL_TABLES = {
+  laserWeave: {
+    cost: Array(6).fill(17),
+    durationSec: [5, 6, 7, 8, 9, 10],
+    laserWidth: [19, 24, 29, 34, 39, 44],
+    coinCorrectionType: ["correction_-5", "correction_-4", "correction_-4", "correction_-3", "correction_-3", "correction_-2"]
+  },
   dopa: {
     cost: [20, 20, 20, 20, 20, 20],
     durationSec: [5, 6, 7, 8, 9, 10],
