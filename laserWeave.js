@@ -2,10 +2,11 @@ import { WIDTH, FIELD_TOP, FIELD_BOTTOM, FIELD_CENTER_X, FIELD_CENTER_Y } from '
 import { distancePointToSegment } from './clearGeometry.js';
 import { drawTsumArtwork } from './tsumImages.js?v=render-quality-1';
 import { LaserWeaveAudio } from './laserWeaveAudio.js';
+import { SKILL_TIMING_TABLE } from './gameplayTiming.js?v=skill-timing-3';
 
 export const LASER_WEAVE_TUNING = Object.freeze({
   widthIncrement: 8, activationMs: 240, breathingMs: 800,
-  visualHoldMs: 28, tailMs: 180, previewAlpha: 0.18,
+  visualHoldMs: 28, tailMs: SKILL_TIMING_TABLE.laserWeave.finalClear.durationMs, previewAlpha: 0.18,
   maxThreads: 8, maxParticles: 24, maxGlow: 6
 });
 export const LASER_WEAVE_COLORS = Object.freeze({
@@ -14,6 +15,10 @@ export const LASER_WEAVE_COLORS = Object.freeze({
 
 export function getLaserWeaveSession(game) {
   return game.skillRuntime?.sessions?.find(session => session.handlerId === 'laserWeave') || null;
+}
+
+export function isLaserWeaveFiring(game) {
+  return !!game.skillRuntime?.timingPauses?.some(pause => pause.skillId === 'laserWeave' && pause.kind === 'laserWeaveFire');
 }
 
 export function isLaserWeaveHeld(game, node) {
@@ -58,6 +63,9 @@ export function resetLaserWeave(game) {
     }
   }
   game.laserWeaveVisual = null;
+  if (game.skillRuntime?.timingPauses) {
+    game.skillRuntime.timingPauses = game.skillRuntime.timingPauses.filter(pause => pause.skillId !== 'laserWeave');
+  }
   game.laserWeaveAudio?.stop();
 }
 
@@ -128,6 +136,9 @@ export function registerLaserWeaveSkill({ SkillRegistry, skillValue }) {
         return true;
       }
       session.data.completedSets += 1;
+      ctx.runtime.startTimingPause(SKILL_TIMING_TABLE.laserWeave.finalClear, {
+        skillId: 'laserWeave', kind: 'laserWeaveFire'
+      });
       const visual = ctx.game.laserWeaveVisual;
       if (visual && ctx.game.skillVisualsEnabled !== false) {
         visual.bursts.push({ beams, ghosts, ageMs: 0, seed: session.data.completedSets });
@@ -238,13 +249,14 @@ function drawHeldChain(ctx, nodes, ageMs, decorated) {
 function drawBurst(ctx, burst, profile) {
   const hold = profile.visualHitStop ? LASER_WEAVE_TUNING.visualHoldMs : 0;
   const progress = Math.max(0, burst.ageMs - hold) / (LASER_WEAVE_TUNING.tailMs - hold);
-  const alpha = (1 - progress) ** 2;
+  const alpha = (1 - progress) ** 1.2;
+  const strike = Math.max(0, 1 - burst.ageMs / 90);
   if (profile.drawArtwork && progress < 0.28) {
     ctx.globalAlpha = Math.max(0, 1 - progress / 0.28);
     for (const ghost of burst.ghosts) drawTsumArtwork(ctx, ghost.type, ghost.x, ghost.y, ghost.radius, { fit: 'cover' });
     ctx.globalAlpha = 1;
   }
-  drawBands(ctx, burst.beams, 0.24 * alpha, 0.7 * alpha);
+  drawBands(ctx, burst.beams, (0.32 + strike * 0.18) * alpha, 0.9 * alpha);
   ctx.save();
   ctx.beginPath();
   for (const beam of burst.beams) addCapsule(ctx, beam);
@@ -261,10 +273,21 @@ function drawBurst(ctx, burst, profile) {
     const dx = beam.end.x - beam.start.x; const dy = beam.end.y - beam.start.y;
     const length = Math.hypot(dx, dy) || 1;
     const nx = -dy / length; const ny = dx / length;
+    // A sharp white cutting core and a brief inner flare stay inside the
+    // actual two capsules. No full-screen flash or physics snapshot is used.
+    ctx.beginPath(); ctx.moveTo(beam.start.x, beam.start.y); ctx.lineTo(beam.end.x, beam.end.y);
+    ctx.strokeStyle = LASER_WEAVE_COLORS.thread;
+    ctx.lineWidth = Math.min(beam.width * 0.7, 28);
+    ctx.globalAlpha = strike * 0.45;
+    ctx.stroke();
+    ctx.lineWidth = Math.min(beam.width * 0.24, 18);
+    ctx.globalAlpha = alpha * 0.95;
+    ctx.stroke();
     const count = profile.skillVisualDetail === 'full'
       ? Math.min(LASER_WEAVE_TUNING.maxThreads, 3 + Math.floor(Math.max(0, beam.width - 19) / 16)) : 3;
     const spread = Math.min(beam.width * 0.32, WIDTH * 0.6);
     for (let thread = 0; thread < count; thread++) {
+      ctx.globalAlpha = alpha;
       ctx.lineWidth = thread === Math.floor(count / 2) ? 2.5 : 1.3;
       const offset = (thread / (count - 1) * 2 - 1) * spread;
       ctx.beginPath();
@@ -277,19 +300,32 @@ function drawBurst(ctx, burst, profile) {
       }
       ctx.stroke();
     }
+    const head = Math.min(1, burst.ageMs / 70);
+    if (head < 1) {
+      ctx.globalAlpha = (1 - head) * 0.9;
+      ctx.beginPath();
+      ctx.arc(beam.start.x + dx * head, beam.start.y + dy * head, Math.min(beam.width * 0.26, 14), 0, Math.PI * 2);
+      ctx.fillStyle = LASER_WEAVE_COLORS.thread; ctx.fill();
+    }
   }
   ctx.restore();
   if (profile.drawTransientEffects) {
     ctx.globalAlpha = alpha;
     ctx.fillStyle = LASER_WEAVE_COLORS.thread;
-    // A shared budget across all retained bursts keeps rapid sets bounded.
-    const count = Math.round(8 * (profile.particleScale ?? 1));
+    // Firing locks the next set; one burst shares its budget across both lines.
+    const count = Math.round(LASER_WEAVE_TUNING.maxParticles * (profile.particleScale ?? 1));
     for (let i = 0; i < count; i++) {
       const beam = burst.beams[i % 2];
-      const base = i % 4 < 2 ? beam.start : beam.end;
-      const angle = (i * 2.4 + burst.seed) % (Math.PI * 2);
-      const travel = progress * (12 + i * 2);
-      ctx.fillRect(base.x + Math.cos(angle) * travel, base.y + Math.sin(angle) * travel, 1.5, 3);
+      const dx = beam.end.x - beam.start.x; const dy = beam.end.y - beam.start.y;
+      const length = Math.hypot(dx, dy) || 1;
+      const t = ((i * 7 + burst.seed * 3) % 23) / 23;
+      const travel = progress * (14 + i % 6 * 4) * (i % 4 < 2 ? 1 : -1);
+      const x = beam.start.x + dx * t - dy / length * travel;
+      const y = beam.start.y + dy * t + dx / length * travel;
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = i % 3 ? LASER_WEAVE_COLORS.thread : LASER_WEAVE_COLORS.band;
+      ctx.beginPath(); ctx.moveTo(x, y);
+      ctx.lineTo(x - dy / length * 5, y + dx / length * 5); ctx.stroke();
     }
     ctx.globalAlpha = 1;
   }
@@ -325,6 +361,6 @@ export function drawLaserWeave(ctx, game, profile) {
     ctx.font = '700 12px "Trebuchet MS", sans-serif';
     ctx.fillText(`LASER WEAVE  ${(Math.max(0, session.remainingMs) / 1000).toFixed(1)}s · ${getLaserWeaveWidth(session)}px`, FIELD_CENTER_X, FIELD_TOP + 23);
   }
-  if (decorated) for (const burst of visual?.bursts || []) drawBurst(ctx, burst, profile);
+  if (game.skillVisualsEnabled !== false) for (const burst of visual?.bursts || []) drawBurst(ctx, burst, profile);
   ctx.restore();
 }

@@ -1,4 +1,7 @@
 export const SKILL_TIMING_TABLE = Object.freeze({
+  laserWeave: Object.freeze({
+    finalClear: Object.freeze({ durationMs: 400, pauseClock: true, pausePhysics: false })
+  }),
   coronationElsa: Object.freeze({
     presentation: Object.freeze({ durationMs: 1750, pauseClock: true, pausePhysics: true })
   }),

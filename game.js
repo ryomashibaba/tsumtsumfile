@@ -47,7 +47,7 @@ import {
   drawStarPath
 } from './config.js?v=coin-flights-1';
 
-import { UIRenderer } from './ui.js?v=laser-weave-1';
+import { UIRenderer } from './ui.js?v=laser-weave-2';
 import { JudyNickGaugeManager, registerJudyNickSkill, resolveJudyNickActivationMode } from './judyNick.js?v=skill-visuals-1';
 import {
   LILIA_CHAIN_TYPE,
@@ -106,7 +106,7 @@ import {
   buildCoinFlightAwardPlan,
   createCoinFlight
 } from './coinFlights.js?v=coin-flights-1';
-import { SKILL_TIMING_TABLE, getGameplayClockDelta, resolveGameplayPauseState } from './gameplayTiming.js?v=skill-timing-2';
+import { SKILL_TIMING_TABLE, getGameplayClockDelta, resolveGameplayPauseState } from './gameplayTiming.js?v=skill-timing-3';
 import {
   beginBodyRemovalState,
   isBodyOccupying,
@@ -162,7 +162,7 @@ import { GameFeelController, calculateVisualChainCount } from './gameFeel.js?v=g
 import { CHAIN_INPUT_TUNING, collectSegmentCandidates, shouldArmBacktrack, shouldBacktrack } from './chainInput.js?v=segment-chain-1';
 import { ChainTelemetry } from './chainTelemetry.js?v=advanced-settings-2';
 import { DOPA_TUNING, completeDopaFlight, getDopaCoinTable, registerDopaSkill, resetDopa } from './dopa.js?v=dopa-1';
-import { registerLaserWeaveSkill, getLaserWeaveSession, isLaserWeaveHeld, resetLaserWeave, updateLaserWeaveVisuals, unlockLaserWeaveAudio } from './laserWeave.js?v=laser-weave-1';
+import { registerLaserWeaveSkill, getLaserWeaveSession, isLaserWeaveFiring, isLaserWeaveHeld, resetLaserWeave, updateLaserWeaveVisuals, unlockLaserWeaveAudio } from './laserWeave.js?v=laser-weave-2';
 import {
   ADVANCED_SETTINGS_RECTS,
   DEBUG_ENTRIES,
@@ -13343,6 +13343,7 @@ class Game {
     if (this.state !== "playing" || this.runFinished) {
       return;
     }
+    if (isLaserWeaveFiring(this)) return;
     const laserSession = getLaserWeaveSession(this);
     if (laserSession) this.skillRuntime.endSession(laserSession, 'timeout', { skipEndPause: true });
     if (this.deferredSkillInput) return;
@@ -13687,6 +13688,7 @@ class Game {
       !this.dragging &&
       !this.actionLock &&
       !this.pendingClear &&
+      !isLaserWeaveFiring(this) &&
       (this.coinFlights?.length || 0) > 0
     ) {
       return;

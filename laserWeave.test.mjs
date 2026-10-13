@@ -10,7 +10,7 @@ import { LaserWeaveAudio } from './laserWeaveAudio.js';
 import {
   getLaserWeaveSession, getLaserWeaveHeldNodes, getLaserWeaveWidth, getLaserWeaveBeams,
   collectLaserWeaveTargets, isLaserWeaveHeld, resetLaserWeave, updateLaserWeaveVisuals,
-  drawLaserWeave, LASER_WEAVE_TUNING
+  drawLaserWeave, isLaserWeaveFiring, LASER_WEAVE_TUNING
 } from './laserWeave.js';
 
 const type = TSUM_TYPES.find(type => type.id === 'laserWeave');
@@ -131,7 +131,7 @@ test('capsule boundaries use centers, include rounded ends, exclude the gap and 
   assert.equal(new Set(collectLaserWeaveTargets([...first, ...second], first, second, reversed).map(n => n.id)).size, 6);
 });
 
-test('second release instantly clears the exact union, awards once, and immediately accepts next trace', () => {
+test('second release clears the union once, holds only clocks, and accepts next trace after the firing phase', () => {
   const { first, second } = pair(); const hit = node('hit', 140, 230);
   const gap = node('gap', 140, 280);
   const game = harness([...first, ...second, hit, gap]); const session = activate(game);
@@ -143,7 +143,86 @@ test('second release instantly clears the exact union, awards once, and immediat
   assert.equal(getLaserWeaveWidth(session), 37);
   assert.equal(game.pendingClear, null); assert.equal(game.actionLock, false);
   assert.equal(game.laserWeaveVisual.bursts.length, 1);
+  assert.equal(game.isGameplayInputLocked(), true);
+  assert.deepEqual(game.getCurrentGameplayPauseState(), { clockPaused: true, physicsPaused: false });
+  assert.equal(game.startChain(gap, gap), false);
+  game.skillRuntime.updateRaw(LASER_WEAVE_TUNING.tailMs);
+  assert.equal(game.isGameplayInputLocked(), false);
   assert.equal(game.startChain(gap, gap), true);
+});
+
+function enableUpdates(game) {
+  Object.assign(game, {
+    elapsed: 0, displayedScore: 0, timeRemaining: 20, fanCooldown: 0, fanPulse: 0,
+    tempLockTimer: 0, physicsAccumulator: 0, strongestModeEnabled: false,
+    skillButtonFeedback: { timer: 0 },
+    coinFlights: [], updateCoinFlights() {}, updateEffects() {}, updateSkillChargeFlights() {}, updateAiAutoPlay() {},
+    skillSystem: { ready: false, update() {} },
+    isSkillReadyForActivation: () => false,
+    physicsSteps: 0,
+    stepPhysicsFrame() { this.physicsSteps += 1; for (const node of this.tsums) node.y += 0.45; }
+  });
+  for (const n of game.tsums) n.update = () => {};
+  game.gameFeel.enabled = true; game.gameFeel.update = () => {}; game.gameFeel.syncSkillReady = () => {};
+  game.feverSystem.update = () => {}; game.comboSystem.update = () => {};
+}
+
+test('actual update keeps gravity/VFX moving during 400ms while game and skill clocks stop', () => {
+  const { first, second } = pair(); const spare = node('spare', 150, 290);
+  const game = harness([...first, ...second, spare]); const session = activate(game);
+  commit(game, first); commit(game, second); enableUpdates(game);
+  const y = spare.y;
+  for (let frame = 0; frame < 8; frame++) game.update(0.05);
+  assert.equal(game.timeRemaining, 20);
+  assert.equal(session.remainingMs, 7000);
+  assert.ok(spare.y > y); assert.ok(game.physicsSteps > 0);
+  assert.equal(game.laserWeaveVisual.bursts.length, 0);
+  assert.equal(isLaserWeaveFiring(game), false);
+  assert.equal(game.isGameplayInputLocked(), false);
+  game.update(0.05);
+  assert.equal(game.timeRemaining, 19.95);
+  assert.equal(session.remainingMs, 6950);
+});
+
+test('manual pause holds the firing phase and switching visuals off releases it immediately', () => {
+  const { first, second } = pair(); const spare = node('spare', 150, 290);
+  const game = harness([...first, ...second, spare]); activate(game);
+  commit(game, first); commit(game, second); enableUpdates(game);
+  game.paused = true; const y = spare.y; game.update(0.2);
+  assert.equal(game.skillRuntime.timingPauses[0].remainingMs, 400);
+  assert.equal(game.laserWeaveVisual.bursts[0].ageMs, 0); assert.equal(spare.y, y);
+  game.saveProgress = () => {}; game.toggleSkillVisuals();
+  assert.equal(isLaserWeaveFiring(game), false); assert.equal(game.isGameplayInputLocked(), false);
+  game.paused = false; game.update(0.05);
+  assert.equal(game.timeRemaining, 19.95); assert.equal(game.laserWeaveVisual.bursts.length, 0);
+});
+
+test('zero game time with coin flights still advances the firing phase and falling board before result', () => {
+  const { first, second } = pair(); const spare = node('spare', 150, 290);
+  const game = harness([...first, ...second, spare]); const session = activate(game);
+  commit(game, first); commit(game, second); enableUpdates(game);
+  game.timeRemaining = 0; game.timeUp = true; game.coinFlights = [{}]; game.updateCoinFlights = () => {};
+  game.finishRun();
+  assert.equal(game.runFinished, undefined); assert.equal(getLaserWeaveSession(game), session);
+  const y = spare.y; game.update(0.1);
+  assert.equal(game.skillRuntime.timingPauses[0].remainingMs, 300);
+  assert.ok(spare.y > y); assert.equal(session.remainingMs, 7000);
+  game.skillRuntime.updateRaw(300); game.finishRun();
+  assert.equal(getLaserWeaveSession(game), null);
+  assert.equal(game.runFinished, undefined, 'coin collection still finishes before results');
+});
+
+test('firing reset clears only LASER WEAVE timing and previews remain available in minimal quality', () => {
+  const { first, second } = pair(); const game = harness([...first, ...second]); activate(game);
+  commit(game, first); commit(game, second);
+  const calls = [];
+  const ctx = new Proxy({}, { get: (target, key) => target[key] ?? ((...args) => calls.push([key, ...args])), set: (target, key, value) => { target[key] = value; return true; } });
+  drawLaserWeave(ctx, game, getRenderQualityProfile('minimal'));
+  assert.ok(calls.some(call => call[0] === 'clip'), 'basic two-line burst survives minimal quality');
+  game.skillRuntime.startTimingPause({ durationMs: 100, pauseClock: true }, { skillId: 'anotherSkill' });
+  resetLaserWeave(game);
+  assert.equal(game.skillRuntime.timingPauses.length, 1);
+  assert.equal(game.skillRuntime.timingPauses[0].skillId, 'anotherSkill');
 });
 
 test('short second traces and cancellation do not consume the held first chain or grow width', () => {
