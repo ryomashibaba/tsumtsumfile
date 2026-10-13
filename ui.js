@@ -38,7 +38,7 @@ import {
 import { drawLiliaBat } from './lilia.js?v=tsum-images-8';
 import { drawFinalBattleHookOverlay } from './finalBattleHook.js?v=final-battle-hook-1';
 import { drawDopaBackdrop, drawDopaForeground } from './dopa.js?v=dopa-1';
-import { drawLaserWeave } from './laserWeave.js?v=laser-weave-3';
+import { drawLaserWeave, isLaserWeaveFiring } from './laserWeave.js?v=laser-weave-4';
 import { drawTsumArtwork, preloadTsumImages } from './tsumImages.js?v=render-quality-1';
 import { drawSkillPresentation, drawSkillSecondaryVisual } from './skillPresentationVisuals.js?v=render-quality-1';
 import {
@@ -497,7 +497,7 @@ export class UIRenderer {
     ctx.font = '900 31px "Trebuchet MS", sans-serif';
     ctx.fillText(`${Math.ceil(this.game.timeRemaining)}`, timerX, timerY - 3);
     ctx.font = '800 9px "Trebuchet MS", sans-serif';
-    ctx.fillText("TIME", timerX, timerY + 22);
+    ctx.fillText(isLaserWeaveFiring(this.game) ? "HOLD" : "TIME", timerX, timerY + 22);
     ctx.restore();
 
     const scoreX = 108;
@@ -2449,7 +2449,7 @@ export class UIRenderer {
     ctx.textBaseline = "middle";
     ctx.fillText(`${Math.ceil(this.game.timeRemaining)}`, timerX, timerY - 2);
     ctx.font = '600 11px "Trebuchet MS", sans-serif';
-    ctx.fillText("TIME", timerX, timerY + 18);
+    ctx.fillText(isLaserWeaveFiring(this.game) ? "HOLD" : "TIME", timerX, timerY + 18);
     ctx.restore();
 
     ctx.save();

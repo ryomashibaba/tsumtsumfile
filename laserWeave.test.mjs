@@ -7,6 +7,7 @@ import { GameFeelController } from './gameFeel.js';
 import { isBodyOccupying } from './bodyLifecycle.js';
 import { getRenderQualityProfile } from './renderQuality.js';
 import { LaserWeaveAudio } from './laserWeaveAudio.js';
+import { UIRenderer } from './ui.js';
 import { distancePointToSegment } from './clearGeometry.js';
 import {
   getLaserWeaveSession, getLaserWeaveHeldNodes, getLaserWeaveWidth, getLaserWeaveBeams,
@@ -352,6 +353,39 @@ test('LASER WEAVE feedback does not freeze/shake/flash the entire board', () => 
   assert.equal(feel.hitStop.life, 0); assert.equal(feel.shake.life, 0); assert.equal(feel.flash.life, 0);
   assert.equal(feel.particles.length, 0); assert.equal(feel.rings.length, 0);
   assert.equal(LASER_WEAVE_TUNING.maxParticles, 24);
+});
+
+test('both cutting cores stay bright at 100ms, then fade within the 400ms clock pause', () => {
+  const { first, second } = pair(); const game = harness([...first, ...second]); activate(game);
+  commit(game, first); commit(game, second);
+  const strokes = [];
+  const ctx = new Proxy({}, {
+    get: (target, key) => key === 'stroke' ? () => strokes.push({ width: target.lineWidth, alpha: target.globalAlpha }) : target[key] ?? (() => {}),
+    set: (target, key, value) => { target[key] = value; return true; }
+  });
+  for (const [age, minimum, maximum] of [[100, 0.9, 1], [200, 0.7, 0.9], [390, 0, 0.05]]) {
+    strokes.length = 0; game.laserWeaveVisual.bursts[0].ageMs = age;
+    drawLaserWeave(ctx, game, getRenderQualityProfile('minimal'));
+    const cores = strokes.filter(stroke => Math.abs(stroke.width - 29 * 0.4) < 1e-8);
+    assert.equal(cores.length, 2);
+    assert.ok(cores.every(stroke => stroke.alpha >= minimum && stroke.alpha <= maximum));
+  }
+});
+
+test('the actual timer HUD shows HOLD during firing and returns to TIME afterward', () => {
+  const { first, second } = pair(); const game = harness([...first, ...second]); activate(game);
+  commit(game, first); commit(game, second);
+  Object.assign(game, { timeRemaining: 20, gameDuration: 60, displayedScore: 0, getDisplayedRunCoins: () => 0 });
+  const renderer = Object.assign(Object.create(UIRenderer.prototype), {
+    game, drawStitchedRoundedRect() {}, drawButton() {}, drawCoingainStatusPanel() {}, drawBattleStatusPanel() {}
+  });
+  const labels = [];
+  const ctx = new Proxy({}, { get: (target, key) => target[key] ?? (key === 'fillText' ? text => labels.push(text) : key.startsWith('create') ? () => ({ addColorStop() {} }) : () => {}), set: (target, key, value) => { target[key] = value; return true; } });
+  renderer.drawTopHUDReal(ctx);
+  assert.ok(labels.includes('HOLD')); assert.ok(!labels.includes('TIME'));
+  game.skillRuntime.updateRaw(400); labels.length = 0;
+  renderer.drawTopHUDReal(ctx);
+  assert.ok(labels.includes('TIME')); assert.ok(!labels.includes('HOLD'));
 });
 
 test('missing audio and failed devices cannot interrupt gameplay; CPU remains silent', () => {

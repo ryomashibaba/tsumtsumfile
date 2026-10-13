@@ -265,14 +265,17 @@ function drawHeldChain(ctx, nodes, ageMs, decorated) {
 function drawBurst(ctx, burst, profile) {
   const hold = profile.visualHitStop ? LASER_WEAVE_TUNING.visualHoldMs : 0;
   const progress = Math.max(0, burst.ageMs - hold) / (LASER_WEAVE_TUNING.tailMs - hold);
-  const alpha = (1 - progress) ** 1.2;
-  const strike = Math.max(0, 1 - burst.ageMs / 90);
+  // Hold a readable cutting stroke before fading. A 90ms spike alone was
+  // easy to miss while looking at the moving Tsums and integer game timer.
+  const fadeStartMs = 160;
+  const alpha = Math.max(0, 1 - Math.max(0, burst.ageMs - fadeStartMs) / (LASER_WEAVE_TUNING.tailMs - fadeStartMs)) ** 1.2;
+  const strike = Math.max(0, 1 - Math.max(0, burst.ageMs - hold) / 180);
   if (profile.drawArtwork && progress < 0.28) {
     ctx.globalAlpha = Math.max(0, 1 - progress / 0.28);
     for (const ghost of burst.ghosts) drawTsumArtwork(ctx, ghost.type, ghost.x, ghost.y, ghost.radius, { fit: 'cover' });
     ctx.globalAlpha = 1;
   }
-  drawBands(ctx, burst.beams, (0.32 + strike * 0.18) * alpha, 0.9 * alpha);
+  drawBands(ctx, burst.beams, (0.42 + strike * 0.2) * alpha, 0.9 * alpha);
   ctx.save();
   ctx.beginPath();
   for (const beam of burst.beams) addCapsule(ctx, beam);
@@ -293,10 +296,10 @@ function drawBurst(ctx, burst, profile) {
     // actual two capsules. No full-screen flash or physics snapshot is used.
     ctx.beginPath(); ctx.moveTo(beam.start.x, beam.start.y); ctx.lineTo(beam.end.x, beam.end.y);
     ctx.strokeStyle = LASER_WEAVE_COLORS.thread;
-    ctx.lineWidth = Math.min(beam.width * 0.7, 28);
-    ctx.globalAlpha = strike * 0.45;
+    ctx.lineWidth = Math.min(beam.width * 0.85, 40);
+    ctx.globalAlpha = strike * 0.6;
     ctx.stroke();
-    ctx.lineWidth = Math.min(beam.width * 0.24, 18);
+    ctx.lineWidth = Math.min(beam.width * 0.4, 22);
     ctx.globalAlpha = alpha * 0.95;
     ctx.stroke();
     const count = profile.skillVisualDetail === 'full'
