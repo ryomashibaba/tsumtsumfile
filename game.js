@@ -47,7 +47,7 @@ import {
   drawStarPath
 } from './config.js?v=coin-flights-1';
 
-import { UIRenderer } from './ui.js?v=laser-weave-2';
+import { UIRenderer } from './ui.js?v=laser-weave-3';
 import { JudyNickGaugeManager, registerJudyNickSkill, resolveJudyNickActivationMode } from './judyNick.js?v=skill-visuals-1';
 import {
   LILIA_CHAIN_TYPE,
@@ -162,7 +162,7 @@ import { GameFeelController, calculateVisualChainCount } from './gameFeel.js?v=g
 import { CHAIN_INPUT_TUNING, collectSegmentCandidates, shouldArmBacktrack, shouldBacktrack } from './chainInput.js?v=segment-chain-1';
 import { ChainTelemetry } from './chainTelemetry.js?v=advanced-settings-2';
 import { DOPA_TUNING, completeDopaFlight, getDopaCoinTable, registerDopaSkill, resetDopa } from './dopa.js?v=dopa-1';
-import { registerLaserWeaveSkill, getLaserWeaveSession, isLaserWeaveFiring, isLaserWeaveHeld, resetLaserWeave, updateLaserWeaveVisuals, unlockLaserWeaveAudio } from './laserWeave.js?v=laser-weave-2';
+import { registerLaserWeaveSkill, getLaserWeaveSession, isLaserWeaveFiring, isLaserWeaveHeld, resetLaserWeave, updateLaserWeaveVisuals, unlockLaserWeaveAudio } from './laserWeave.js?v=laser-weave-3';
 import {
   ADVANCED_SETTINGS_RECTS,
   DEBUG_ENTRIES,

@@ -37,15 +37,31 @@ export function getLaserWeaveWidth(session) {
 
 export function getLaserWeaveBeams(first, second, width) {
   if (!first.length || !second.length) return [];
-  return [[first[0], second[0]], [first.at(-1), second.at(-1)]].map(([start, end]) => ({
-    start: { x: start.x, y: start.y }, end: { x: end.x, y: end.y }, width
-  }));
+  return [[first[0], second[0]], [first.at(-1), second.at(-1)]].map(([from, to]) => {
+    const dx = to.x - from.x; const dy = to.y - from.y;
+    const length = Math.hypot(dx, dy);
+    // Coincident moving anchors have no direction; use a stable horizontal line.
+    const ux = length > 0.000001 ? dx / length : 1;
+    const uy = length > 0.000001 ? dy / length : 0;
+    const projections = [[0, FIELD_TOP], [WIDTH, FIELD_TOP], [0, FIELD_BOTTOM], [WIDTH, FIELD_BOTTOM]]
+      .map(([x, y]) => (x - from.x) * ux + (y - from.y) * uy);
+    // Extend beyond every board projection, including the band radius, so the
+    // rounded caps cannot truncate a diagonal or a very wide beam on screen.
+    const padding = width / 2 + 1;
+    const startT = Math.min(...projections) - padding;
+    const endT = Math.max(...projections) + padding;
+    return {
+      start: { x: from.x + ux * startT, y: from.y + uy * startT },
+      end: { x: from.x + ux * endT, y: from.y + uy * endT }, width
+    };
+  });
 }
 
 export function collectLaserWeaveTargets(nodes, first, second, beams) {
   const ids = new Set([...first, ...second].map(node => node.id));
   return nodes.filter(node => node && !node.dead && !node.removing && !node.isBomb && (
-    ids.has(node.id) || beams.some(beam => distancePointToSegment(node, beam.start, beam.end) <= beam.width / 2)
+    ids.has(node.id) || (node.x >= 0 && node.x <= WIDTH && node.y >= FIELD_TOP && node.y <= FIELD_BOTTOM &&
+      beams.some(beam => distancePointToSegment(node, beam.start, beam.end) <= beam.width / 2))
   ));
 }
 

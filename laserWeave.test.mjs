@@ -7,6 +7,7 @@ import { GameFeelController } from './gameFeel.js';
 import { isBodyOccupying } from './bodyLifecycle.js';
 import { getRenderQualityProfile } from './renderQuality.js';
 import { LaserWeaveAudio } from './laserWeaveAudio.js';
+import { distancePointToSegment } from './clearGeometry.js';
 import {
   getLaserWeaveSession, getLaserWeaveHeldNodes, getLaserWeaveWidth, getLaserWeaveBeams,
   collectLaserWeaveTargets, isLaserWeaveHeld, resetLaserWeave, updateLaserWeaveVisuals,
@@ -112,23 +113,55 @@ test('first release retains moving physical Tsums, no awards, and follows curren
   assert.equal(game.canConnectWithChainRule({ allowedTypeIds: new Set([type.id]) }, second[0], first[0]), false);
   first[0].x += 35; first[2].y += 20;
   const beams = getLaserWeaveBeams(getLaserWeaveHeldNodes(game), second, getLaserWeaveWidth(session));
-  assert.deepEqual(beams[0].start, { x: 75, y: 230 });
-  assert.deepEqual(beams[1].start, { x: 40, y: 350 });
+  assert.equal(beams[0].start.y, 230);
+  assert.ok(beams[0].start.x < 0 && beams[0].end.x > 414);
+  for (const [index, anchors] of [[0, [first[0], second[0]]], [1, [first.at(-1), second.at(-1)]]]) {
+    for (const anchor of anchors) assert.ok(distancePointToSegment(anchor, beams[index].start, beams[index].end) < 1e-8);
+  }
 });
 
-test('capsule boundaries use centers, include rounded ends, exclude the gap and double clears', () => {
+test('full-board horizontal bands use centers, reach both edges, exclude the gap and double clears', () => {
   const { first, second } = pair();
   const beams = getLaserWeaveBeams(first, second, 20);
   const boundary = node('edge', 120, 240);
   const outside = node('outside', 120, 240.001, type, 100);
-  const end = node('round-end', 250, 230);
+  const end = node('right-edge', 414, 230);
+  const left = node('left-edge', 0, 230);
   const gap = node('gap', 120, 280);
   const dead = { ...boundary, id: 'dead', dead: true };
   const bomb = { ...boundary, id: 'bomb', isBomb: true };
-  const targets = collectLaserWeaveTargets([...first, ...second, boundary, outside, end, gap, dead, bomb], first, second, beams);
-  assert.deepEqual(targets.map(n => n.id), [...first, ...second, boundary, end].map(n => n.id));
+  const targets = collectLaserWeaveTargets([...first, ...second, boundary, outside, end, left, gap, dead, bomb], first, second, beams);
+  assert.deepEqual(targets.map(n => n.id), [...first, ...second, boundary, end, left].map(n => n.id));
   const reversed = getLaserWeaveBeams(first, second.toReversed(), 500);
   assert.equal(new Set(collectLaserWeaveTargets([...first, ...second], first, second, reversed).map(n => n.id)).size, 6);
+});
+
+test('diagonal lasers extend through both anchor pairs to board edges in either direction', () => {
+  const first = [node('a', 150, 250), node('z', 150, 350)];
+  const second = [node('b', 250, 350), node('y', 250, 250)];
+  const hits = [node('top', 40, 140), node('right', 414, 514), node('left', 0, 500), node('bottom', 400, 500)];
+  const gap = node('gap', 250, 300);
+  const offscreen = node('above-board', 0, 100);
+  for (const [a, b] of [[first, second], [second, first]]) {
+    const beams = getLaserWeaveBeams(a, b, 20);
+    assert.deepEqual(collectLaserWeaveTargets([...hits, gap, offscreen], [], [], beams), hits);
+    for (const [index, anchors] of [[0, [a[0], b[0]]], [1, [a.at(-1), b.at(-1)]]]) {
+      assert.ok(anchors.every(anchor => distancePointToSegment(anchor, beams[index].start, beams[index].end) < 1e-8));
+    }
+  }
+});
+
+test('vertical, coincident and unlimited-width beams stay finite and cover the displayed board', () => {
+  const first = [node('a', 200, 200), node('z', 240, 200)];
+  const second = [node('b', 200, 300), node('y', 240, 300)];
+  const top = node('top', 200, 140); const bottom = node('bottom', 240, 580); const gap = node('gap', 220, 400);
+  const beams = getLaserWeaveBeams(first, second, 20);
+  assert.deepEqual(collectLaserWeaveTargets([top, bottom, gap], [], [], beams), [top, bottom]);
+  const same = getLaserWeaveBeams(first, first, 20);
+  assert.ok(same.every(beam => Number.isFinite(beam.start.x) && Number.isFinite(beam.end.y)));
+  assert.deepEqual(collectLaserWeaveTargets([node('left', 0, 200), node('right', 414, 200)], [], [], same).map(n => n.id), ['left', 'right']);
+  const corners = [node('tl', 0, 140), node('tr', 414, 140), node('bl', 0, 580), node('br', 414, 580)];
+  assert.deepEqual(collectLaserWeaveTargets(corners, [], [], getLaserWeaveBeams(first, second, 10000)), corners);
 });
 
 test('second release clears the union once, holds only clocks, and accepts next trace after the firing phase', () => {
@@ -149,6 +182,19 @@ test('second release clears the union once, holds only clocks, and accepts next 
   game.skillRuntime.updateRaw(LASER_WEAVE_TUNING.tailMs);
   assert.equal(game.isGameplayInputLocked(), false);
   assert.equal(game.startChain(gap, gap), true);
+});
+
+test('release includes Tsums beyond the original anchor segments in the same simultaneous clear', () => {
+  const { first, second } = pair();
+  const left = node('left-extension', 10, 230); const right = node('right-extension', 400, 330, other);
+  const game = harness([...first, ...second, left, right]); const session = activate(game);
+  commit(game, first); commit(game, second);
+  assert.deepEqual(game.tsums, []);
+  assert.equal(game.totalCleared, 8); assert.equal(game.comboSystem.combo, 1);
+  assert.equal(game.score, 8 * 150);
+  assert.equal(game.coinBonus, COIN_CORRECTION_TABLE['correction_-4'][8]);
+  assert.equal(getLaserWeaveWidth(session), 37);
+  assert.ok(game.laserWeaveVisual.bursts[0].beams.every(beam => beam.start.x < 0 && beam.end.x > 414));
 });
 
 function enableUpdates(game) {

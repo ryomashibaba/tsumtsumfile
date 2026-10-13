@@ -38,7 +38,7 @@ import {
 import { drawLiliaBat } from './lilia.js?v=tsum-images-8';
 import { drawFinalBattleHookOverlay } from './finalBattleHook.js?v=final-battle-hook-1';
 import { drawDopaBackdrop, drawDopaForeground } from './dopa.js?v=dopa-1';
-import { drawLaserWeave } from './laserWeave.js?v=laser-weave-2';
+import { drawLaserWeave } from './laserWeave.js?v=laser-weave-3';
 import { drawTsumArtwork, preloadTsumImages } from './tsumImages.js?v=render-quality-1';
 import { drawSkillPresentation, drawSkillSecondaryVisual } from './skillPresentationVisuals.js?v=render-quality-1';
 import {
