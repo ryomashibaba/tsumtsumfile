@@ -240,7 +240,22 @@ export function completeDopaFlight(game) {
       game.pendingClear = previousClear;
       game.pendingChainClearQueue = previousQueue;
       game.actionLock = true;
+      return;
     }
+    // The release pointer has already committed this chain. Drop any stale
+    // pointer/bubble gesture ownership so the next pointer can start a fresh trace.
+    game.dragging = false;
+    for (const node of game.chain || []) node.inChain = false;
+    game.chain = [];
+    game.chainSet = new Set();
+    game.chainTypeId = null;
+    game.chainRule = null;
+    game.chainBacktrackArmed = false;
+    game.chainSelectedAt?.clear();
+    if (game.inputRouter) game.inputRouter.pendingBubbleGesture = null;
+    game.manualDragPointerId = null;
+    game.manualDragPoint = null;
+    game.actionLock = false;
   };
   if (!game.clearPipeline.beginClear(spec)) {
     spec.onFinalize();
