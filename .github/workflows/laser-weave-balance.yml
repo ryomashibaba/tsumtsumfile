@@ -25,8 +25,8 @@ jobs:
           node --check game.js
           node --check laserWeave.js
           node --check gameplayTiming.js
-      - name: Functional regressions without shared-host performance gate
-        run: node --test --test-concurrency=1 --test-name-pattern='^(?!45-body ten-second simulation stays bounded, finite, and performant$)' *.test.mjs
-      - name: Physics p95 performance (informational on shared runner)
+      - name: Full functional suite without host-sensitive p95 gate
+        run: node --test --test-concurrency=1 --test-skip-pattern='45-body ten-second simulation stays bounded, finite, and performant' *.test.mjs
+      - name: Hardware-sensitive physics p95 (nonblocking)
         continue-on-error: true
-        run: node --test --test-concurrency=1 --test-name-pattern='^45-body ten-second simulation stays bounded, finite, and performant$' tsumPhysics.test.mjs
+        run: node --test --test-name-pattern='45-body ten-second simulation stays bounded, finite, and performant' tsumPhysics.test.mjs
