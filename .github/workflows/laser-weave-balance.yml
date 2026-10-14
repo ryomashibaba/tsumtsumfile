@@ -1,0 +1,29 @@
+name: LASER WEAVE balance regression
+
+on:
+  push:
+    branches:
+      - 'balance/laser-weave-*'
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  node-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax checks
+        run: |
+          node --check game.js
+          node --check laserWeave.js
+          node --check gameplayTiming.js
+      - name: Full Node test suite
+        run: npm test
