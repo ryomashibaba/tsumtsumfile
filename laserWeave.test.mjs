@@ -71,7 +71,7 @@ function pair() {
   };
 }
 
-test('LASER WEAVE is selectable, keeps all six exact levels and a transparent 512px sprite', () => {
+test('LASER WEAVE is selectable with all six balanced levels and unchanged coins', () => {
   assert.equal(type.score, 150);
   assert.equal(type.subEligible, false);
   assert.deepEqual(SKILL_TABLES.laserWeave.cost, Array(6).fill(17));
@@ -80,11 +80,15 @@ test('LASER WEAVE is selectable, keeps all six exact levels and a transparent 51
   for (let level = 1; level <= 6; level++) {
     const game = harness([], level); const session = activate(game);
     assert.equal(session.remainingMs, (4 + level) * 1000);
-    assert.equal(getLaserWeaveWidth(session), 14 + 5 * level);
+    assert.equal(getLaserWeaveWidth(session), [29, 36, 43, 50, 57, 64][level - 1]);
     assert.equal(game.isGameplayInputLocked(), false);
     assert.equal(game.skillRuntime.pendingActivation, null);
   }
-  const png = readFileSync(new URL('./tsum_image/LASER_WEAVE.png', import.meta.url));
+});
+
+const laserSpritePath = new URL('./tsum_image/LASER_WEAVE.png', import.meta.url);
+test('packaged LASER WEAVE artwork is 512px RGBA', () => {
+  const png = readFileSync(laserSpritePath);
   assert.equal(png.readUInt32BE(16), 512);
   assert.equal(png.readUInt32BE(20), 512);
   assert.equal(png[25], 6, 'RGBA image');
@@ -121,11 +125,11 @@ test('first release retains moving physical Tsums, no awards, and follows curren
   }
 });
 
-test('full-board horizontal bands use centers, reach both edges, exclude the gap and double clears', () => {
+test('full-board horizontal bands use body contacts, reach both edges, exclude the gap and double clears', () => {
   const { first, second } = pair();
   const beams = getLaserWeaveBeams(first, second, 20);
   const boundary = node('edge', 120, 240);
-  const outside = node('outside', 120, 240.001, type, 100);
+  const outside = node('outside', 120, 262, type, 10);
   const end = node('right-edge', 414, 230);
   const left = node('left-edge', 0, 230);
   const gap = node('gap', 120, 280);
@@ -135,6 +139,43 @@ test('full-board horizontal bands use centers, reach both edges, exclude the gap
   assert.deepEqual(targets.map(n => n.id), [...first, ...second, boundary, end, left].map(n => n.id));
   const reversed = getLaserWeaveBeams(first, second.toReversed(), 500);
   assert.equal(new Set(collectLaserWeaveTargets([...first, ...second], first, second, reversed).map(n => n.id)).size, 6);
+});
+
+test('laser contact uses actual body radius instead of requiring the center line', () => {
+  const first = [node('a', 40, 230), node('c', 40, 390)];
+  const second = [node('b', 240, 230), node('d', 240, 390)];
+  const beams = getLaserWeaveBeams(first, second, 43);
+  const touch = node('touch', 140, 260);
+  const miss = node('miss', 140, 262);
+  assert.deepEqual(collectLaserWeaveTargets([touch, miss], [], [], beams).map(n => n.id), ['touch']);
+  assert.deepEqual(collectLaserWeaveTargets([touch, miss], [], [], beams, () => 0), []);
+});
+
+test('SL6 synthetic 45-Tsum board footprint expands without changing coin coefficients', () => {
+  const first = [node('a', 70, 230), node('c', 70, 430)];
+  const second = [node('b', 320, 230), node('d', 320, 430)];
+  const before = getLaserWeaveBeams(first, second, 44);
+  const after = getLaserWeaveBeams(first, second, 64);
+  let rng = 73;
+  const random = () => {
+    rng = (Math.imul(rng, 1664525) + 1013904223) >>> 0;
+    return rng / 0x100000000;
+  };
+  let oldHits = 0, improvedHits = 0;
+  for (let sample = 0; sample < 128; sample++) {
+    const board = [];
+    while (board.length < 45) {
+      const x = random() * 414, y = 140 + random() * 440;
+      if (((x - 207) / 207) ** 2 + ((y - 360) / 220) ** 2 > 1) continue;
+      board.push(node('probe-' + board.length, x, y, type, 29));
+    }
+    oldHits += board.filter(n => before.some(beam =>
+      distancePointToSegment(n, beam.start, beam.end) <= beam.width / 2)).length;
+    improvedHits += collectLaserWeaveTargets(board, [], [], after).length;
+  }
+  assert.ok(improvedHits > oldHits * 2, `synthetic geometry ${oldHits} -> ${improvedHits}`);
+  assert.deepEqual(SKILL_TABLES.laserWeave.coinCorrectionType,
+    ['correction_-5','correction_-4','correction_-4','correction_-3','correction_-3','correction_-2']);
 });
 
 test('diagonal lasers extend through both anchor pairs to board edges in either direction', () => {
@@ -155,7 +196,7 @@ test('diagonal lasers extend through both anchor pairs to board edges in either 
 test('vertical, coincident and unlimited-width beams stay finite and cover the displayed board', () => {
   const first = [node('a', 200, 200), node('z', 240, 200)];
   const second = [node('b', 200, 300), node('y', 240, 300)];
-  const top = node('top', 200, 140); const bottom = node('bottom', 240, 580); const gap = node('gap', 220, 400);
+  const top = node('top', 200, 140); const bottom = node('bottom', 240, 580); const gap = node('gap', 270, 400);
   const beams = getLaserWeaveBeams(first, second, 20);
   assert.deepEqual(collectLaserWeaveTargets([top, bottom, gap], [], [], beams), [top, bottom]);
   const same = getLaserWeaveBeams(first, first, 20);
@@ -174,7 +215,7 @@ test('second release clears the union once, holds only clocks, and accepts next 
   assert.equal(game.totalCleared, 7); assert.equal(game.comboSystem.combo, 1);
   assert.equal(game.charge, 4); assert.equal(game.score, 7 * 150);
   assert.equal(game.coinBonus, COIN_CORRECTION_TABLE['correction_-4'][7]);
-  assert.equal(getLaserWeaveWidth(session), 37);
+  assert.equal(getLaserWeaveWidth(session), 55);
   assert.equal(game.pendingClear, null); assert.equal(game.actionLock, false);
   assert.equal(game.laserWeaveVisual.bursts.length, 1);
   assert.equal(game.isGameplayInputLocked(), true);
@@ -183,6 +224,37 @@ test('second release clears the union once, holds only clocks, and accepts next 
   game.skillRuntime.updateRaw(LASER_WEAVE_TUNING.tailMs);
   assert.equal(game.isGameplayInputLocked(), false);
   assert.equal(game.startChain(gap, gap), true);
+});
+
+test('two-node chains fire only while LASER WEAVE is active; near-contact nodes join clear', () => {
+  const first = [node('a', 40, 230), node('c', 40, 390)];
+  const second = [node('b', 240, 230, other), node('d', 240, 390, other)];
+  const touch = node('touch', 140, 260);
+  const miss = node('miss', 140, 262);
+  const game = harness([...first, ...second, touch, miss]);
+  commit(game, first);
+  assert.equal(game.totalCleared, 0, 'ordinary two-node chains must not clear');
+  const session = activate(game);
+  commit(game, first);
+  assert.equal(getLaserWeaveHeldNodes(game).length, 2);
+  assert.equal(game.totalCleared, 0);
+  commit(game, second);
+  assert.equal(game.totalCleared, 5);
+  assert.deepEqual(game.tsums, [miss]);
+  assert.equal(getLaserWeaveWidth(session), 55);
+  assert.equal(game.coinBonus, COIN_CORRECTION_TABLE['correction_-4'][5]);
+});
+
+test('an unfinished two-node reservation times out without free normal clear rewards', () => {
+  const first = [node('a', 40, 230), node('b', 40, 300)];
+  const game = harness(first);
+  const session = activate(game);
+  commit(game, first);
+  game.skillRuntime.update(session.remainingMs);
+  assert.equal(getLaserWeaveSession(game), null);
+  assert.equal(game.totalCleared, 0);
+  assert.equal(game.coinBonus, 0);
+  assert.deepEqual(game.tsums, first);
 });
 
 test('release includes Tsums beyond the original anchor segments in the same simultaneous clear', () => {
@@ -194,7 +266,7 @@ test('release includes Tsums beyond the original anchor segments in the same sim
   assert.equal(game.totalCleared, 8); assert.equal(game.comboSystem.combo, 1);
   assert.equal(game.score, 8 * 150);
   assert.equal(game.coinBonus, COIN_CORRECTION_TABLE['correction_-4'][8]);
-  assert.equal(getLaserWeaveWidth(session), 37);
+  assert.equal(getLaserWeaveWidth(session), 55);
   assert.ok(game.laserWeaveVisual.bursts[0].beams.every(beam => beam.start.x < 0 && beam.end.x > 414));
 });
 
@@ -214,21 +286,23 @@ function enableUpdates(game) {
   game.feverSystem.update = () => {}; game.comboSystem.update = () => {};
 }
 
-test('actual update keeps gravity/VFX moving during 400ms while game and skill clocks stop', () => {
+test('actual update keeps gravity/VFX moving during 180ms while game and skill clocks stop', () => {
   const { first, second } = pair(); const spare = node('spare', 150, 290);
   const game = harness([...first, ...second, spare]); const session = activate(game);
   commit(game, first); commit(game, second); enableUpdates(game);
   const y = spare.y;
-  for (let frame = 0; frame < 8; frame++) game.update(0.05);
+  for (let frame = 0; frame < 4; frame++) game.update(0.05);
   assert.equal(game.timeRemaining, 20);
   assert.equal(session.remainingMs, 7000);
   assert.ok(spare.y > y); assert.ok(game.physicsSteps > 0);
-  assert.equal(game.laserWeaveVisual.bursts.length, 0);
+  assert.equal(game.laserWeaveVisual.bursts.length, 1, 'afterimage persists beyond input hold');
   assert.equal(isLaserWeaveFiring(game), false);
   assert.equal(game.isGameplayInputLocked(), false);
   game.update(0.05);
   assert.equal(game.timeRemaining, 19.95);
   assert.equal(session.remainingMs, 6950);
+  for (let frame = 0; frame < 4; frame++) game.update(0.05);
+  assert.equal(game.laserWeaveVisual.bursts.length, 0);
 });
 
 test('manual pause holds the firing phase and switching visuals off releases it immediately', () => {
@@ -236,7 +310,7 @@ test('manual pause holds the firing phase and switching visuals off releases it 
   const game = harness([...first, ...second, spare]); activate(game);
   commit(game, first); commit(game, second); enableUpdates(game);
   game.paused = true; const y = spare.y; game.update(0.2);
-  assert.equal(game.skillRuntime.timingPauses[0].remainingMs, 400);
+  assert.equal(game.skillRuntime.timingPauses[0].remainingMs, 180);
   assert.equal(game.laserWeaveVisual.bursts[0].ageMs, 0); assert.equal(spare.y, y);
   game.saveProgress = () => {}; game.toggleSkillVisuals();
   assert.equal(isLaserWeaveFiring(game), false); assert.equal(game.isGameplayInputLocked(), false);
@@ -252,9 +326,9 @@ test('zero game time with coin flights still advances the firing phase and falli
   game.finishRun();
   assert.equal(game.runFinished, undefined); assert.equal(getLaserWeaveSession(game), session);
   const y = spare.y; game.update(0.1);
-  assert.equal(game.skillRuntime.timingPauses[0].remainingMs, 300);
+  assert.equal(game.skillRuntime.timingPauses[0].remainingMs, 80);
   assert.ok(spare.y > y); assert.equal(session.remainingMs, 7000);
-  game.skillRuntime.updateRaw(300); game.finishRun();
+  game.skillRuntime.updateRaw(80); game.finishRun();
   assert.equal(getLaserWeaveSession(game), null);
   assert.equal(game.runFinished, undefined, 'coin collection still finishes before results');
 });
@@ -272,14 +346,14 @@ test('firing reset clears only LASER WEAVE timing and previews remain available 
   assert.equal(game.skillRuntime.timingPauses[0].skillId, 'anotherSkill');
 });
 
-test('short second traces and cancellation do not consume the held first chain or grow width', () => {
+test('single-node second traces and cancellation do not consume the held first chain or grow width', () => {
   const { first, second } = pair(); const game = harness([...first, ...second]); const session = activate(game);
-  commit(game, first); commit(game, second.slice(0, 2));
-  assert.equal(getLaserWeaveHeldNodes(game).length, 3); assert.equal(getLaserWeaveWidth(session), 29);
+  commit(game, first); commit(game, second.slice(0, 1));
+  assert.equal(getLaserWeaveHeldNodes(game).length, 3); assert.equal(getLaserWeaveWidth(session), 43);
   assert.equal(game.totalCleared, 0);
   game.startChain(second[0], second[0]); game.cancelActiveChain();
   assert.equal(getLaserWeaveHeldNodes(game).length, 3);
-  assert.equal(getLaserWeaveWidth(session), 29);
+  assert.equal(getLaserWeaveWidth(session), 43);
 });
 
 test('timeout settles only held chain normally and leaves the live second trace for normal release', () => {
@@ -296,9 +370,9 @@ test('timeout settles only held chain normally and leaves the live second trace 
 
 test('reactivation settles the old chain once, resets width and timer; reset never awards', () => {
   const { first, second } = pair(); const game = harness([...first, ...second]); const old = activate(game);
-  old.data.completedSets = 1000; assert.equal(getLaserWeaveWidth(old), 8029);
+  old.data.completedSets = 1000; assert.equal(getLaserWeaveWidth(old), 12043);
   commit(game, first); const fresh = activate(game);
-  assert.equal(game.totalCleared, 3); assert.equal(getLaserWeaveWidth(fresh), 29);
+  assert.equal(game.totalCleared, 3); assert.equal(getLaserWeaveWidth(fresh), 43);
   assert.equal(fresh.remainingMs, 7000); assert.equal(game.skillRuntime.sessions.length, 1);
   commit(game, second); resetLaserWeave(game);
   assert.equal(game.totalCleared, 3); assert.equal(getLaserWeaveSession(game), null);
@@ -342,7 +416,7 @@ test('manual pause freezes skill/VFX age and visuals-off retains the required pr
   const ctx = new Proxy({}, { get: (target, key) => target[key] ?? ((...args) => calls.push([key, ...args])), set: (target, key, value) => { target[key] = value; return true; } });
   drawLaserWeave(ctx, game, getRenderQualityProfile('minimal'));
   assert.ok(calls.some(call => call[0] === 'fill'), 'preview union fill remains');
-  assert.equal(calls.filter(call => call[0] === 'arc' && call[3] === 14.5).length, 4, 'two 29px capsules');
+  assert.equal(calls.filter(call => call[0] === 'arc' && call[3] === 21.5).length, 4, 'two 43px capsules');
   game.dragging = false; game.chain = []; commit(game, second);
   assert.equal(game.totalCleared, 6); assert.equal(game.laserWeaveVisual.bursts.length, 0);
 });
@@ -355,7 +429,7 @@ test('LASER WEAVE feedback does not freeze/shake/flash the entire board', () => 
   assert.equal(LASER_WEAVE_TUNING.maxParticles, 24);
 });
 
-test('both cutting cores stay bright at 100ms, then fade within the 400ms clock pause', () => {
+test('both cutting cores stay bright at 100ms and fade across the 360ms afterimage', () => {
   const { first, second } = pair(); const game = harness([...first, ...second]); activate(game);
   commit(game, first); commit(game, second);
   const strokes = [];
@@ -366,7 +440,7 @@ test('both cutting cores stay bright at 100ms, then fade within the 400ms clock 
   for (const [age, minimum, maximum] of [[100, 0.9, 1], [200, 0.7, 0.9], [390, 0, 0.05]]) {
     strokes.length = 0; game.laserWeaveVisual.bursts[0].ageMs = age;
     drawLaserWeave(ctx, game, getRenderQualityProfile('minimal'));
-    const cores = strokes.filter(stroke => Math.abs(stroke.width - 29 * 0.4) < 1e-8);
+    const cores = strokes.filter(stroke => Math.abs(stroke.width - 43 * 0.4) < 1e-8);
     assert.equal(cores.length, 2);
     assert.ok(cores.every(stroke => stroke.alpha >= minimum && stroke.alpha <= maximum));
   }
@@ -383,7 +457,7 @@ test('the actual timer HUD shows HOLD during firing and returns to TIME afterwar
   const ctx = new Proxy({}, { get: (target, key) => target[key] ?? (key === 'fillText' ? text => labels.push(text) : key.startsWith('create') ? () => ({ addColorStop() {} }) : () => {}), set: (target, key, value) => { target[key] = value; return true; } });
   renderer.drawTopHUDReal(ctx);
   assert.ok(labels.includes('HOLD')); assert.ok(!labels.includes('TIME'));
-  game.skillRuntime.updateRaw(400); labels.length = 0;
+  game.skillRuntime.updateRaw(180); labels.length = 0;
   renderer.drawTopHUDReal(ctx);
   assert.ok(labels.includes('TIME')); assert.ok(!labels.includes('HOLD'));
 });

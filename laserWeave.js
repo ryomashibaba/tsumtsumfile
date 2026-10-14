@@ -5,8 +5,9 @@ import { LaserWeaveAudio } from './laserWeaveAudio.js';
 import { SKILL_TIMING_TABLE } from './gameplayTiming.js?v=skill-timing-3';
 
 export const LASER_WEAVE_TUNING = Object.freeze({
-  widthIncrement: 8, activationMs: 240, breathingMs: 800,
-  visualHoldMs: 28, tailMs: SKILL_TIMING_TABLE.laserWeave.finalClear.durationMs, previewAlpha: 0.18,
+  widthIncrement: 12, activationMs: 240, breathingMs: 800,
+  // Afterimages outlive the 180ms input hold, without extending game/skill clocks.
+  visualHoldMs: 28, tailMs: 360, previewAlpha: 0.18,
   maxThreads: 8, maxParticles: 24, maxGlow: 6
 });
 export const LASER_WEAVE_COLORS = Object.freeze({
@@ -57,11 +58,14 @@ export function getLaserWeaveBeams(first, second, width) {
   });
 }
 
-export function collectLaserWeaveTargets(nodes, first, second, beams) {
+export function collectLaserWeaveTargets(nodes, first, second, beams, getRadius = node => node.radius) {
   const ids = new Set([...first, ...second].map(node => node.id));
   return nodes.filter(node => node && !node.dead && !node.removing && !node.isBomb && (
     ids.has(node.id) || (node.x >= 0 && node.x <= WIDTH && node.y >= FIELD_TOP && node.y <= FIELD_BOTTOM &&
-      beams.some(beam => distancePointToSegment(node, beam.start, beam.end) <= beam.width / 2))
+      // A Tsum is hit when the actual laser capsule touches its circular body.
+      // Using the resolved hit radius keeps artwork and gameplay consistent.
+      beams.some(beam => distancePointToSegment(node, beam.start, beam.end) <=
+        beam.width / 2 + Math.max(0, Number(getRadius(node)) || 0)))
   ));
 }
 
@@ -89,6 +93,8 @@ function settleHeldChain(ctx, session) {
   const held = getLaserWeaveHeldNodes(ctx.game, session);
   session.data.heldIds = [];
   if (!held.length) return;
+  // Two-Tsum traces are a skill-only aiming shortcut, not normal clear awards.
+  if (held.length < 3) return;
   const end = held.at(-1);
   ctx.clear.beginClear({
     source: 'chain', clearMode: 'simultaneous', scoreMode: 'chain',
@@ -121,7 +127,7 @@ export function registerLaserWeaveSkill({ SkillRegistry, skillValue }) {
       return session;
     },
     onChainCommit(ctx, session, chain) {
-      if (chain.length < 3) return true;
+      if (chain.length < 2) return true;
       const first = getLaserWeaveHeldNodes(ctx.game, session);
       if (!first.length) {
         session.data.heldIds = chain.map(node => node.id);
@@ -134,7 +140,8 @@ export function registerLaserWeaveSkill({ SkillRegistry, skillValue }) {
       const beams = getLaserWeaveBeams(first, chain, width);
       const tracedIds = new Set([...first, ...chain].map(node => node.id));
       const playable = ctx.game.tsums.filter(node => tracedIds.has(node.id) || (ctx.game.isTsumInPlayArea?.(node) ?? true));
-      const targets = collectLaserWeaveTargets(playable, first, chain, beams);
+      const targets = collectLaserWeaveTargets(playable, first, chain, beams,
+        node => ctx.game.getBodyRadius?.(node) ?? node.radius);
       const ghosts = targets.map(node => ({
         x: node.x, y: node.y, radius: ctx.game.getBodyRadius?.(node) || node.radius,
         type: ctx.board.getResolvedType(node)

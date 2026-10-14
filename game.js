@@ -11720,7 +11720,8 @@ class Game {
     this.chainBacktrackArmed = false;
     this.chainSelectedAt?.clear();
     this.gameFeel?.setChain(0);
-    if (chain.length < 3) {
+    // Only an active LASER WEAVE can commit a two-Tsum trace; ordinary chains still need three.
+    if (chain.length < (getLaserWeaveSession(this) ? 2 : 3)) {
       chain.forEach((tsum) => { tsum.inChain = false; });
       this.flushPostChainCleanup();
       return;

@@ -58,7 +58,7 @@ test("skill timing table keeps presentation, clear, and end phases independent",
     }
   );
   assert.equal(SKILL_TIMING_TABLE.captainLightyear.finalClear.durationMs, 570);
-  assert.deepEqual(SKILL_TIMING_TABLE.laserWeave.finalClear, { durationMs: 400, pauseClock: true, pausePhysics: false });
+  assert.deepEqual(SKILL_TIMING_TABLE.laserWeave.finalClear, { durationMs: 180, pauseClock: true, pausePhysics: false });
   assert.equal(SKILL_TIMING_TABLE.guidingMoana.initialClear.durationMs, 790);
   assert.equal(SKILL_TIMING_TABLE.guidingMoana.specialBombClear.durationMs, 670);
   assert.equal(SKILL_TIMING_TABLE.namine.endPause.durationMs, 270);
