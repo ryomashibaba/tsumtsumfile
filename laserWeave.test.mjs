@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { Game, ClearPipeline, InputRouter, SkillRuntimeManager } from './game.js';
 import { TSUM_TYPES, SKILL_TABLES, COIN_CORRECTION_TABLE } from './config.js';
 import { GameFeelController } from './gameFeel.js';
@@ -87,9 +87,7 @@ test('LASER WEAVE is selectable with all six balanced levels and unchanged coins
 });
 
 const laserSpritePath = new URL('./tsum_image/LASER_WEAVE.png', import.meta.url);
-test('packaged LASER WEAVE artwork is 512px RGBA when present', {
-  skip: !existsSync(laserSpritePath) && 'asset not tracked in GitHub; verify on the deployment machine'
-}, () => {
+test('packaged LASER WEAVE artwork is 512px RGBA', () => {
   const png = readFileSync(laserSpritePath);
   assert.equal(png.readUInt32BE(16), 512);
   assert.equal(png.readUInt32BE(20), 512);
