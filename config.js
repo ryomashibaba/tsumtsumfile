@@ -202,8 +202,8 @@ export const SKILL_TABLES = {
   laserWeave: {
     cost: Array(6).fill(17),
     threadCount: [3, 3, 4, 4, 5, 5],
-    laserWidth: [14, 16, 18, 20, 22, 24],
-    crossRadius: [42, 46, 50, 54, 58, 62],
+    laserWidth: [14, 16, 18, 20, 22, 54],
+    crossRadius: [42, 46, 50, 54, 58, 80],
     crossLimit: [1, 1, 2, 2, 3, 3],
     zoneLimit: [1, 1, 1, 2, 2, 2],
     chargeMultiplier: Array(6).fill(0.5),

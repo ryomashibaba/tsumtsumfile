@@ -6,7 +6,7 @@ import { getRenderQualityProfile } from './renderQuality.js';
 import { LaserWeaveAudio } from './laserWeaveAudio.js';
 import {
   getLaserWeaveSession, getLaserWeaveWidth, resetLaserWeave,
-  drawLaserWeave, getPhotonPreview, finishLaserWeaveAtTimeUp
+  drawLaserWeave, getPhotonPreview, finishLaserWeaveAtTimeUp, PHOTON_SL6_TUNING
 } from './laserWeave.js';
 import { photonThread, photonLineTargets, photonCrossings, photonZones, photonZoneTargets, photonBestCombination } from './photonGeometry.js';
 
@@ -91,7 +91,7 @@ const beam = (a, b) => photonThread([a, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2
 test('PHOTON LOOM retains save ID, exact six levels, 17 cost and 50% gauge', () => {
   assert.equal(type.name, 'PHOTON LOOM'); assert.equal(type.id, 'laserWeave');
   const table = SKILL_TABLES.laserWeave;
-  for (const [key, values] of Object.entries({cost:[17,17,17,17,17,17],threadCount:[3,3,4,4,5,5],laserWidth:[14,16,18,20,22,24],crossRadius:[42,46,50,54,58,62],crossLimit:[1,1,2,2,3,3],zoneLimit:[1,1,1,2,2,2],chargeMultiplier:[.5,.5,.5,.5,.5,.5]})) assert.deepEqual(table[key], values);
+  for (const [key, values] of Object.entries({cost:[17,17,17,17,17,17],threadCount:[3,3,4,4,5,5],laserWidth:[14,16,18,20,22,54],crossRadius:[42,46,50,54,58,80],crossLimit:[1,1,2,2,3,3],zoneLimit:[1,1,1,2,2,2],chargeMultiplier:[.5,.5,.5,.5,.5,.5]})) assert.deepEqual(table[key], values);
   assert.deepEqual(table.coinCorrectionType, ['correction_-5','correction_-4','correction_-4','correction_-3','correction_-3','correction_-2']);
   for (let level = 1; level <= 6; level++) {
     const game = harness([], level), session = activate(game);
@@ -149,7 +149,7 @@ test('zones require laser-only bounded faces, split consistently and reject smal
 });
 
 test('preview shares thread/cross/zone geometry with the actual release', () => {
-  const game=harness([],6); enableUpdates(game); const session=activate(game);
+  const game=harness([],5); enableUpdates(game); const session=activate(game);
   for (const [a,b] of triangle.slice(0,2)) { trace(game,a,b); advance(game,400); }
   const [a,b]=triangle[2], chain=[node('p1',a.x,a.y),node('p2',(a.x+b.x)/2,(a.y+b.y)/2),node('p3',b.x,b.y)];
   game.tsums.push(...chain); game.chain=chain; game.dragging=true;
@@ -158,8 +158,8 @@ test('preview shares thread/cross/zone geometry with the actual release', () => 
   assert.equal(session.data.zones[0].key,preview.zones[0].key);
 });
 
-test('SL6 delayed bursts hit refilled board in one group; ignition and optimal two-thread cascade complete before unlocking', () => {
-  const game=harness([],6); enableUpdates(game); const session=activate(game);
+test('SL5 regression: 200ms bursts, ignition and optimal two-thread cascade retain their original timing', () => {
+  const game=harness([],5); enableUpdates(game); const session=activate(game);
   const events=[]; const begin=game.clearPipeline.beginClear.bind(game.clearPipeline);
   game.clearPipeline.beginClear=spec=>{ events.push({kind:spec.meta?.photonAttack,ids:spec.targets.map(n=>n.id)}); return begin(spec); };
   trace(game,...triangle[0]); advance(game,400);
@@ -189,7 +189,7 @@ test('all SLs finish at the fixed thread count; no manual early finish or low-le
     const game=harness([],level); enableUpdates(game); const session=activate(game);
     for(let i=0;i<session.data.threadLimit;i++) { trace(game,{x:100,y:230+i*50},{x:280,y:230+i*50}); advance(game,400); }
     assert.equal(session.data.phase,'ignitionCharge');
-    advance(game,1600); assert.equal(getLaserWeaveSession(game),null);
+    advance(game,level===6?2200:1600); assert.equal(getLaserWeaveSession(game),null);
   }
 });
 
@@ -197,8 +197,57 @@ test('empty cross explosions are visual-only: no extra combo, score or charge', 
   const game=harness([],6); enableUpdates(game); activate(game);
   trace(game,{x:100,y:350},{x:300,y:350}); advance(game,400);
   trace(game,{x:200,y:200},{x:200,y:500}); const before=[game.score,game.coinBonus,game.charge,game.comboSystem.combo];
-  advance(game,200); assert.deepEqual([game.score,game.coinBonus,game.charge,game.comboSystem.combo],before);
+  advance(game,500); assert.deepEqual([game.score,game.coinBonus,game.charge,game.comboSystem.combo],before);
   assert.ok(game.laserWeaveVisual.bursts.some(b=>b.kind==='cross'));
+});
+
+test('SL6 waits for refill and selects the strongest live intersection at detonation', () => {
+  const game=harness([],6);enableUpdates(game);const session=activate(game);
+  trace(game,{x:100,y:300},{x:300,y:300});advance(game,400);
+  trace(game,{x:100,y:450},{x:300,y:450});advance(game,400);
+  session.data.blastLimit=1;
+  trace(game,{x:200,y:250},{x:200,y:500});
+  assert.equal(session.data.crossings[0].y,300);
+  const fresh=node('fresh-cross',250,450), incoming=node('incoming-cross',20,140);
+  incoming.spawnedAboveField=true;fresh.update=incoming.update=()=>{};game.tsums.push(fresh,incoming);
+  advance(game,500);assert.ok(game.tsums.includes(fresh));assert.equal(session.data.phase,'thread');
+  assert.equal(game.getCurrentGameplayPauseState().clockPaused,true);
+  incoming.y=160;const before=game.totalCleared;advance(game,150);
+  assert.equal(session.data.crossings[0].y,450);assert.ok(!game.tsums.includes(fresh));
+  assert.equal(game.totalCleared-before,1);assert.equal(game.charge,5);
+  assert.equal(session.data.phase,'threadRecovery');
+});
+
+test('SL6 formed-zone energy expands real finish hits without synthetic clears or extra coin/score rules', () => {
+  const bigTriangle=[[{x:40,y:500},{x:374,y:500}],[{x:40,y:500},{x:207,y:210}],[{x:207,y:210},{x:374,y:500}]];
+  function ignite(level, woven) {
+    const target=node('zone-halo',20,350),game=harness([target],level);enableUpdates(game);const session=activate(game);
+    session.data.beams=bigTriangle.map(([a,b])=>photonThread([a,{x:(a.x+b.x)/2,y:(a.y+b.y)/2},b],session.data.width));
+    session.data.zones=woven?photonZones(session.data.beams):[];
+    if(woven) session.data.maxWovenCoverage=session.data.zones.reduce((sum,z)=>sum+z.area,0)/(414*440);
+    session.data.phase='ignitionCharge';session.data.phaseRemainingMs=260;session.data.phaseAgeMs=0;
+    let request;const begin=game.clearPipeline.beginClear.bind(game.clearPipeline);
+    game.clearPipeline.beginClear=spec=>{request=spec;return begin(spec);};
+    advance(game,450);return {game,target,request};
+  }
+  for(const [level,woven] of [[5,true],[6,false]]) assert.equal(ignite(level,woven).game.totalCleared,0);
+  const {game,target,request}=ignite(6,true);
+  assert.equal(game.totalCleared,1);assert.ok(!game.tsums.includes(target));assert.equal(game.charge,.5);
+  assert.equal(game.score,150);assert.equal(request.correctionType,'correction_-2');
+  assert.equal(request.targets.length,1);assert.equal(request.effectiveClearCountOverride,undefined);
+  assert.equal(request.additionalClearCount,undefined);assert.equal(request.scoreMultiplier,undefined);
+  assert.ok(request.beams===undefined);assert.ok(PHOTON_SL6_TUNING.zoneWidthCap>SKILL_TABLES.laserWeave.laserWidth[5]);
+});
+
+test('SL6 cascade waits for fully entered, settled refill before one optimal two-line clear', () => {
+  const game=harness([],6);enableUpdates(game);const session=activate(game);
+  session.data.beams=[beam({x:100,y:200},{x:100,y:550}),beam({x:300,y:200},{x:300,y:550})];
+  session.data.phase='cascadeRefill';session.data.phaseRemainingMs=450;session.data.phaseAgeMs=0;
+  const incoming=node('late-refill',100,130);incoming.spawnedAboveField=true;incoming.update=()=>{};game.tsums.push(incoming);
+  advance(game,700);assert.equal(game.totalCleared,0);assert.equal(session.data.phase,'cascadeRefill');
+  incoming.y=200;advance(game,100);assert.equal(game.totalCleared,0);advance(game,100);
+  assert.equal(game.totalCleared,1);assert.equal(game.comboSystem.combo,1);assert.equal(game.charge,.5);
+  assert.equal(session.data.cascadeBeams.length,2);assert.equal(session.data.phase,'cascadeTail');
 });
 
 test('existing bombs are retained, blocked during gestures/attacks, preserve correction and charge half', () => {
@@ -219,8 +268,8 @@ test('existing bombs are retained, blocked during gestures/attacks, preserve cor
 });
 
 test('time-up auto-commits 3+ once, drops 2-, and allows fever extension only after complete finish', () => {
-  for(const length of [2,3]) {
-    const game=harness([],6);enableUpdates(game);const session=activate(game);
+  for(const level of [5,6]) for(const length of [2,3]) {
+    const game=harness([],level);enableUpdates(game);const session=activate(game);
     trace(game,{x:100,y:450},{x:300,y:450});advance(game,400);
     const chain=Array.from({length},(_,i)=>node(`expiry-${i}`,180,240+i*50));chain.forEach(n=>n.update=()=>{});
     game.tsums.push(...chain);game.chain=chain;game.dragging=true; game.timeRemaining=.005;
@@ -229,7 +278,7 @@ test('time-up auto-commits 3+ once, drops 2-, and allows fever extension only af
     game.finishChain(); assert.equal(session.data.beams.length,length===3?2:1);
     const ignitionTarget=node('fever-hit',300,450);ignitionTarget.update=()=>{};game.tsums.push(ignitionTarget);
     game.finishRun();assert.equal(game.runFinished,undefined);
-    advance(game,2000);assert.equal(getLaserWeaveSession(game),null);assert.ok(game.timeRemaining>0);assert.equal(game.timeUp,false);assert.equal(game.runFinished,undefined);
+    advance(game,level===6?3000:2000);assert.equal(getLaserWeaveSession(game),null);assert.ok(game.timeRemaining>0);assert.equal(game.timeUp,false);assert.equal(game.runFinished,undefined);
   }
 });
 
@@ -250,7 +299,7 @@ test('manual pause freezes everything, VFX toggles retain attack timing, 10fps m
     game.paused=true;const before=[game.elapsed,refill.y,session.data.phaseRemainingMs,game.laserWeaveVisual.activationAgeMs];advance(game,100,frameMs);
     assert.deepEqual([game.elapsed,refill.y,session.data.phaseRemainingMs,game.laserWeaveVisual.activationAgeMs],before);
     game.toggleSkillVisuals();assert.equal(game.isGameplayInputLocked(),true);game.paused=false;
-    advance(game,400,frameMs);
+    advance(game,700,frameMs);
     return [game.totalCleared,game.coinBonus,game.charge,session.data.beams.length,session.data.phase,game.physicsSteps,game.timeRemaining];
   }
   assert.deepEqual(run(100,true),run(1000/60,true));assert.deepEqual(run(100,true),run(100,false));
@@ -266,7 +315,7 @@ test('final refill keeps the clock/input/result locked until incoming bodies ent
 });
 
 test('drawing renders previews/threads/zones/finish at full and minimal quality, even with VFX disabled', () => {
-  const game=harness([],6);enableUpdates(game);const session=activate(game);
+  const game=harness([],5);enableUpdates(game);const session=activate(game);
   for(const [a,b] of triangle){trace(game,a,b);advance(game,400);}
   const labels=[];const ctx=new Proxy({}, {get:(target,key)=>target[key]??(key==='fillText'?text=>labels.push(text):key.startsWith('create')?()=>({addColorStop(){}}):()=>{}),set:(target,key,value)=>{target[key]=value;return true;}});
   for(const quality of ['normal','minimal'])for(const visuals of [true,false]) {
