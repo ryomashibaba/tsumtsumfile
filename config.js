@@ -202,7 +202,7 @@ export const SKILL_TABLES = {
   laserWeave: {
     cost: Array(6).fill(17),
     durationSec: [5, 6, 7, 8, 9, 10],
-    laserWidth: [19, 24, 29, 34, 39, 44],
+    laserWidth: [29, 36, 43, 50, 57, 64],
     coinCorrectionType: ["correction_-5", "correction_-4", "correction_-4", "correction_-3", "correction_-3", "correction_-2"]
   },
   dopa: {
