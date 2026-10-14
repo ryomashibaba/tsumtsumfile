@@ -162,7 +162,7 @@ import { GameFeelController, calculateVisualChainCount } from './gameFeel.js?v=g
 import { CHAIN_INPUT_TUNING, collectSegmentCandidates, shouldArmBacktrack, shouldBacktrack } from './chainInput.js?v=segment-chain-1';
 import { ChainTelemetry } from './chainTelemetry.js?v=advanced-settings-2';
 import { DOPA_TUNING, completeDopaFlight, getDopaCoinTable, registerDopaSkill, resetDopa } from './dopa.js?v=dopa-1';
-import { registerLaserWeaveSkill, getLaserWeaveSession, isLaserWeaveFiring, isLaserWeaveHeld, resetLaserWeave, updateLaserWeaveVisuals, unlockLaserWeaveAudio } from './laserWeave.js?v=laser-weave-4';
+import { registerLaserWeaveSkill, getLaserWeaveSession, isLaserWeaveFiring, isLaserWeaveHeld, resetLaserWeave, updateLaserWeaveVisuals, updateLaserWeaveGameplay, finishLaserWeaveAtTimeUp, LASER_WEAVE_TUNING, unlockLaserWeaveAudio } from './laserWeave.js?v=photon-loom-26';
 import {
   ADVANCED_SETTINGS_RECTS,
   DEBUG_ENTRIES,
@@ -999,9 +999,9 @@ class Tsum {
           this.gauge = 0;
         }
 
-        update(dt) {
-          this.bannerTimer = Math.max(0, this.bannerTimer - dt);
-          this.flash = Math.max(0, this.flash - dt * 1.8);
+        update(dt, presentationDt = dt) {
+          this.bannerTimer = Math.max(0, this.bannerTimer - presentationDt);
+          this.flash = Math.max(0, this.flash - presentationDt * 1.8);
 
           if (this.active) {
             this.gauge -= (100 / 11.5) * dt;
@@ -2751,7 +2751,7 @@ class ClearPipeline {
       this.game.comboSystem.recordAction();
       score = Math.round(score * (info.scoreMultiplier || 1));
       this.game.addScore(score);
-      this.game.addFloatingText(info.x, info.y - 18, `+${formatNumber(score)}`, "#ffffff", 12, 0.98);
+      this.game.addFloatingText(info.x, info.y - 18, `+${formatNumber(score)}`, "#ffffff", 12, info.meta?.laserWeave ? 0.5 : 0.98);
       const skillCoins = this.game.getCoinsByClearCount(
         resolvedClearCount,
         this.game.myTsum.id,
@@ -2761,7 +2761,7 @@ class ClearPipeline {
       this.game.addCoinBonus(skillCoins, { displayImmediately: false });
       awardedRawCoins = skillCoins;
     }
-    this.game.gameFeel?.emit('combo', {
+    if (!info.meta?.laserWeave) this.game.gameFeel?.emit('combo', {
       combo: this.game.comboSystem.combo,
       x: clearDisplayX,
       y: clearDisplayY
@@ -2801,7 +2801,7 @@ class ClearPipeline {
     });
 
     if (!info.meta?.dopa) {
-      this.game.addFloatingText(clearDisplayX, clearDisplayY + 6, `${resolvedClearCount}`, "#fff4b8", 48, 1);
+      this.game.addFloatingText(clearDisplayX, clearDisplayY + 6, `${resolvedClearCount}`, "#fff4b8", info.meta?.laserWeave ? 28 : 48, info.meta?.laserWeave ? 0.5 : 1);
     }
     this.game.gameFeel?.emit('clear', {
       effectiveClearCount: resolvedClearCount,
@@ -6548,12 +6548,14 @@ class Game {
 
   getCurrentGameplayPauseState() {
     if (this.dopaFlight) return { clockPaused: true, physicsPaused: true };
-    return resolveGameplayPauseState({
+    const pauseState = resolveGameplayPauseState({
       pendingClear: this.pendingClear,
       coingainClockPaused: this.isCoingainTimerPaused(),
       coingainPhysicsPaused: this.isCoingainPhysicsPaused(),
       skillTimingState: this.skillRuntime?.getTimingPauseState?.() || null
     });
+    if (isLaserWeaveFiring(this)) pauseState.clockPaused = true;
+    return pauseState;
   }
 
   getCurrentGameplayDelta(dt, pauseState = this.getCurrentGameplayPauseState()) {
@@ -6621,7 +6623,7 @@ class Game {
   }
 
   isGameplayInputLocked({ ignoreActionLock = false } = {}) {
-    return !!this.dopaFlight || !!this.pendingClear?.meta?.dopa ||
+    return isLaserWeaveFiring(this) || (!!getLaserWeaveSession(this) && !!this.pendingClear) || !!this.dopaFlight || !!this.pendingClear?.meta?.dopa ||
       (!ignoreActionLock && !!this.actionLock) || !!this.skillRuntime?.isInputLocked?.();
   }
 
@@ -12576,6 +12578,7 @@ class Game {
   }
 
   explodeBomb(bomb) {
+    if (getLaserWeaveSession(this) && (this.dragging || this.pendingClear || this.timeUp)) return false;
     if (this.isGameplayInputLocked({ ignoreActionLock: true })) {
       return false;
     }
@@ -12612,11 +12615,11 @@ class Game {
     if (bomb.bombType === "moanaSpecial") {
       bombsToExplode = this.bombs.filter((entry) => !entry.dead && entry.bombType === "moanaSpecial");
       const centers = bombsToExplode.map((entry) => ({ x: entry.x, y: entry.y }));
-      const visualPause = this.skillRuntime.startTimingPause(SKILL_TIMING_TABLE.guidingMoana.specialBombClear, {
+      const visualPause = !getLaserWeaveSession(this) ? this.skillRuntime.startTimingPause(SKILL_TIMING_TABLE.guidingMoana.specialBombClear, {
         kind: "specialBombClear",
         skillId: "guidingMoana",
         centers
-      });
+      }) : null;
       specialBombVisual = {
         skillId: "guidingMoana",
         kind: "specialBombClear",
@@ -12720,7 +12723,7 @@ class Game {
         coingainBombCount: coingainBombCountBonus,
         correctionType: bomb.correctionType || null
       };
-      if (bomb.bombType === "moanaSpecial") {
+      if (bomb.bombType === "moanaSpecial" && !getLaserWeaveSession(this)) {
         bombSpec.timer = skillTimingEnabled ? SKILL_TIMING_TABLE.guidingMoana.specialBombClear.durationMs / 1000 : 0;
         bombSpec.pauseClock = skillTimingEnabled && SKILL_TIMING_TABLE.guidingMoana.specialBombClear.pauseClock;
         bombSpec.pausePhysics = skillTimingEnabled && SKILL_TIMING_TABLE.guidingMoana.specialBombClear.pausePhysics;
@@ -12919,7 +12922,8 @@ class Game {
         }
       }
     };
-    const gravityMultiplier = this.isCheatActive() ? this.cheatSettings.gravityMultiplier : 1;
+    const gravityMultiplier = (this.isCheatActive() ? this.cheatSettings.gravityMultiplier : 1)
+      * (isLaserWeaveFiring(this) ? LASER_WEAVE_TUNING.refillGravity : 1);
     const gravity = {
       x: TSUM_PHYSICS_TUNING.gravity.x * gravityMultiplier,
       y: GRAVITY * gravityMultiplier
@@ -13345,7 +13349,8 @@ class Game {
     }
     if (isLaserWeaveFiring(this)) return;
     const laserSession = getLaserWeaveSession(this);
-    if (laserSession) this.skillRuntime.endSession(laserSession, 'timeout', { skipEndPause: true });
+    if (laserSession) { finishLaserWeaveAtTimeUp(this); return; }
+    if (this.pendingClear) return;
     if (this.deferredSkillInput) return;
     if ((this.coinFlights?.length || 0) > 0) {
       return;
@@ -13639,6 +13644,21 @@ class Game {
   }
 
   update(dt) {
+    // PHOTON LOOM uses the same simulation cadence at every render quality.
+    // Substeps interleave gravity and delayed hit selection, so a slow frame
+    // cannot resolve a burst against a board that has skipped its refill.
+    if (getLaserWeaveSession(this) && !this.photonSimulationStepping) {
+      if (this.paused) { this.laserWeaveAudio?.stop(); return; }
+      this.photonSimulationAccumulator = (this.photonSimulationAccumulator || 0) + Math.max(0, dt);
+      this.photonSimulationStepping = true;
+      try {
+        while (this.photonSimulationAccumulator + 1e-9 >= LASER_WEAVE_TUNING.simulationStepSec) {
+          this.photonSimulationAccumulator -= LASER_WEAVE_TUNING.simulationStepSec;
+          this.update(LASER_WEAVE_TUNING.simulationStepSec);
+        }
+      } finally { this.photonSimulationStepping = false; }
+      return;
+    }
     // DOPA owns presentation time until the last flyer stops. Do not advance
     // clocks, background, pending clears, gravity, refills, AI or other effects.
     if (this.state === "playing" && this.dopaFlight) {
@@ -13689,6 +13709,7 @@ class Game {
       !this.actionLock &&
       !this.pendingClear &&
       !isLaserWeaveFiring(this) &&
+      !getLaserWeaveSession(this) &&
       (this.coinFlights?.length || 0) > 0
     ) {
       return;
@@ -13711,6 +13732,7 @@ class Game {
       if (this.timeRemaining <= 0) {
         this.timeRemaining = 0;
         this.timeUp = true;
+        finishLaserWeaveAtTimeUp(this);
       }
     }
 
@@ -13770,13 +13792,14 @@ class Game {
     if (this.pendingClear) {
       this.clearPipeline.queueMyTsumSkillChargeFlights(this.pendingClear);
     }
-    this.updateSkillChargeFlights(gameplayDt * 1000);
+    this.updateSkillChargeFlights((isLaserWeaveFiring(this) ? dt : gameplayDt) * 1000);
+    updateLaserWeaveGameplay(this, dt);
     this.skillRuntime.update(gameplayDt * 1000);
     this.skillRuntime.resumeHeldFinalBattleHookInput?.();
     this.skillSystem.update(dt);
     this.gameFeel?.syncSkillReady(this.isSkillReadyForActivation());
     this.updateCheatAutoSkill?.();
-    this.feverSystem.update(gameplayDt);
+    this.feverSystem.update(gameplayDt, isLaserWeaveFiring(this) ? dt : gameplayDt);
     this.comboSystem.update(gameplayDt);
     this.refreshRenderBodies();
     if (this.strongestModeEnabled) {

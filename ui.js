@@ -38,7 +38,7 @@ import {
 import { drawLiliaBat } from './lilia.js?v=tsum-images-8';
 import { drawFinalBattleHookOverlay } from './finalBattleHook.js?v=final-battle-hook-1';
 import { drawDopaBackdrop, drawDopaForeground } from './dopa.js?v=dopa-1';
-import { drawLaserWeave, isLaserWeaveFiring } from './laserWeave.js?v=laser-weave-4';
+import { drawLaserWeave, getLaserWeaveSession, isLaserWeaveFiring } from './laserWeave.js?v=photon-loom-26';
 import { drawTsumArtwork, preloadTsumImages } from './tsumImages.js?v=render-quality-1';
 import { drawSkillPresentation, drawSkillSecondaryVisual } from './skillPresentationVisuals.js?v=render-quality-1';
 import {
@@ -1116,11 +1116,12 @@ export class UIRenderer {
     const feelCombo = this.game.gameFeel?.combo;
     const milestoneRatio = feelCombo?.maxLife > 0 ? feelCombo.life / feelCombo.maxLife : 0;
     const milestoneLevel = milestoneRatio > 0 ? feelCombo.level : 0;
-    const scale = 1 + this.game.comboSystem.pulse * 0.14 + Math.sin(milestoneRatio * Math.PI) * (milestoneLevel >= 5 ? 0.3 : milestoneLevel * 0.035);
+    const photonActive = !!getLaserWeaveSession(this.game);
+    const scale = photonActive ? 1 : 1 + this.game.comboSystem.pulse * 0.14 + Math.sin(milestoneRatio * Math.PI) * (milestoneLevel >= 5 ? 0.3 : milestoneLevel * 0.035);
 
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.translate(WIDTH * 0.5, 145);
+    ctx.translate(WIDTH * 0.5, photonActive ? 124 : 145);
     ctx.scale(scale, scale);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -1129,11 +1130,11 @@ export class UIRenderer {
     ctx.strokeStyle = "rgba(0,0,0,0.82)";
     const milestoneColors = ["#ffffff", "#fff2a0", "#ffe06e", "#ffbd72", "#8de8ff", "#fff6bd"];
     ctx.fillStyle = milestoneColors[milestoneLevel];
-    if (milestoneLevel > 0) {
+    if (milestoneLevel > 0 && !photonActive) {
       ctx.shadowBlur = 10 + milestoneLevel * 3;
       ctx.shadowColor = milestoneColors[milestoneLevel];
     }
-    ctx.font = `900 ${milestoneLevel >= 5 ? 42 : 32}px "Trebuchet MS", sans-serif`;
+    ctx.font = `900 ${photonActive ? 18 : milestoneLevel >= 5 ? 42 : 32}px "Trebuchet MS", sans-serif`;
     const text = milestoneLevel >= 5
       ? `${this.game.comboSystem.combo} COMBO!`
       : `COMBO x${this.game.comboSystem.combo}`;
