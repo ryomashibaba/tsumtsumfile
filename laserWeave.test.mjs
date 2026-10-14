@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { Game, ClearPipeline, InputRouter, SkillRuntimeManager } from './game.js';
 import { TSUM_TYPES, SKILL_TABLES, COIN_CORRECTION_TABLE } from './config.js';
 import { GameFeelController } from './gameFeel.js';
@@ -71,7 +71,7 @@ function pair() {
   };
 }
 
-test('LASER WEAVE is selectable, keeps all six exact levels and a transparent 512px sprite', () => {
+test('LASER WEAVE is selectable with all six balanced levels and unchanged coins', () => {
   assert.equal(type.score, 150);
   assert.equal(type.subEligible, false);
   assert.deepEqual(SKILL_TABLES.laserWeave.cost, Array(6).fill(17));
@@ -80,11 +80,17 @@ test('LASER WEAVE is selectable, keeps all six exact levels and a transparent 51
   for (let level = 1; level <= 6; level++) {
     const game = harness([], level); const session = activate(game);
     assert.equal(session.remainingMs, (4 + level) * 1000);
-    assert.equal(getLaserWeaveWidth(session), 14 + 5 * level);
+    assert.equal(getLaserWeaveWidth(session), [29, 36, 43, 50, 57, 64][level - 1]);
     assert.equal(game.isGameplayInputLocked(), false);
     assert.equal(game.skillRuntime.pendingActivation, null);
   }
-  const png = readFileSync(new URL('./tsum_image/LASER_WEAVE.png', import.meta.url));
+});
+
+const laserSpritePath = new URL('./tsum_image/LASER_WEAVE.png', import.meta.url);
+test('packaged LASER WEAVE artwork is 512px RGBA when present', {
+  skip: !existsSync(laserSpritePath) && 'asset not tracked in GitHub; verify on the deployment machine'
+}, () => {
+  const png = readFileSync(laserSpritePath);
   assert.equal(png.readUInt32BE(16), 512);
   assert.equal(png.readUInt32BE(20), 512);
   assert.equal(png[25], 6, 'RGBA image');
@@ -192,7 +198,7 @@ test('diagonal lasers extend through both anchor pairs to board edges in either 
 test('vertical, coincident and unlimited-width beams stay finite and cover the displayed board', () => {
   const first = [node('a', 200, 200), node('z', 240, 200)];
   const second = [node('b', 200, 300), node('y', 240, 300)];
-  const top = node('top', 200, 140); const bottom = node('bottom', 240, 580); const gap = node('gap', 220, 400);
+  const top = node('top', 200, 140); const bottom = node('bottom', 240, 580); const gap = node('gap', 270, 400);
   const beams = getLaserWeaveBeams(first, second, 20);
   assert.deepEqual(collectLaserWeaveTargets([top, bottom, gap], [], [], beams), [top, bottom]);
   const same = getLaserWeaveBeams(first, first, 20);
@@ -425,7 +431,7 @@ test('LASER WEAVE feedback does not freeze/shake/flash the entire board', () => 
   assert.equal(LASER_WEAVE_TUNING.maxParticles, 24);
 });
 
-test('both cutting cores stay bright at 100ms, then fade within the 400ms clock pause', () => {
+test('both cutting cores stay bright at 100ms and fade across the 360ms afterimage', () => {
   const { first, second } = pair(); const game = harness([...first, ...second]); activate(game);
   commit(game, first); commit(game, second);
   const strokes = [];
@@ -436,7 +442,7 @@ test('both cutting cores stay bright at 100ms, then fade within the 400ms clock 
   for (const [age, minimum, maximum] of [[100, 0.9, 1], [200, 0.7, 0.9], [390, 0, 0.05]]) {
     strokes.length = 0; game.laserWeaveVisual.bursts[0].ageMs = age;
     drawLaserWeave(ctx, game, getRenderQualityProfile('minimal'));
-    const cores = strokes.filter(stroke => Math.abs(stroke.width - 29 * 0.4) < 1e-8);
+    const cores = strokes.filter(stroke => Math.abs(stroke.width - 43 * 0.4) < 1e-8);
     assert.equal(cores.length, 2);
     assert.ok(cores.every(stroke => stroke.alpha >= minimum && stroke.alpha <= maximum));
   }
@@ -453,7 +459,7 @@ test('the actual timer HUD shows HOLD during firing and returns to TIME afterwar
   const ctx = new Proxy({}, { get: (target, key) => target[key] ?? (key === 'fillText' ? text => labels.push(text) : key.startsWith('create') ? () => ({ addColorStop() {} }) : () => {}), set: (target, key, value) => { target[key] = value; return true; } });
   renderer.drawTopHUDReal(ctx);
   assert.ok(labels.includes('HOLD')); assert.ok(!labels.includes('TIME'));
-  game.skillRuntime.updateRaw(400); labels.length = 0;
+  game.skillRuntime.updateRaw(180); labels.length = 0;
   renderer.drawTopHUDReal(ctx);
   assert.ok(labels.includes('TIME')); assert.ok(!labels.includes('HOLD'));
 });
