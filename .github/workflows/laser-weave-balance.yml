@@ -25,5 +25,5 @@ jobs:
           node --check game.js
           node --check laserWeave.js
           node --check gameplayTiming.js
-      - name: Full Node test suite
-        run: npm test
+      - name: Full Node test suite (serial, avoids CI runner CPU contention)
+        run: node --test --test-concurrency=1 *.test.mjs
