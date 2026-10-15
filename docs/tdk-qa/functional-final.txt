@@ -1,0 +1,738 @@
+✔ selection screen opens and closes advanced settings without selecting a Tsum (2.0544ms)
+✔ game, display, Developer, and other-debug disclosure are navigable (0.8892ms)
+✔ Telemetry turns on and off from Developer and persists independently of progress (2.3349ms)
+✔ Overlay can be toggled while measurement continues, then reset (1.0003ms)
+✔ saved settings restore after relaunch and query can force measurement despite saved OFF (0.3911ms)
+✔ without either enable source there is no Telemetry object or processing (0.5241ms)
+✔ current debug entries sort above older entries by metadata (0.9299ms)
+✔ CPU battle always uses the strongest mode (0.9314ms)
+✔ adaptive multiplier requires three matches (0.2426ms)
+✔ battle outcome handles win, loss, and draw (0.116ms)
+✔ strongest CPU win bonus is only awarded for wins (0.1142ms)
+✔ starting a CPU battle enables strongest mode and disables regular AI (1.2191ms)
+✔ render quality synchronization updates the other board (0.6139ms)
+✔ finalization awards and saves the battle bonus only once (0.4635ms)
+✔ sub Tsum candidates require artwork and explicit eligibility (0.7648ms)
+✔ every selectable my Tsum has color-safe 3, 4, and 5-type lineups (159.2138ms)
+✔ fixed sub-Tsum selections maximize board color separation for every board size (184.1868ms)
+✔ pair Tsum keeps Judy and Nick as the first two board types (2.6085ms)
+✔ injected randomness can select different valid lineups reproducibly (7.9384ms)
+✔ an impossible color-safe lineup fails explicitly (1.0258ms)
+✔ body lifecycle keeps waiting Tsums solid and makes removing Tsums visual-only (2.3226ms)
+✔ every removal route releases frozen chain occupancy at removal start (0.5997ms)
+✔ all empirical bomb probability tables sum to one (1.9776ms)
+✔ standard bomb boundaries resolve without unnecessary RNG (1.6379ms)
+✔ +Bomb shifts both threshold and probability lookup by one (0.7564ms)
+✔ large Tsum weights contribute five to effective clear count (0.3762ms)
+✔ 45 physical Tsums stay at 45 body slots while large Tsums add four clears each (0.3983ms)
+✔ one large MyTsum charges the skill gauge like five normal MyTsums (0.2108ms)
+✔ large Tsum correction keeps completed prefix and final marginal coin only (1.1176ms)
+✔ large Tsum correction uses marginal values from the active correction table (0.1905ms)
+✔ multiple large Tsums are corrected independently and synthetic clears append normally (0.2208ms)
+✔ explicit overrides and additive synthetic clears remain distinct (0.1963ms)
+✔ 9-clear weighted random boundaries are exact (0.1552ms)
+✔ 14-clear weighted random boundaries are exact (0.1895ms)
+✔ 18-clear thirds and floating point fallback always return a type (0.5097ms)
+✔ forced and disabled generation bypass standard selection (0.5026ms)
+✔ each resolver call represents one independent ClearEvent (0.7388ms)
+✔ large Tsum natural spawn uses pre-item count and the 1% boundary (0.4588ms)
+✔ natural large Tsum reservations are capped only when they enter the board (0.339ms)
+✔ one fast pointermove adds four Tsums in travel order, independent of array order (4.2107ms)
+✔ a segment grazing the edge intersects without a center sample (0.3014ms)
+✔ chain start uses its own slightly larger input radius (0.2363ms)
+✔ an invalid crossed candidate does not block a valid candidate beyond it (0.2768ms)
+✔ a long movement remains continuous beyond the old 64-point interpolation limit (0.224ms)
+✔ small jitter does not backtrack, while a deliberate return removes one node (0.3043ms)
+✔ frozen nodes are skipped and a special unlimited-distance rule remains usable (0.2073ms)
+✔ a pointermove without coalesced events still uses its actual endpoint (0.5958ms)
+✔ coalesced points preserve a curved path instead of using the endpoint chord (0.4234ms)
+✔ pointercancel releases the manual chain without committing (0.4345ms)
+✔ mixed chains and distance multipliers apply to pointer extension only with player cheat enabled (0.3541ms)
+[COIN] Tsum=coingain Clears=20 Type=correction_-15 → Coins=17 (base=96)
+[COIN] Tsum=coingain Clears=20 Type=correction_100 → Coins=1796 (base=96)
+[COIN] Tsum=coingain Clears=20 Type=correction_15 → Coins=351 (base=96)
+✔ cheat settings normalize old, invalid, boundary, and special values (3.4842ms)
+✔ Coronation Elsa freeze radii keep level defaults and normalize independent cheat overrides (0.5097ms)
+✔ skill cost overrides are character-specific and keep Judy and Nick separate (0.4507ms)
+✔ finite spawn scheduling is deterministic and does not bank tokens while full (0.431ms)
+✔ instant finite fill and unlimited instant use the safe 999 per second rate (0.1948ms)
+✔ gauge reconciliation preserves ratio across finite, zero, and unlimited costs (0.2371ms)
+✔ Judy and Nick support independent zero and unlimited thresholds (1.0024ms)
+✔ auto skill waits for locks and active sessions, then uses the normal activation entry (0.5277ms)
+✔ coin correction supports values outside the built-in table and shifts coingain stages (5.2253ms)
+✔ Judy and Nick expose ten independent count corrections plus the overlay (1.2096ms)
+✔ Final Battle Hook exposes one skill coin correction for both manual and diagonal clears (1.1211ms)
+✔ Tsum diameter is clamped and updates normal and large live bodies (1.1372ms)
+✔ common cheat ranges normalize, round-trip and reset old saves (0.6658ms)
+✔ spawn percentage endpoints and sub-Tsum distribution override only player cheats (0.8872ms)
+✔ board conversion keeps geometry and bombs, cancels input and rejects unsafe states (0.6636ms)
+✔ pair My-Tsums split the configured probability and conversion between Judy and Nick (0.7988ms)
+✔ settings panel exposes all common controls and their updates persist through save/load (7.8722ms)
+✔ coin awards map every positive marginal coin to its physical Tsum (2.0672ms)
+✔ large Tsum coins stay bundled and synthetic clears use the event origin (0.4388ms)
+✔ zero coin clears create no awards (0.225ms)
+✔ coin flight lingers, follows the exponential chase, flips, and lands exactly (0.7051ms)
+✔ ClearPipeline emits each disappeared Tsum and synthetic bundle exactly once (0.463ms)
+✔ arrivals increment only the displayed run coins and direct awards update both values (2.5649ms)
+✔ coin flight effects respect the quality cap without changing awarded coins (0.7223ms)
+✔ finishRun waits while a flying coin is still collecting (0.8259ms)
+✔ planner snapshot, adjacency, simulation, and enumeration never mutate the live board (27.9027ms)
+✔ the pure freeze transition is deterministic and increments each unique target by one layer (1.3406ms)
+✔ actual Coronation Elsa onChainCommit and planner simulation freeze the same IDs and layers (8.9976ms)
+✔ Coronation Elsa line and frozen-neighbor radii independently control prediction and actual freeze (2.6666ms)
+✔ planner enumerates a legal upper central diagonal 3-chain without edge or stability filters (1.6247ms)
+✔ planner exhaustively enumerates every undirected 3-node path in a branching graph (1.8499ms)
+✔ equivalent future frozen masks dedupe in Phase A and remain available for Phase B (2.4216ms)
+✔ adjacency uses the live directed chain rule and excludes disallowed types (1.2499ms)
+✔ planner profiling reports counts and only logs under Coronation Elsa debug (10.0389ms)
+✔ recent fast-falling upper chain is legal but rejected as freeze-flow unsafe (6.9423ms)
+✔ stable lower chain is rejected when its line preview freezes an upper inflow node (17.9691ms)
+✔ a fresh snapshot rejects a stale route after movement brings inflow into its freeze line (14.3024ms)
+✔ safe lower trace remains selectable while unrelated upper inflow is falling (4.2087ms)
+✔ moving lower chain on stable support remains freeze-flow safe (3.7681ms)
+✔ TAP diagnostics compare pending geometry with the current Coronation ice when no trace is selected (1.8375ms)
+✔ ICE_TAP_READY ignores a falling Tsum that is far above the actual tap corridor (1.4395ms)
+✔ ICE_TAP_READY detects motion around the ice and immediately accepts an initially stable board (1.1366ms)
+✔ final-trace settle risk waits only for unsettled nodes that can change freeze or tap impact (1.3956ms)
+✔ Phase A keeps temporary unsafe nodes as future structural trace potential (14.6609ms)
+✔ five supported trace groups remain projected before the first ice tap (49.4882ms)
+✔ ice taps without waiting when no legal root trace is flow-blocked (1.2169ms)
+✔ board refill waits separately when no ice or legal trace exists (1.7563ms)
+✔ condition-based wait releases immediately when the same upper chain becomes safe (1.9682ms)
+✔ settled upper chain remains usable when the lower board is filled (1.0525ms)
+✔ existing upper Coronation ice without active inflow taps instead of waiting (0.7375ms)
+✔ terminal solver traces every reachable isolated triple before tapping ice (8.7232ms)
+✔ terminal solver immediately taps the best component when no legal trace remains (0.5159ms)
+✔ equal-coin terminal components prefer the one with more physical MyTsum (0.2741ms)
+✔ terminal tap evaluator includes layered and large-Tsum effective clear units (0.4971ms)
+✔ terminal component evaluation recognizes a frozen bridge (0.4152ms)
+✔ hard-budget timeout switches to deterministic adaptive beam mode (1.466ms)
+✔ outer deadline returns WAIT instead of tapping when no safe candidate was confirmed (0.3792ms)
+✔ outer deadline returns the best confirmed safe trace instead of tapping (0.5358ms)
+✔ adaptive beam configuration covers depths 1 through 15 and all three rollouts (0.1444ms)
+✔ equivalent three- and six-chains keep the deterministic shorter representative (0.9993ms)
+✔ Phase A chooses a six-trace future over an edge-aligned four-trace freeze (27.6182ms)
+✔ Phase B permits a four-chain when depth is equal and its real terminal coin is higher (0.8515ms)
+✔ streaming enumeration confirms a safe trace before enumerating the remaining dense paths (2.6272ms)
+✔ large-board progressive search resumes beyond leading starts after repeated budget expiry (5.382ms)
+✔ an incomplete adjacency waits and resumes instead of declaring that no trace exists (5.0533ms)
+✔ spatial adjacency matches exact live rules for small, mixed, large and unlimited-distance Tsums (20.916ms)
+✔ dense cheat boards retain safe progress and prediction/commit parity across count, radius, gravity and spawn modes (778.7574ms)
+✔ a large board only uses budget-expiry tap fallback when ice exists and the caller's wait has expired (1.3209ms)
+✔ spatial ice propagation and one-contact splash match a brute-force oracle on large mixed-radius boards (33.8826ms)
+✔ zero and maximum freeze-radius overrides preserve the exact frozen-neighbor expansion on a 999-body board (11.0498ms)
+✔ live planner context, identity execution and freeze/tap remain consistent through a 999-body cycle (55.2285ms)
+✔ moving geometry invalidates suspended paths but rotates starts to reach a late legal chain (5.5846ms)
+[COIN] Tsum=dopa Clears=1003 Type=correction_-2 → Coins=9879 (base=0)
+✔ SL6 release snapshots directions, accelerates overlapping launches, spends exact reflected distances (17.4667ms)
+✔ SL6 swept contacts count re-entry, sustained overlap once, moving flyers and immediate growth (3.8601ms)
+✔ SL6 near-expiry flights freeze all ordinary updates, pause safely, clear once and unlock (5.8666ms)
+✔ SL6 repeated clears have no 317 cap in score, coin awards or display plan (3.8452ms)
+✔ Final Battle Hook SL1-6 tables match the calibrated specification (1.9332ms)
+✔ SL6 first special chain counts two physical Hooks plus Angry ten as twelve (0.3387ms)
+✔ slash geometry is 65 degrees and grows only through halfWidth calibration (0.3972ms)
+✔ visual scale follows every anchor, interpolates monotonically, and has no success cap (0.4318ms)
+✔ diagonal selection uses live capsule geometry and excludes bombs (0.4101ms)
+✔ representative 45-node boards expand geometrically for SL3, SL4, and SL6 (2.1727ms)
+✔ held input during every Final Battle Hook presentation resumes only after input is unlocked (5.8057ms)
+✔ Final Battle Hook cannot be reactivated until its active session ends (1.3064ms)
+✔ held Final Battle Hook input can resume from the Angry Hook (0.9064ms)
+✔ held Final Battle Hook input is discarded on release, invalid targets, and session end (1.0176ms)
+✔ successful chain emits separate manual and diagonal events and never clears Angry Hook (2.3551ms)
+✔ strongest mode commits the exact three selected identities despite overlaps and intervening Hooks (1.2219ms)
+✔ strongest mode revalidates selected Hook identities immediately before committing (0.5702ms)
+✔ only ACTIVE_INPUT consumes the 1800 ms budget (0.6041ms)
+✔ an expired in-progress drag can commit, while expiry without a drag ends immediately (0.5766ms)
+✔ Angry Hook provides the only long-distance edge while physical Hooks retain normal distance (1.6646ms)
+✔ ClearPipeline uses independent bomb count and exact physical plus synthetic gauge contributions (0.8411ms)
+✔ two finalized ClearEvents each add one combo and manual bomb resolution receives physical count (39.4605ms)
+✔ clear intensity boundaries resolve from effective count (3.6533ms)
+✔ chain anticipation uses weighted large-Tsum count and exact thresholds (3.3338ms)
+✔ combo milestones keep ordinary combos quiet and celebrate hundreds (0.876ms)
+✔ fever anticipation uses 70, 85, 95, and 100 percent stages (0.5685ms)
+✔ skill ready fires once per false-to-true transition (1.6694ms)
+✔ quality progressively suppresses feedback without changing the event payload (2.6009ms)
+✔ particle and ring budgets cap a large bomb chain (1.1227ms)
+✔ crossing the same chain threshold twice does not replay its accent (0.7237ms)
+✔ reset removes every transient and result state (0.6603ms)
+✔ result count-up reaches the exact score and reveals all rows within one second (0.8409ms)
+✔ disabled CPU-style controller creates no feedback state (0.354ms)
+✔ gameplay pause state keeps clock and physics independent (3.1434ms)
+✔ coingain phase policies compose with pending clear policies (0.6551ms)
+✔ skill timing table keeps presentation, clear, and end phases independent (1.0797ms)
+✔ a paused initial clear freezes gameplay clocks and physics while body presentation continues (2.625ms)
+✔ a skill presentation freezes gameplay while its raw timer still advances (0.9632ms)
+✔ time-up coin collection advances only the flying coins before result finalization (1.2501ms)
+✔ skill visual state derives elapsed time without exposing mutable runtime arrays (1.0341ms)
+✔ the global skill visual toggle persists and releases active skill timing when disabled (0.743ms)
+✔ minimal quality limits drawing to 30 fps while every update still runs (1.4629ms)
+✔ gameplay clocks and physics resume without catch-up after the initial clear (2.0251ms)
+✔ Gaston runs the clock while Moana pauses both axes for the full initial clear (5.6075ms)
+✔ disabled skill visuals make Gaston and Moana initial clears non-pausing and immediate (0.6132ms)
+✔ SkillRuntimeManager defers activation to the exact raw presentation boundary (0.7147ms)
+✔ disabled skill visuals activate immediately and skip secondary timing callbacks exactly once (0.2395ms)
+✔ turning visuals off during a presentation completes activation immediately (0.1702ms)
+✔ natural skill end runs cleanup once and holds the configured raw end pause (0.3334ms)
+✔ forced runtime reset never adds a character end pause (0.1835ms)
+✔ central skill timing lock blocks user, bomb, fan, and skill entry points (0.7097ms)
+✔ an active sequential chain clear still allows the next manual chain to start (1.0229ms)
+✔ non-chain action locks still reject a new manual chain (0.1562ms)
+✔ Captain Lightyear final clear replaces the normal clear delay with 570 ms (0.3432ms)
+✔ Captain Lightyear final clear has zero skill delay when visuals are disabled (0.1634ms)
+✔ one Moana special-bomb action creates one 670 ms pause even for multiple bombs (0.3397ms)
+✔ JudyNick initial activation uses the mode captured at acceptance (0.6398ms)
+✔ JudyNick reactivation switches from Judy to Nick even when Judy was prepared (0.2231ms)
+✔ JudyNick reactivation switches from Nick to Judy even when Nick was prepared (0.0971ms)
+✔ JudyNick repeated reactivation alternates Judy and Nick (0.1733ms)
+[COIN] Tsum=laserWeave Clears=4 Type=correction_-3 → Coins=1 (base=1)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-5 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-5 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-5 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-4 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-4 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-4 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-4 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-4 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-4 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-4 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=8 Type=correction_2 → Coins=20 (base=10)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-5 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_0 → Coins=0 (base=0)
+[FINISH] Score=600 BaseCoins=0 Multiplier=1 Final=1 TotalCoins=undefined
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-5 → Coins=0 (base=0)
+[FINISH] Score=450 BaseCoins=0 Multiplier=1 Final=1 TotalCoins=undefined
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+✔ PHOTON LOOM retains save ID, exact six levels, 17 cost and 50% gauge (2.9413ms)
+✔ one release fires one full-board thread, circle contacts and chain nodes clear once with half gauge (30.7844ms)
+✔ short endpoints use farthest chain pair, coincident anchors remain finite, off-board nodes are excluded (0.5687ms)
+✔ crossings enforce 20 degrees and merge nearby vertices; best combination maximizes distinct hits (0.7454ms)
+✔ zones require laser-only bounded faces, split consistently and reject small/degenerate regions (2.6867ms)
+✔ preview shares thread/cross/zone geometry with the actual release (3.8507ms)
+✔ SL5 regression: 200ms bursts, ignition and optimal two-thread cascade retain their original timing (8.2537ms)
+✔ all SLs finish at the fixed thread count; no manual early finish or low-level cascade (13.3022ms)
+✔ empty cross explosions are visual-only: no extra combo, score or charge (1.3091ms)
+✔ SL6 waits for refill and selects the strongest live intersection at detonation (1.6848ms)
+✔ SL6 formed-zone energy expands real finish hits without synthetic clears or extra coin/score rules (1.7702ms)
+✔ SL6 cascade waits for fully entered, settled refill before one optimal two-line clear (0.8998ms)
+✔ existing bombs are retained, blocked during gestures/attacks, preserve correction and charge half (2.3042ms)
+✔ time-up auto-commits 3+ once, drops 2-, and allows fever extension only after complete finish (7.2846ms)
+✔ time-up waits for a pending bomb reward, then performs partial finish before results (1.1847ms)
+✔ manual pause freezes everything, VFX toggles retain attack timing, 10fps matches 60fps (3.7417ms)
+✔ final refill keeps the clock/input/result locked until incoming bodies enter the field (1.0939ms)
+✔ drawing renders previews/threads/zones/finish at full and minimal quality, even with VFX disabled (3.6275ms)
+✔ missing audio and failed devices cannot interrupt gameplay; CPU stays silent (0.5848ms)
+✔ Lilia basic skill tables use cost 19, durations 5-10 and required coin corrections (2.8785ms)
+✔ BAT state retains base type, applies to matching new spawns, and restores on end (0.6914ms)
+✔ chain classification separates Lilia and BAT and rejects mixing (0.5351ms)
+✔ most common non-MyTsum becomes BAT with available-type tie breaking (2.5257ms)
+✔ Lilia chain moves existing BATs up to the chained Lilia count (11.4133ms)
+✔ Lilia chain longer than the BAT count moves every available BAT and creates none (0.7042ms)
+✔ Lilia chain never uses a virtual BAT actor (0.4212ms)
+✔ default Lilia BAT flight speed is increased 1.5x to 315 (0.8436ms)
+✔ all Lilia BAT clear paths use the doubled default line thickness (7.9583ms)
+✔ BAT chain flies the selected BATs themselves in chain order (8.5512ms)
+✔ line clear uses capsule distance and ignores far tsums and bombs (3.8147ms)
+✔ aura clear includes only nodes within radius (0.3644ms)
+✔ Lilia union deduplicates line and aura while BAT resolution has no aura (1.1408ms)
+✔ flight changes position during hold, is deterministic and snapshots stay immutable (0.7918ms)
+✔ flight reflects within the configured elliptical field boundary (0.7087ms)
+✔ flight boundary moves 10px toward the left, right, and bottom edges while top stays fixed (0.6502ms)
+✔ registered skill advances flight without pausing game time and passes clear integration options (1.7096ms)
+✔ Lilia skill chain hooks prepare BAT drawing and clearing for strongest-mode execution (1.1816ms)
+✔ different hold durations can produce different geometric clear sets (0.5795ms)
+✔ Perfume Alice raises the current board target by 25 only while active (1.2471ms)
+✔ Perfume Alice adds 25 to the cheat board target and preserves an unlimited target (0.2492ms)
+✔ Perfume Alice's cheat refill also uses the raised board target (1.2267ms)
+✔ Perfume Alice clears each adjacent Alice simultaneously with its triggering chain Tsum (0.5913ms)
+✔ Perfume Alice does not alter non-chain clears (0.1386ms)
+✔ render quality modes normalize and cycle in display order (2.5377ms)
+✔ quality profiles progressively reduce expensive drawing (0.5758ms)
+✔ quality profiles cap backing resolution without reducing logical updates (1.1768ms)
+✔ static server serves every Tsum PNG in parallel while an idle socket is open (357.3867ms)
+✔ every requested skill resolves to a distinct active theme (2.315ms)
+✔ Gaston state exists during initial clear but the red world waits for loopActive (0.3272ms)
+✔ Captain Lightyear reticles exactly follow remainingShots (0.4041ms)
+✔ Judy and Nick switch through white without blending both worlds (0.4413ms)
+✔ minimal quality still draws identifying active surfaces and Captain reticles (0.9748ms)
+✔ Coronation Elsa and Perfume Alice use high-contrast active surfaces (0.8436ms)
+✔ runtime exposes a copied active snapshot and removes it on the session end frame (0.8284ms)
+✔ Moana remnants cannot keep the active world alive after its session ends (0.3459ms)
+✔ runtime snapshot follows Captain shots and Judy Nick currentMode (0.3328ms)
+✔ skill visual OFF does not suppress the independent ACTIVE state (0.8582ms)
+✔ FEVER frame remains drawable while an ACTIVE world exists (0.4701ms)
+✔ a stopped board waits for the first skill effect and clears even two surviving chain nodes (8.7625ms)
+✔ a moving board starts the held chain after skill acceptance (1.6007ms)
+✔ an in-progress clear retains its cursor and runs beside the skill clear on a moving board (0.6903ms)
+✔ a stopped board preserves its clear until the skill's initial work ends (0.232ms)
+✔ targets claimed by the skill are removed from the deferred clear once (0.7051ms)
+✔ a target removed directly by the skill is pruned but an already popping target stays (0.3208ms)
+✔ a held bomb waits for release, while a cancelled hold never explodes (0.3229ms)
+✔ the skill is accepted before a held bomb explodes (0.5188ms)
+✔ an unready skill does not consume the held bomb (0.3272ms)
+✔ a second pointer can tap the skill without taking over the tracing pointer (2.5781ms)
+✔ releasing a consumed tracing pointer cannot trigger a second action (0.3496ms)
+✔ all skill visual timeline boundaries resolve and draw without mutating game state (46.7752ms)
+✔ the same visual seed emits the same deterministic canvas command stream (2.7522ms)
+✔ light quality emits fewer skill particle commands than normal quality (0.8645ms)
+✔ unknown visual states fail closed without drawing gameplay effects (0.2842ms)
+✔ disabling all skill visuals skips both presentation and secondary drawing (0.2477ms)
+✔ Namine randomly fixes one board sub-Tsum type for its full session (3.6972ms)
+✔ Namine, Perfume Alice, and Jamil use the required skill-time gauge rates at every level (0.3197ms)
+✔ Perfume Alice and Jamil carry only the configured gauge rate into skill clears (1.5183ms)
+✔ Judy and Nick charge only the opposite gauge while a skill is active (1.5161ms)
+✔ JudyNick overlay switches the blocked gauge before returning from activation (2.0555ms)
+✔ a tapped Judy bubble uses the existing bubble clear path (2.0345ms)
+✔ dragging from a Judy bubble keeps it in the normal chain instead of bursting (0.2848ms)
+✔ multiple bubbled Judy Tsums can use the ordinary chain extension (0.6959ms)
+✔ dual READY gauges honor the side selected by the player (0.2031ms)
+✔ the diagonal JudyNick button maps its Judy and Nick halves (0.5238ms)
+✔ selecting an unready JudyNick side does not activate the other ready side (0.3992ms)
+✔ JudyNick COUNT score data is carried through ClearPipeline augmentation (0.8366ms)
+✔ ordinary Tsum skill activation ignores JudyNick side selection (0.6738ms)
+[CORONATION ELSA WAIT RELEASE] {
+  reason: 'recent-spawns-max-wait',
+  recentCount: 1,
+  settledCount: 0,
+  requiredSettled: 1,
+  unsettledCount: 1,
+  playableCount: 45,
+  frozenCount: 0,
+  waitDuration: 0.7,
+  newestSpawnAge: 0.29999999999999993,
+  noChainFrames: 0,
+  suppressRelaxedFallback: false,
+  suppressSpecialTapFrames: 0,
+  pendingExtraFreezeTap: false
+}
+✔ Coronation Elsa opportunity wait starts on a lower safe trace and releases when the upper route improves (3.4023ms)
+✔ Coronation Elsa opportunity wait does not start when pending geometry is not above the selection (0.4595ms)
+✔ Coronation Elsa opportunity wait always releases to the fresh safe trace at 66.7 ms (1.6677ms)
+✔ Coronation Elsa opportunity timeout never promotes the still-unsafe upper route (0.571ms)
+✔ Coronation Elsa board readiness waits only for a future trace-relevant first board (0.5647ms)
+✔ Coronation Elsa trace recovery waits without a selected trace and remains bounded (0.6004ms)
+✔ Coronation Elsa recovery requires two stable physics ticks before TAP (0.53ms)
+✔ Coronation Elsa trace potential does not become stable while relevant positions keep changing (0.5099ms)
+✔ Coronation Elsa settle cycle rearms after a tap (0.9373ms)
+✔ fever remaining clear count includes five and excludes four or fewer (0.2952ms)
+✔ fever bomb cancel eligibility requires strongest mode, no fever, no skill, and a bomb (0.2157ms)
+✔ Coronation Elsa taps completed ice at 38 frozen Tsums or after 0.15 seconds with no trace (0.1435ms)
+✔ Coronation Elsa any-trace fallback keeps no position, direction, or stability filter (0.1639ms)
+✔ Coronation Elsa chain selection uses the terminal planner result (0.1579ms)
+✔ Coronation Elsa common ice-tap guard refuses every freeze target while a legal trace exists (0.0842ms)
+✔ Coronation Elsa completed ice revalidates the board before both 38-count and 0.15-second taps (0.3048ms)
+✔ Coronation Elsa completed-ice path cannot bypass physical ICE_TAP_READY (0.2069ms)
+✔ Coronation Elsa common ice-tap path taps only after confirming no legal trace (0.153ms)
+✔ Coronation Elsa ICE_TAP_READY blocks planValidated TAP after four traces while upper ice-relevant motion remains (2.7534ms)
+✔ Coronation Elsa ICE_TAP_READY requires one distinct stable physics tick after motion (0.9477ms)
+✔ Coronation Elsa ICE_TAP_READY adds no fixed wait to an initially stable board (0.43ms)
+✔ Coronation Elsa consumes moving ice after 100ms without restarting for component or refill changes (0.6894ms)
+✔ Coronation Elsa ice wait starts fresh for a new skill session (0.526ms)
+✔ Coronation Elsa commits planned identities when smaller overlapping Tsums would intercept coordinate input (1.7267ms)
+✔ InputRouter taps the selected Coronation ice identity and rejects its removal rather than switching components (0.4127ms)
+✔ Coronation Elsa InputRouter cannot bypass ICE_TAP_READY (0.1365ms)
+✔ Coronation Elsa planner always traces before attempting remaining ice (0.668ms)
+✔ Coronation Elsa outer step does not double-count traces reported by the executor (0.1622ms)
+✔ Coronation Elsa settle opportunity WAIT performs no trace or ice tap and retries on the next frame (0.1249ms)
+✔ Coronation Elsa cancels a blocked TAP and traces when the next post-physics plan finds a safe chain (0.2126ms)
+✔ Coronation Elsa planner immediately taps only after a second no-trace confirmation (0.1665ms)
+✔ Coronation Elsa discards an invalid planned route and replans once from the live board (0.1499ms)
+✔ Coronation Elsa planner cache separates freeze support from chain geometry (0.6043ms)
+✔ Coronation Elsa validation token reuses context only while its revision is current (0.8544ms)
+✔ Coronation Elsa records one WAIT episode and releases it to a safe trace (0.2994ms)
+✔ Coronation Elsa records opportunity telemetry separately from inflow waits (0.4067ms)
+✔ Coronation Elsa replans the second trace in the same step and stops after two (0.394ms)
+✔ Coronation Elsa practical stability accepts non-contact Tsums at 1 velocity (0.454ms)
+✔ Coronation Elsa active inflow excludes a moving Tsum already supported from below (0.3774ms)
+✔ Coronation Elsa marks an unsupported descending support column as dynamic inflow (0.2666ms)
+✔ Coronation Elsa preview rejects a chain containing a practically unstable Tsum (1.5859ms)
+✔ Coronation Elsa recent-spawn wait always releases at 0.7 seconds (1.2599ms)
+✔ Coronation Elsa edge starts include exactly two Tsum radii and exclude top-only or central starts (0.1488ms)
+✔ Coronation Elsa maps bottom starts to horizontal and side starts to vertical searches (0.154ms)
+✔ Coronation Elsa directional geometry requires 58 pixels of progress within 35 percent tilt (0.3918ms)
+✔ Coronation Elsa directional search builds a valid parallel chain from connected Tsums (0.4031ms)
+✔ Coronation Elsa rejects a chain whose middle Tsums snake out of the edge lane (0.0816ms)
+✔ Coronation Elsa deterministic search keeps a connected detour inside the edge lane (0.1401ms)
+✔ Coronation Elsa primary search keeps endpoints within 58 pixels and allows middle Tsums within 116 pixels (10.7696ms)
+✔ Coronation Elsa secondary search expands endpoints to 116 pixels when primary has no candidate (0.5782ms)
+✔ Coronation Elsa secondary search prioritizes endpoints nearest existing ice (0.7015ms)
+✔ Coronation Elsa preview selects the largest predicted clear without edge-direction bonuses (0.3564ms)
+✔ Coronation Elsa prioritizes a candidate that leaves another legal trace before the fourth commit (0.296ms)
+✔ Coronation Elsa preview re-evaluates vertical and horizontal directions from the current board (0.3465ms)
+✔ Coronation Elsa preview does not use full-board fallback after four committed traces (0.2034ms)
+✔ Coronation Elsa expands to 174 pixels before four committed traces (0.2971ms)
+✔ Coronation Elsa uses a parallel full-board chain only before four committed traces (0.2816ms)
+✔ fever bomb cancel queues every snapshot chain once and ignores later nodes (0.4674ms)
+✔ fever bomb cancel does not consume a bomb when the snapshot has no chain (0.092ms)
+✔ fever bomb cancel reselects a bomb when the reservation becomes invalid (0.1281ms)
+✔ strongest mode best bomb chooses the largest effect and preserves other bombs (0.1191ms)
+✔ Final Battle Hook strongest mode prioritizes an exact three-node chain through Angry Hook (0.2058ms)
+✔ Final Battle Hook strongest mode deterministically selects only two identities when extra Hooks intervene (0.0672ms)
+✔ Final Battle Hook strongest mode does not fall back while active and fewer than two Hooks exist (0.087ms)
+✔ Final Battle Hook strongest mode falls back outside its active input window (0.0725ms)
+✔ Final Battle Hook active input retries its three-chain before bombs or other strongest actions (0.1298ms)
+✔ normal catalog, registry and selectable list exclude development Tsum (1.511ms)
+✔ definition validation rejects missing SL, invalid IDs, absent hooks, modes and visuals (0.7127ms)
+✔ adapter adds production and development definitions without changing legacy entries (11.9739ms)
+✔ sub-Tsum validation rejects missing, duplicate, ineligible and indistinguishable lineups for 3/4/5 (4.9016ms)
+✔ catalog validator checks all files, registration, coin corrections and lineups (12.8299ms)
+✔ generator creates an importable registered definition, refuses collisions and preserves files (163.1366ms)
+✔ development launch writes no progress, learning, settings or battle storage (216.8287ms)
+✔ all supported Tsum artwork points to a valid versioned PNG (27.1575ms)
+✔ characters without supplied artwork keep their fallback rendering (1.2724ms)
+✔ Grogu aligns its circular body with the Tsum hit area while retaining ear overflow (0.3306ms)
+✔ cover source rectangles center-crop inconsistent artwork dimensions into a square (0.3407ms)
+✔ disabled artwork neither creates images nor issues draw calls (0.364ms)
+✔ contact tuning starts with subtle compression and an emergency floor (1.6345ms)
+✔ low-speed contact does not create visible squash (1.3485ms)
+✔ high-speed contact is low-rebound and produces bounded impulse-driven squash (0.2982ms)
+✔ Coulomb friction limits tangent impulse and creates gentle rotation (0.4644ms)
+✔ multi-contact normals are weighted and interpolated instead of taking the last pair (0.7421ms)
+✔ Tsum/Bomb and Bomb/Bomb contacts select explicit materials (0.3047ms)
+✔ large Tsums retain their gameplay radius while contact radius uses a separate adapter (0.211ms)
+✔ Coronation Elsa frozen overlay geometry stays on the logical hit area (1.0143ms)
+✔ frozen overlay geometry supports large and cheat-scaled effective radii (0.1596ms)
+✔ frozen and clear-occupying Tsums keep position and angle (3.9356ms)
+✔ chained Tsums continue falling with the rest of the board (0.3862ms)
+✔ FAN response supports quick repeated strengthening and wakes bodies (0.3779ms)
+✔ removing a support wakes every Tsum above it (0.3554ms)
+✔ wall and floor contacts are low-rebound and respect the emergency minimum (0.5156ms)
+✔ three-body stacks and long idle runs settle without invalid values (41.696ms)
+✔ visual deformation stays subtle, preserves varied angles, and recovers (0.3292ms)
+✔ high-body broadphase is restricted to cheat play above 80 bodies (1.1587ms)
+✔ spatial hash retains every touching variable-radius pair in stable brute-force order (9.1736ms)
+✔ spatial hash supports collision-position accessors and fails closed on invalid geometry (1.3226ms)
+✔ 999 sparse bodies reduce narrow-phase candidates by more than 80 percent (3.362ms)
+✔ 999 standard-diameter bodies in a packed board still remove more than 80 percent (12.8863ms)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: true,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: true,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston' ] count: 4
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=testTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=testTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=testTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=testTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=testTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=testTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+✔ testTsum: valid definition, real registry and 3/4/5-type playable boards (9.0816ms)
+✔ testTsum: SL1 activation, tap, real clear/coin/gauge and cleanup (28.3824ms)
+✔ testTsum: SL2 activation, tap, real clear/coin/gauge and cleanup (2.6789ms)
+✔ testTsum: SL3 activation, tap, real clear/coin/gauge and cleanup (1.8228ms)
+✔ testTsum: SL4 activation, tap, real clear/coin/gauge and cleanup (1.6691ms)
+✔ testTsum: SL5 activation, tap, real clear/coin/gauge and cleanup (2.1042ms)
+✔ testTsum: SL6 activation, tap, real clear/coin/gauge and cleanup (1.9133ms)
+✔ testTsum: presentation pause, natural timeout, reset and duplicate target safety (2.5077ms)
+✔ TDK zero recovery never becomes the legacy flight default of one (1.0296ms)
+ℹ tests 377
+ℹ suites 0
+ℹ pass 377
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1629.6192

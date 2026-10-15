@@ -96,6 +96,7 @@ async function bootGame() {
     role: "player",
     inputEnabled: true,
     persistenceEnabled: !developmentLaunch,
+    tdkDevelopment: !!developmentLaunch,
     managedLoop: true,
     largeTsumSpawnChance
   });
@@ -105,6 +106,7 @@ async function bootGame() {
       role: "cpu",
       inputEnabled: false,
       persistenceEnabled: false,
+      tdkDevelopment: !!developmentLaunch,
       managedLoop: true,
       renderQualityMode: game.renderQualityMode,
       largeTsumSpawnChance

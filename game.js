@@ -3138,6 +3138,7 @@ class Game {
     this.role = options.role === "cpu" ? "cpu" : "player";
     this.inputEnabled = options.inputEnabled !== false;
     this.persistenceEnabled = options.persistenceEnabled !== false;
+    this.tdkDevelopment = options.tdkDevelopment === true;
     this.managedLoop = !!options.managedLoop;
     this.onRunFinished = typeof options.onRunFinished === "function" ? options.onRunFinished : null;
     this.onCheatSettingsRequested = typeof options.onCheatSettingsRequested === "function"
@@ -3566,6 +3567,7 @@ class Game {
   }
 
   loadAiTrainingData() {
+    if (this.tdkDevelopment) return this.createDefaultAiTrainingData();
     try {
       const raw = localStorage.getItem(this.aiTrainingStorageKey);
       if (!raw) {
@@ -3583,6 +3585,7 @@ class Game {
   }
 
   saveAiTrainingData() {
+    if (this.tdkDevelopment) return;
     try {
       localStorage.setItem(this.aiTrainingStorageKey, JSON.stringify(this.aiTrainingData));
     } catch (error) {
@@ -3700,6 +3703,7 @@ class Game {
   }
 
   loadAiLearningData() {
+    if (this.tdkDevelopment) return;
     try {
       const raw = localStorage.getItem(this.getAiLearningStorageKey());
       if (!raw) {
@@ -3986,6 +3990,7 @@ class Game {
   }
 
   saveAiLearningData() {
+    if (this.tdkDevelopment) return;
     try {
       this.pruneAiQTableIfNeeded();
       // Backward-compatible guard: always persist newly added specialTap stats keys.
@@ -13873,6 +13878,8 @@ class Game {
   }
 
   enqueueSkillChargeFlight(startX, startY, tsumType, chargeMultiplier = 1, judyNickGaugePayload = null) {
+    // TDK permits zero recovery; legacy flight application treats zero as one.
+    if (chargeMultiplier === 0 && tsumDefinitions.some(d => d.id === tsumType?.id)) return;
     const destination = judyNickGaugePayload ? "skill" : (this.skillSystem.ready ? "fever" : "skill");
     const target = destination === "skill" ? this.getSkillGaugeCenter() : this.getFeverGaugeCenter();
     this.skillChargeFlights.push({

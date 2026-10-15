@@ -12,7 +12,7 @@ export function resolveDevelopmentLaunch(params) {
 }
 
 export function applyDevelopmentLaunch(game, { definition, level, count }) {
-  if (game.persistenceEnabled) throw new Error('TDK development session must disable persistence before Game construction');
+  if (game.persistenceEnabled || game.tdkDevelopment !== true) throw new Error('TDK development session must disable persistence and set tdkDevelopment before Game construction');
   game.selectTsum(definition.id, level);
   game.itemSelection.reduce3 = count === 3;
   game.itemSelection.reduce = count === 4;

@@ -10,7 +10,7 @@ export function isDevelopmentMode(search = globalThis.location?.search || '') {
 export function validateDefinition(definition) {
   const d = definition;
   const fail = (message) => { throw new Error(`TDK ${d?.id || '?'}: ${message}`); };
-  if (!d || !ID_PATTERN.test(d.id) || ['constructor', 'prototype', '__proto__'].includes(d.id)) fail('invalid ID');
+  if (!d || typeof d.id !== 'string' || !ID_PATTERN.test(d.id) || ['constructor', 'prototype', '__proto__'].includes(d.id)) fail('invalid ID');
   for (const key of ['name', 'skillName', 'imageSrc', 'boardColor', 'color', 'light', 'dark', 'accent']) {
     if (typeof d[key] !== 'string' || !d[key].trim()) fail(`missing ${key}`);
   }
@@ -25,8 +25,8 @@ export function validateDefinition(definition) {
   for (const [key, values] of Object.entries(d.tables || {})) {
     if (!Array.isArray(values) || values.length !== 6) fail(`${key} must define SL1–6`);
     if (key === 'coinCorrectionType') {
-      if (values.some(v => !/^correction_-?\d+$/.test(v))) fail('invalid coin correction');
-    } else if (values.some(v => !Number.isFinite(v) || v < 0)) fail(`invalid numeric ${key}`);
+      if (Array.from(values).some(v => !/^correction_-?\d+$/.test(v))) fail('invalid coin correction');
+    } else if (Array.from(values).some(v => !Number.isFinite(v) || v < 0)) fail(`invalid numeric ${key}`);
   }
   if (d.tables.cost.some(v => v <= 0) || d.tables.durationSec.some(v => v <= 0)) fail('cost/duration must be positive');
   if (d.handler?.id !== d.id || typeof d.handler.onActivate !== 'function' || typeof d.handler.cleanupBySession !== 'function') fail('missing handler registration/cleanup');

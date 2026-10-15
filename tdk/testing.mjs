@@ -13,7 +13,7 @@ export function makeTdkGame(definition, level = 1, count = 5) {
   let seed = 12345;
   const rng = () => ((seed = (1664525 * seed + 1013904223) >>> 0) / 4294967296);
   const canvas = { style: {}, getContext: () => ({ setTransform() {} }), getBoundingClientRect: () => ({ width: 414, height: 736 }) };
-  const game = new Game(canvas, { inputEnabled: false, persistenceEnabled: false, managedLoop: true, renderQualityMode: 'light', rng, largeTsumSpawnChance: 0 });
+  const game = new Game(canvas, { inputEnabled: false, persistenceEnabled: false, tdkDevelopment: true, managedLoop: true, renderQualityMode: 'light', rng, largeTsumSpawnChance: 0 });
   applyDevelopmentLaunch(game, { definition, level, count });
   return game;
 }

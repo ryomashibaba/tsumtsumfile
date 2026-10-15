@@ -22,7 +22,8 @@ export async function generateTsum(id, root = fileURLToPath(new URL('../', impor
   await mkdir(directory); // exclusive: never overwrite an existing directory
   try {
     for (const [name, content] of Object.entries(templates)) await writeFile(join(directory, name), content, { flag: 'wx' });
-    const next = `import ${id} from './${id}/definition.js';\n` + catalog.replace('export const tsumDefinitions = [', `export const tsumDefinitions = [${id}, `);
+    const binding = `tdk_${id}`;
+    const next = `import ${binding} from './${id}/definition.js';\n` + catalog.replace('export const tsumDefinitions = [', `export const tsumDefinitions = [${binding}, `);
     if (await readFile(catalogPath, 'utf8') !== catalog) throw new Error('カタログが同時更新されました。再実行してください');
     await writeFile(catalogPath, next);
   } catch (error) {
