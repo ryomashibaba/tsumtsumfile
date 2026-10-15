@@ -1,0 +1,30 @@
+name: TDK v1.1 QA
+on:
+  pull_request:
+    branches: [codex/tsum-development-kit]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  functional:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate definitions
+        run: npm run tsum:validate
+      - name: Run TDK contracts
+        run: npm run test:tdk
+      - name: Functional regression (physics p95 excluded)
+        run: node --test --test-skip-pattern="45-body ten-second" *.test.mjs tsums/testTsum/skill.test.mjs tsums/chainTestTsum/skill.test.mjs
+  physics-performance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Physics p95 (environment dependent, separate result)
+        run: node --test --test-name-pattern="45-body ten-second" tsumPhysics.test.mjs
