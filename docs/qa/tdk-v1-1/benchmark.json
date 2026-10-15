@@ -1,0 +1,20 @@
+[
+  {
+    "template": "tap",
+    "generatedFiles": 5,
+    "automaticCommonFiles": 1,
+    "manualCommonFiles": 0,
+    "generationAndRegistrationMs": 18.02,
+    "validationAndBasicTestsMs": 1467.51,
+    "totalMs": 1485.54
+  },
+  {
+    "template": "chain",
+    "generatedFiles": 5,
+    "automaticCommonFiles": 1,
+    "manualCommonFiles": 0,
+    "generationAndRegistrationMs": 12.99,
+    "validationAndBasicTestsMs": 1056.98,
+    "totalMs": 1069.98
+  }
+]
