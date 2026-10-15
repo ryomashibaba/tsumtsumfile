@@ -107,6 +107,7 @@ export class BattleController {
   }
 
   loadRecords() {
+    if (this.player.persistenceEnabled === false) return createDefaultBattleRecords();
     const fallback = createDefaultBattleRecords();
     try {
       const parsed = JSON.parse(localStorage.getItem(BATTLE_STORAGE_KEY) || "null");
@@ -135,6 +136,7 @@ export class BattleController {
   }
 
   saveRecords() {
+    if (this.player.persistenceEnabled === false) return;
     try {
       localStorage.setItem(BATTLE_STORAGE_KEY, JSON.stringify(this.records));
     } catch (error) {
@@ -209,6 +211,10 @@ export class BattleController {
   }
 
   startBattle() {
+    if (this.player.tdkDefinition?.id === this.player.myTsum?.id && !this.player.tdkDefinition.modes.cpu) {
+      this.player.pushCenterMessage?.('TDK: CPU未対応', '#ffffff', 1);
+      return;
+    }
     if (!this.ensureCpu()) {
       console.error("[Battle] CPU game could not be created.");
       return;

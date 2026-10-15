@@ -1,4 +1,4 @@
-import { resolveDevelopmentLaunch, applyDevelopmentLaunch } from './tdk/development.js';
+import { resolveDevelopmentLaunch, applyDevelopmentLaunch, mountDevelopmentControls } from './tdk/development.js';
 function showBootError(message, detail = "") {
   const existing = document.getElementById("bootError");
   if (existing) {
@@ -119,6 +119,7 @@ async function bootGame() {
   window.cpuGame = null;
   window.battleController = battleController;
   window.cheatSettingsPanel = cheatSettingsPanel;
+  if (developmentLaunch) mountDevelopmentControls(game, developmentLaunch);
   game.render();
   const bootStatus = document.getElementById("bootStatus");
   if (bootStatus) {

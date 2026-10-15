@@ -5461,6 +5461,14 @@ class Game {
       this.triggerFan();
       return;
     }
+    if (this.tdkDefinition?.id === this.myTsum?.id && !this.tdkDefinition.modes.cpu && [AI_AUTO_BUTTON_RECT, AI_LEARNING_BUTTON_RECT, AI_LEARNING_REPEAT_BUTTON_RECT].some(rect => rectContains(rect, pos.x, pos.y))) {
+      this.pushCenterMessage('TDK: CPU未対応', '#ffffff', 1);
+      return;
+    }
+    if (this.tdkDefinition?.id === this.myTsum?.id && !this.tdkDefinition.modes.strongest && rectContains(STRONGEST_MODE_BUTTON_RECT, pos.x, pos.y)) {
+      this.pushCenterMessage('TDK: 最強モード未対応', '#ffffff', 1);
+      return;
+    }
     if (!this.battleContext?.active && rectContains(AI_AUTO_BUTTON_RECT, pos.x, pos.y)) {
       this.aiAutoPlay = !this.aiAutoPlay;
       if (this.aiAutoPlay) {
