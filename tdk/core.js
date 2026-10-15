@@ -29,6 +29,10 @@ export function validateDefinition(definition) {
     } else if (Array.from(values).some(v => !Number.isFinite(v) || v < 0)) fail(`invalid numeric ${key}`);
   }
   if (d.tables.cost.some(v => v <= 0) || d.tables.durationSec.some(v => v <= 0)) fail('cost/duration must be positive');
+  if (d.template === 'chain') {
+    if (!d.tables.minChainLength || d.tables.minChainLength.some(v => !Number.isInteger(v) || v < 3)) fail('minChainLength must be integers >= 3');
+    if (!d.tables.eraseRadius) fail('missing eraseRadius');
+  }
   if (d.handler?.id !== d.id || typeof d.handler.onActivate !== 'function' || typeof d.handler.cleanupBySession !== 'function') fail('missing handler registration/cleanup');
   for (const [capability, hook] of Object.entries(hooks)) {
     if (typeof d.capabilities?.[capability] !== 'boolean') fail(`missing capability ${capability}`);

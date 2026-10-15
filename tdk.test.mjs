@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import definition from './tsums/testTsum/definition.js';
+import chainDefinition from './tsums/chainTestTsum/definition.js';
 import { TSUM_TYPES, SKILL_TABLES, FIXED_SUB_TSUM_IDS_BY_MY_TSUM } from './config.js';
 import { Game } from './game.js';
 import { adaptDefinitions, validateDefinition, validateSubTsums, suggestSubTsums, toTsumType, registerDefinitions } from './tdk/core.js';
@@ -14,14 +15,17 @@ import { generateTsum } from './scripts/tsum-new.mjs';
 import { validateCatalog } from './scripts/tsum-validate.mjs';
 
 test('normal catalog, registry and selectable list exclude development Tsum', () => {
-  assert.equal(TSUM_TYPES.some(t => t.id === definition.id), false);
-  assert.equal(Object.hasOwn(SKILL_TABLES, definition.id), false);
-  assert.equal(Object.hasOwn(Game.SkillRegistry, definition.id), false);
-  assert.equal(Object.hasOwn(FIXED_SUB_TSUM_IDS_BY_MY_TSUM, definition.id), false);
-  assert.equal(resolveDevelopmentLaunch(new URLSearchParams('tsum=testTsum')), null);
-  assert.throws(() => resolveDevelopmentLaunch(new URLSearchParams('tdk=1&sl=7')), /sl=/);
-  assert.throws(() => resolveDevelopmentLaunch(new URLSearchParams('tdk=1&tsum=missing')), /unknown/);
-  assert.throws(() => applyDevelopmentLaunch({ persistenceEnabled: true }, { definition }), /persistence/);
+  const definitions = [definition, chainDefinition];
+  for (const definition of definitions) {
+    assert.equal(TSUM_TYPES.some(t => t.id === definition.id), false);
+    assert.equal(Object.hasOwn(SKILL_TABLES, definition.id), false);
+    assert.equal(Object.hasOwn(Game.SkillRegistry, definition.id), false);
+    assert.equal(Object.hasOwn(FIXED_SUB_TSUM_IDS_BY_MY_TSUM, definition.id), false);
+    assert.equal(resolveDevelopmentLaunch(new URLSearchParams('tsum=testTsum')), null);
+    assert.throws(() => resolveDevelopmentLaunch(new URLSearchParams('tdk=1&sl=7')), /sl=/);
+    assert.throws(() => resolveDevelopmentLaunch(new URLSearchParams('tdk=1&tsum=missing')), /unknown/);
+    assert.throws(() => applyDevelopmentLaunch({ persistenceEnabled: true }, { definition }), /persistence/);
+  }
 });
 
 test('definition validation rejects missing SL, invalid IDs, absent hooks, modes and visuals', () => {
@@ -91,6 +95,23 @@ test('generator creates an importable registered definition, refuses collisions 
     await generateTsum('class', root);
     const reservedCatalog = await import(pathToFileURL(join(root, 'tsums/catalog.js')).href + '?reserved');
     assert.ok(reservedCatalog.tsumDefinitions.some(d => d.id === 'class'));
+    await assert.rejects(generateTsum('invalidTemplate', root, { template: 'unknown' }), /テンプレート/);
+    await generateTsum('sampleChain', root, { template: 'chain' });
+    const chain = (await import(pathToFileURL(join(root, 'tsums/sampleChain/definition.js')))).default;
+    validateDefinition(chain);
+    assert.equal(chain.template, 'chain');
+    assert.equal(chain.capabilities.tap, false);
+    assert.equal(chain.capabilities.chainStart, true);
+    assert.equal(chain.capabilities.chainCommit, true);
+    assert.deepEqual(chain.modes, { manual: true, cpu: false, strongest: false });
+    validateSubTsums(chain, TSUM_TYPES, suggestSubTsums(toTsumType(chain), TSUM_TYPES));
+    assert.match(await readFile(join(root, 'tsums/sampleChain/skill.test.mjs'), 'utf8'), /testChainTsumContract/);
+    const chainSnapshot = await readFile(join(root, 'tsums/sampleChain/skill.js'), 'utf8');
+    await assert.rejects(generateTsum('SAMPLECHAIN', root, { template: 'chain' }));
+    assert.equal(await readFile(join(root, 'tsums/sampleChain/skill.js'), 'utf8'), chainSnapshot);
+    for (const minChainLength of [[2, 3, 3, 3, 3, 3], [3.5, 3, 3, 3, 3, 3], undefined]) {
+      assert.throws(() => validateDefinition({ ...chain, tables: { ...chain.tables, minChainLength } }));
+    }
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
@@ -99,16 +120,18 @@ test('development launch writes no progress, learning, settings or battle storag
     let storageReads = 0, storageWrites = 0;
     globalThis.localStorage = { getItem() { storageReads++; return null; }, setItem() { storageWrites++; } };
     const { makeTdkGame } = await import('./tdk/testing.mjs');
-    const { default: d } = await import('./tsums/testTsum/definition.js');
+    const { tsumDefinitions } = await import('./tsums/catalog.js');
     const { BattleController } = await import('./battle.js');
-    const game = makeTdkGame(d);
-    game.render = () => {};
-    game.saveProgress(); game.saveAiTrainingData(); game.saveAiLearningData();
-    game.setRenderQualityMode('minimal'); game.toggleSkillVisuals();
-    const controller = Object.create(BattleController.prototype); controller.player = game;
-    controller.loadRecords(); controller.saveRecords(); controller.startBattle();
-    if (controller.active) throw Error('unsupported CPU started');
-    game.finishRun();
+    for (const d of tsumDefinitions) {
+      const game = makeTdkGame(d);
+      game.render = () => {};
+      game.saveProgress(); game.saveAiTrainingData(); game.saveAiLearningData();
+      game.setRenderQualityMode('minimal'); game.toggleSkillVisuals();
+      const controller = Object.create(BattleController.prototype); controller.player = game;
+      controller.loadRecords(); controller.saveRecords(); controller.startBattle();
+      if (controller.active) throw Error('unsupported CPU started');
+      game.finishRun();
+    }
     if (storageReads || storageWrites) throw Error('storage accessed: reads=' + storageReads + ' writes=' + storageWrites);
   `], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);

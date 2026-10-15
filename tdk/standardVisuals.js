@@ -17,3 +17,21 @@ export function createStandardVisuals(color, label) {
     end(game) { game.pushCenterMessage?.('TDK END', color, 0.5); }
   };
 }
+
+export function createChainVisuals(color, label) {
+  return {
+    ...createStandardVisuals(color, label),
+    foreground(ctx, frame) {
+      ctx.save();
+      ctx.globalAlpha = frame.alpha;
+      ctx.fillStyle = '#102030';
+      ctx.fillRect(97, 190, 220, 32);
+      ctx.fillStyle = color;
+      ctx.font = 'bold 16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`CHAIN READY · ${(Math.max(0, frame.remainingMs) / 1000).toFixed(1)}s`, 207, 212);
+      ctx.restore();
+      return true;
+    }
+  };
+}
