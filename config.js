@@ -1,3 +1,5 @@
+import { tsumDefinitions } from './tsums/catalog.js';
+import { adaptDefinitions, isDevelopmentMode } from './tdk/core.js';
 // config.js — game constants, type tables, and utility functions
 
 export const WIDTH = 414;
@@ -81,7 +83,7 @@ export const TSUM_TYPES = [
 
 // Board colors are intentionally fixed per my Tsum and board-size.  Each set
 // maximizes the smallest OKLab color distance across all Tsums on that board.
-export const FIXED_SUB_TSUM_IDS_BY_MY_TSUM = Object.freeze({
+export let FIXED_SUB_TSUM_IDS_BY_MY_TSUM = Object.freeze({
   laserWeave: { 3: ["perfumeAlice", "grogu"], 4: ["guidingMoana", "perfumeAlice", "grogu"], 5: ["coronationElsa", "perfumeAlice", "jamilViper", "grogu"] },
   dopa: { 3: ["jafarGenie", "grim"], 4: ["perfumeAlice", "jamilViper", "finalBattleHook"], 5: ["perfumeAlice", "jamilViper", "jafarGenie", "grim"] },
   coingain: { 3: ["jafarGenie", "grim"], 4: ["guidingMoana", "jafarGenie", "grim"], 5: ["coronationElsa", "jamilViper", "jafarGenie", "grim"] },
@@ -425,3 +427,5 @@ export function peakedProbability(n, start, peakStart, peakEnd, end, edgeProbabi
   const t = (n - peakEnd) / Math.max(1, end - peakEnd);
   return lerp(peakProbability, edgeProbability, t);
 }
+
+FIXED_SUB_TSUM_IDS_BY_MY_TSUM = adaptDefinitions(tsumDefinitions, { types: TSUM_TYPES, tables: SKILL_TABLES, fixedSubTsums: FIXED_SUB_TSUM_IDS_BY_MY_TSUM, development: isDevelopmentMode() });

@@ -1,3 +1,5 @@
+import { registerDefinitions } from './tdk/core.js';
+import { tsumDefinitions } from './tsums/catalog.js';
 import {
   WIDTH,
   HEIGHT,
@@ -15418,3 +15420,5 @@ registerFinalBattleHookSkill({
   chainInputMargin: CHAIN_INPUT_MARGIN,
   chainConnectMargin: CHAIN_CONNECT_MARGIN
 });
+
+registerDefinitions(tsumDefinitions, SkillRegistry, TSUM_TYPES);

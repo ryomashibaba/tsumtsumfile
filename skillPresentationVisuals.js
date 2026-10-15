@@ -1,3 +1,4 @@
+import { tdkVisuals } from './tdk/integration.js';
 import {
   WIDTH,
   FIELD_TOP,
@@ -991,6 +992,7 @@ function withParticleScale(options, draw) {
 }
 
 export function drawSkillPresentation(ctx, game, rawState, options = {}) {
+  if (tdkVisuals[rawState?.skillId]?.presentation) return tdkVisuals[rawState.skillId].presentation(ctx, game, rawState, options);
   return withParticleScale(
     { particleScale: options.particleScale ?? 1 },
     () => drawSkillPresentationFull(ctx, game, rawState)
@@ -998,6 +1000,7 @@ export function drawSkillPresentation(ctx, game, rawState, options = {}) {
 }
 
 export function drawSkillSecondaryVisual(ctx, game, rawState, options = {}) {
+  if (tdkVisuals[rawState?.skillId]?.secondary) return tdkVisuals[rawState.skillId].secondary(ctx, game, rawState, options);
   return withParticleScale(
     { particleScale: options.particleScale ?? 1 },
     () => drawSkillSecondaryVisualFull(ctx, game, rawState)

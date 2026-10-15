@@ -1,4 +1,6 @@
+import { tdkTiming } from './tdk/integration.js';
 export const SKILL_TIMING_TABLE = Object.freeze({
+  ...tdkTiming,
   laserWeave: Object.freeze({
     finalClear: Object.freeze({ durationMs: 400, pauseClock: true, pausePhysics: false })
   }),

@@ -1,3 +1,4 @@
+import { tdkVisuals } from './tdk/integration.js';
 import {
   WIDTH,
   HEIGHT,
@@ -44,7 +45,7 @@ const THEMES = Object.freeze({
 });
 
 export function isSkillActiveVisualSupported(skillId) {
-  return SUPPORTED_SKILLS.has(skillId);
+  return SUPPORTED_SKILLS.has(skillId) || !!tdkVisuals[skillId];
 }
 
 export function getSkillActiveThemeId(state) {
@@ -100,7 +101,7 @@ export function resolveSkillActiveVisualFrame(state, options = {}) {
 }
 
 function themeFor(frame) {
-  return frame ? THEMES[frame.themeId] || null : null;
+  return frame ? THEMES[frame.themeId] || tdkVisuals[frame.themeId]?.theme || null : null;
 }
 
 function colorWithAlpha(color, alpha) {
@@ -114,6 +115,7 @@ function applyFrameAlpha(ctx, frame, multiplier = 1) {
 }
 
 export function drawSkillActiveBackdrop(ctx, frame) {
+  if (tdkVisuals[frame?.skillId]?.backdrop) return tdkVisuals[frame.skillId].backdrop(ctx, frame);
   const theme = themeFor(frame);
   if (!theme || !(frame.alpha > 0)) return false;
   ctx.save();
@@ -144,6 +146,7 @@ export function drawSkillActiveBackdrop(ctx, frame) {
 }
 
 export function drawSkillActiveFieldBackground(ctx, frame) {
+  if (tdkVisuals[frame?.skillId]?.background) return tdkVisuals[frame.skillId].background(ctx, frame);
   const theme = themeFor(frame);
   if (!theme || !(frame.alpha > 0)) return false;
   ctx.save();
@@ -300,6 +303,7 @@ function drawBubbles(ctx, theme) {
 }
 
 export function drawSkillActiveForeground(ctx, frame) {
+  if (tdkVisuals[frame?.skillId]?.foreground) return tdkVisuals[frame.skillId].foreground(ctx, frame);
   const theme = themeFor(frame);
   if (!theme || !(frame.alpha > 0)) return false;
   ctx.save();

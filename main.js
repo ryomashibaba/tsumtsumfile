@@ -1,3 +1,4 @@
+import { resolveDevelopmentLaunch, applyDevelopmentLaunch } from './tdk/development.js';
 function showBootError(message, detail = "") {
   const existing = document.getElementById("bootError");
   if (existing) {
@@ -77,6 +78,7 @@ async function bootGame() {
   }
 
   const params = new URLSearchParams(window.location.search);
+  const developmentLaunch = resolveDevelopmentLaunch(params);
   const requestedLargeTsumChance = params.has("largeTsumChance")
     ? Number(params.get("largeTsumChance"))
     : undefined;
@@ -93,10 +95,11 @@ async function bootGame() {
   const game = new Game(canvas, {
     role: "player",
     inputEnabled: true,
-    persistenceEnabled: true,
+    persistenceEnabled: !developmentLaunch,
     managedLoop: true,
     largeTsumSpawnChance
   });
+  if (developmentLaunch) applyDevelopmentLaunch(game, developmentLaunch);
   const createCpuGame = () => {
     const cpuGame = new Game(cpuCanvas, {
       role: "cpu",
