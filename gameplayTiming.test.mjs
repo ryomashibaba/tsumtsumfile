@@ -44,6 +44,7 @@ test("skill timing table keeps presentation, clear, and end phases independent",
   assert.deepEqual(
     Object.fromEntries(Object.entries(SKILL_TIMING_TABLE).filter(([, timing]) => timing.presentation).map(([id, timing]) => [id, timing.presentation.durationMs])),
     {
+      evolutionTsum: 400,
       coronationElsa: 1750,
       captainLightyear: 2080,
       namine: 3170,

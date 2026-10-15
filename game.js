@@ -1,4 +1,5 @@
 import { registerDefinitions } from './tdk/core.js';
+import { getEvolution, evolutionLocked, evolutionOverdrive, updateEvolutionRaw, drawEvolution } from './tsums/evolutionTsum/skill.js';
 import { tsumDefinitions } from './tsums/catalog.js';
 import {
   WIDTH,
@@ -2055,6 +2056,12 @@ class SkillRuntimeManager {
     if (!session || session._ending || !this.sessions.some((entry) => entry.id === session.id)) {
       return;
     }
+    if (reason === 'timeout' && session.handlerId === 'evolutionTsum' &&
+        (this.game.dragging || this.game.pendingClear || this.game.pendingChainClearQueue?.length || session.data.queue.length || session.data.event)) {
+      session.data.expired = true;
+      session.remainingMs = 0;
+      return;
+    }
     const handler = SkillRegistry[session.handlerId];
     session._ending = true;
     if (handler && handler.onEnd) {
@@ -2315,7 +2322,7 @@ class ClearPipeline {
       applyLargeTsumCorrection: true,
       chainLength: prepared.targets.length,
       sequentialChain: true,
-      chainStepInterval: interval,
+      chainStepInterval: interval / (prepared.chainSpeedMultiplier || 1),
       chainRemoveElapsed: 0,
       nextRemoveIndex: 0,
       largeTsumCompletedSteps: new Map(),
@@ -2836,7 +2843,7 @@ class ClearPipeline {
     }
     this.game.flushPostChainCleanup();
 
-    if (!preserveActiveClear && this.game.timeUp && !this.game.dragging && !this.game.actionLock && !this.game.deferredSkillInput) {
+    if (!preserveActiveClear && this.game.timeUp && !evolutionLocked(this.game) && !this.game.dragging && !this.game.actionLock && !this.game.deferredSkillInput) {
       this.game.finishRun();
     }
   }
@@ -2876,9 +2883,15 @@ class ClearPipeline {
           context: judyNickChargeContext
         }
         : null;
-      const weightedChargeMultiplier = Number.isFinite(info.skillChargePerPhysicalMyTsum)
+      let weightedChargeMultiplier = Number.isFinite(info.skillChargePerPhysicalMyTsum)
         ? Math.max(0, info.skillChargePerPhysicalMyTsum)
         : getTsumSkillChargeWeight(tsum, chargeMultiplier);
+      if (info.evolutionPrimaryIds) {
+        weightedChargeMultiplier = info.evolutionPrimaryIds.has(tsum.id)
+          ? getTsumSkillChargeWeight(tsum, info.evolutionGaugeMultiplier) : 0;
+        const evolution = getEvolution(this.game);
+        if (evolution?.id === info.meta?.evolution) evolution.data.metrics.gauge += weightedChargeMultiplier;
+      }
       if (judyNickGaugePayload) {
         judyNickGaugePayload.chargeMultiplier = weightedChargeMultiplier;
       }
@@ -5294,6 +5307,7 @@ class Game {
     this.gameFeel?.capturePendingFrame(this.canvas);
     this.ctx.clearRect(0, 0, this.width, this.height);
     this.ui.render(this.ctx);
+    drawEvolution(this.ctx, this);
     if (this.chainTelemetry) this.chainTelemetry.sample("renderMs", performance.now() - measure);
   }
 
@@ -6569,7 +6583,7 @@ class Game {
       coingainPhysicsPaused: this.isCoingainPhysicsPaused(),
       skillTimingState: this.skillRuntime?.getTimingPauseState?.() || null
     });
-    if (isLaserWeaveFiring(this)) pauseState.clockPaused = true;
+    if (isLaserWeaveFiring(this) || getEvolution(this)?.data.event || getEvolution(this)?.data.queue.length) pauseState.clockPaused = true;
     return pauseState;
   }
 
@@ -6638,7 +6652,7 @@ class Game {
   }
 
   isGameplayInputLocked({ ignoreActionLock = false } = {}) {
-    return isLaserWeaveFiring(this) || (!!getLaserWeaveSession(this) && !!this.pendingClear) || !!this.dopaFlight || !!this.pendingClear?.meta?.dopa ||
+    return evolutionLocked(this) || isLaserWeaveFiring(this) || (!!getLaserWeaveSession(this) && !!this.pendingClear) || !!this.dopaFlight || !!this.pendingClear?.meta?.dopa ||
       (!ignoreActionLock && !!this.actionLock) || !!this.skillRuntime?.isInputLocked?.();
   }
 
@@ -13030,7 +13044,7 @@ class Game {
           locked
         });
       }
-      if (!tsum.spawnedAboveField && tsum.y < FIELD_TOP + targetOffset) {
+      if (!evolutionOverdrive(this) && !tsum.spawnedAboveField && tsum.y < FIELD_TOP + targetOffset) {
         resolveTsumBoundaryContact(tsum, {
           normal: { x: 0, y: 1 },
           penetration: FIELD_TOP + targetOffset - tsum.y,
@@ -13064,7 +13078,7 @@ class Game {
         tsum.vx = 0;
       }
     }
-    if (tsum.y - radius < FIELD_TOP && !tsum.spawnedAboveField) {
+    if (!evolutionOverdrive(this) && tsum.y - radius < FIELD_TOP && !tsum.spawnedAboveField) {
       tsum.y = FIELD_TOP + radius;
       tsum.vy = Math.abs(tsum.vy) * RESTITUTION;
       tsum.bounce = 1;
@@ -13693,7 +13707,8 @@ class Game {
       this.gameFeel.enabled = gameFeelEnabled;
       this.gameFeel.reset({ skillReady: this.isSkillReadyForActivation() });
     }
-    this.elapsed += dt;
+    const evolutionFrame = getEvolution(this);
+    this.elapsed += evolutionFrame ? 0 : dt;
     this.strongestModeCoronationElsaPlannerFrameRevision += 1;
     this.strongestModeCoronationElsaPlannerLastFrameCallCount = this.strongestModeCoronationElsaPlannerFrameCallCount;
     this.strongestModeCoronationElsaPlannerFrameCallCount = 0;
@@ -13730,8 +13745,11 @@ class Game {
       return;
     }
 
+    updateEvolutionRaw(this, dt);
+    const evolutionClockPaused = !!(getEvolution(this)?.data.event || getEvolution(this)?.data.queue.length);
+    if (evolutionFrame && !evolutionClockPaused) this.elapsed += dt;
     if (this.fanCooldown > 0) {
-      this.fanCooldown = Math.max(0, this.fanCooldown - dt);
+      this.fanCooldown = Math.max(0, this.fanCooldown - (evolutionClockPaused ? 0 : dt));
     }
     this.fanPulse = Math.max(0, this.fanPulse - dt * 2.4);
     const gameplayPauseState = this.getCurrentGameplayPauseState();
@@ -13752,7 +13770,7 @@ class Game {
     }
 
     if (this.tempLockTimer > 0) {
-      this.tempLockTimer -= dt;
+      this.tempLockTimer -= evolutionClockPaused ? 0 : dt;
       if (this.tempLockTimer <= 0) {
         this.tempLockTimer = 0;
         this.actionLock = false;
@@ -13811,7 +13829,7 @@ class Game {
     updateLaserWeaveGameplay(this, dt);
     this.skillRuntime.update(gameplayDt * 1000);
     this.skillRuntime.resumeHeldFinalBattleHookInput?.();
-    this.skillSystem.update(dt);
+    this.skillSystem.update(evolutionClockPaused ? gameplayDt : dt);
     this.gameFeel?.syncSkillReady(this.isSkillReadyForActivation());
     this.updateCheatAutoSkill?.();
     this.feverSystem.update(gameplayDt, isLaserWeaveFiring(this) ? dt : gameplayDt);
@@ -13826,7 +13844,7 @@ class Game {
       this.timeUp = false;
     }
 
-    if (this.timeUp && !this.dragging && !this.actionLock && !this.pendingClear && !this.deferredSkillInput) {
+    if (this.timeUp && !evolutionLocked(this) && !this.dragging && !this.actionLock && !this.pendingClear && !this.deferredSkillInput) {
       this.finishRun();
     }
   }
