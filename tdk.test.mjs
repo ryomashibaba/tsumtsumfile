@@ -73,6 +73,7 @@ test('generator creates an importable registered definition, refuses collisions 
   try {
     await mkdir(join(root, 'tsums'));
     await cp('tsums/testTsum', join(root, 'tsums/testTsum'), { recursive: true });
+    await cp('tsums/chainTestTsum', join(root, 'tsums/chainTestTsum'), { recursive: true });
     await cp('tdk', join(root, 'tdk'), { recursive: true });
     await writeFile(join(root, 'package.json'), '{"type":"module"}');
     await writeFile(join(root, 'tsums/catalog.js'), "import testTsum from './testTsum/definition.js';\nexport const tsumDefinitions = [testTsum];\n");
@@ -87,7 +88,18 @@ test('generator creates an importable registered definition, refuses collisions 
     const snapshot = await readFile(join(root, 'tsums/sampleTsum/skill.js'), 'utf8');
     await assert.rejects(generateTsum('sampleTsum', root));
     assert.equal(await readFile(join(root, 'tsums/sampleTsum/skill.js'), 'utf8'), snapshot);
-    assert.match(await readFile(join(root, 'tsums/sampleTsum/skill.test.mjs'), 'utf8'), /testTsumContract/);
+    assert.match(await readFile(join(root, 'tsums/sampleTsum/skill.test.mjs'), 'utf8'), /testTsumCommonContract/);
+    assert.match(await readFile(join(root, 'tsums/sampleTsum/skill.test.mjs'), 'utf8'), /testTapTsumContract/);
+    await generateTsum('sampleChain', root, { template: 'chain' });
+    const generatedChain = (await import(pathToFileURL(join(root, 'tsums/sampleChain/definition.js')))).default;
+    validateDefinition(generatedChain);
+    assert.equal(generatedChain.id, 'sampleChain');
+    assert.equal(generatedChain.capabilities.chainCommit, true);
+    assert.equal(typeof generatedChain.handler.onChainCommit, 'function');
+    const chainTest = await readFile(join(root, 'tsums/sampleChain/skill.test.mjs'), 'utf8');
+    assert.match(chainTest, /testChainTsumContract/);
+    assert.match(chainTest, /testTsumCommonContract/);
+    await assert.rejects(generateTsum('badTemplate', root, { template: 'unknown' }));
     await generateTsum('class', root);
     const reservedCatalog = await import(pathToFileURL(join(root, 'tsums/catalog.js')).href + '?reserved');
     assert.ok(reservedCatalog.tsumDefinitions.some(d => d.id === 'class'));

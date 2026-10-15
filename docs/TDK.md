@@ -88,3 +88,38 @@ node --test --test-name-pattern="45-body ten-second" tsumPhysics.test.mjs
 物理p95は環境依存です。失敗時は計測環境と値を残し、閾値を変更して成功扱いにしないでください。
 
 正式化はレビューを伴う別工程です。`developmentOnly` の変更に加え、仕様・AI対応・画像権利・保存互換・実プレイを確認してください。mainへのマージや本番公開を生成コマンドは行いません。
+
+## v1.1 チェーン型テンプレート
+
+従来のタップ型の既定動作は維持しています。チェーン型を生成する場合は明示的に指定します。
+
+```sh
+npm run tsum:new -- newChainTsum --template=chain
+npm run tsum:validate
+npm run test:tdk
+node scripts/serve.mjs
+```
+
+`http://localhost:8765/?tdk=1&tsum=newChainTsum&sl=1&types=5` にアクセスし、スキル充填→発動→通常のドラッグで3個以上のチェーンを確定します。チェーンに含まれるツムと終点周囲を、既存ClearPipelineで1回消去します。コインとゲージは既存の計算に従います。
+
+- `--template=tap` は従来のタップ型を明示。オプション省略時もタップ型です。
+- `--template=chain` はチェーン確定型。`minChainLength` と `splashRadius` をSL1〜6で設定します。
+- 両方式とも開発専用で生成され、通常選択と保存に混入しません。
+- 標準の入力機構が合法チェーンを作り、`onChainCommit` が確定を処理します。一度消去が始まったチェーンは通常消去経路へ二重に渡しません。
+- 高度な特殊スキルは独自ハンドラーを実装でき、従来の物理・時間停止・ClearPipelineは変更しません。
+
+### テスト契約の分離
+
+- `testTsumCommonContract(definition)`：登録、3/4/5種類盤面、時間停止、タイムアウト、終了・復旧。
+- `testTapTsumContract(definition)`：タップ入力、実消去、コイン、ゲージ。
+- `testChainTsumContract(definition)`：チェーン選択・確定、二重消去防止、消去、コイン、ゲージ、時間切れ。
+- v1.0の`testTsumContract(definition)` は互換用に残しており、共通＋タップ型を実行します。
+
+チェーン型の開発専用例は`chainTestTsum`です。動作試験URL：
+`http://localhost:8765/?tdk=1&tsum=chainTestTsum&sl=6&types=5`
+
+CPU・最強モードは未対応として抑止します。テンプレートを大幅に変更した際は、生成された種類別テストもその仕様に合わせて更新してください。
+
+### QAの注意
+
+`npm run tsum:validate` と `npm run test:tdk` を実行し、機能テストと環境依存の物理p95テストは結果を分けて記録してください。ブラウザ実操作、スマートフォン実機、長時間テストは自動テストの代替になりません。
