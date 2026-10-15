@@ -171,12 +171,29 @@ test('chain held across expiry retains original capability, finishes events, and
 test('watchdog finalizes a stuck automatic clear once and releases input', () => {
   const game = makeEvolution(), s = session(game);
   s.data.queue.push('line'); updateEvolutionRaw(game, 0);
+  updateEvolutionRaw(game, 0);
   assert.ok(game.pendingClear);
   updateEvolutionRaw(game, EVOLUTION_TUNING.watchdogSec + 0.1);
   assert.equal(game.pendingClear, null);
   pump(game, () => !s.data.event);
   assert.equal(s.data.metrics.watchdogRecoveries, 1);
   assert.equal(s.data.metrics.lines, 1);
+});
+test('a reserved first line waits for refill, and sparse bomb-heavy boards recover without wasting it', () => {
+  const game = makeEvolution(), s = session(game);
+  const targets = nodes(game, 6);
+  game.tsums = targets;
+  targets.forEach(n => { n.x = 70; n.y = -200; });
+  s.data.queue.push('line'); updateEvolutionRaw(game, 0);
+  updateEvolutionRaw(game, 0.1);
+  assert.equal(game.pendingClear, null); assert.equal(s.data.metrics.lines, 0);
+  assert.equal(game.getCurrentGameplayPauseState().clockPaused, true);
+  targets.forEach(n => { n.y = 450; });
+  updateEvolutionRaw(game, EVOLUTION_TUNING.refillMaxSec);
+  assert.equal(s.data.metrics.lines, 1);
+  assert.equal(game.pendingClear.targets.length, 6);
+  pump(game, () => !game.pendingClear && !s.data.event);
+  assert.equal(game.isGameplayInputLocked(), false);
 });
 test('game time-up waits for the committed chain and reserved evolution work', () => {
   const game = makeEvolution(), s = session(game), targets = nodes(game, 3);

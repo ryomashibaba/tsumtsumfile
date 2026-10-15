@@ -67,6 +67,21 @@ function tone(game, phase) {
   } catch { /* Audio can be unavailable without blocking gameplay. */ }
 }
 
+function readyNodes(game) {
+  return game.tsums.filter(n => !n.dead && !n.removing && n.y >= 140 - game.getBodyRadius(n) && n.y <= 580);
+}
+
+function fireLine(game, session, event, targets) {
+  const d = session.data, t = EVOLUTION_TUNING;
+  event.prefire = false; event.elapsed = 0;
+  d.metrics.lines++;
+  game.createShockwave?.(event.x, 360, '#ffda79', 5, 20, 0.24, 400);
+  game.clearPipeline.beginClear({ source: 'skill', targets, timer: t.lineSec / t.speed,
+    chargeMultiplier: 0, allowBomb: false, correctionType: 'correction_0',
+    meta: { evolution: session.id, automatic: true },
+    onFinalize: info => { if (getEvolution(game) === session) d.metrics.realClears += info.targets.length; } });
+}
+
 export function updateEvolutionRaw(game, dt) {
   const session = getEvolution(game);
   if (!session) return;
@@ -75,6 +90,7 @@ export function updateEvolutionRaw(game, dt) {
   d.metrics.realWallSec = (performance.now() - d.wallStartedAt) / 1000;
   d.metrics.stoppedWallSec = d.stoppedWallAccum + (d.event ? (performance.now() - d.event.wallStartedAt) / 1000 : 0);
   d.metrics.coins = game.coinBonus - d.coinStart;
+  let countedStop = false;
   if (game.dragging || game.pendingClear || game.pendingChainClearQueue?.length) {
     if (d.event) {
       d.event.elapsed += dt;
@@ -91,32 +107,45 @@ export function updateEvolutionRaw(game, dt) {
   if (d.event) {
     const e = d.event;
     e.elapsed += dt; d.metrics.stoppedSec += dt;
+    countedStop = true;
+    if (e.prefire) {
+      const candidates = readyNodes(game);
+      let targets = candidates.filter(n => Math.abs(n.x - t.lineX) <= t.lineHalfWidth);
+      const minimum = Math.min(6, Math.max(1, Math.ceil(game.tsums.length * 0.15)));
+      if (targets.length < minimum && e.elapsed < t.refillMaxSec) return;
+      if (targets.length < minimum) {
+        d.metrics.refillTimeouts++;
+        // A sparse, bomb-heavy board can have no central lane. Preserve the
+        // reserved shot by aiming at the densest remaining lane after the cap.
+        const fallback = candidates.length ? candidates : game.tsums.filter(n => !n.dead && !n.removing);
+        for (const node of fallback) {
+          const lane = fallback.filter(n => Math.abs(n.x - node.x) <= t.lineHalfWidth);
+          if (lane.length > targets.length) { targets = lane; e.x = node.x; }
+        }
+      }
+      fireLine(game, session, e, targets);
+      return;
+    }
     const duration = e.kind === 'line' ? t.lineSec : t.evolutionSec;
     const available = game.tsums.filter(n => !n.dead && !n.removing && n.y >= 140 && n.y <= 580).length;
     // Need a usable board, not zero velocity. Refill is required before every
     // queued line, preventing repeated attacks on the same emptied board.
     if (e.elapsed < duration + t.refillMinSec) return;
-    const lineReady = d.queue[0] !== 'line' || game.tsums.filter(n => !n.dead && !n.removing && n.y >= 140 && n.y <= 580 && Math.abs(n.x - t.lineX) <= t.lineHalfWidth).length >= 6;
-    if ((available < Math.min(24, game.tsums.length) || !lineReady) && e.elapsed < t.refillMaxSec) return;
+    const minimumPlayable = Math.min(24, Math.ceil(game.tsums.length * 0.6));
+    if (available < minimumPlayable && e.elapsed < t.refillMaxSec) return;
     if (e.elapsed >= t.refillMaxSec) d.metrics.refillTimeouts++;
     d.stoppedWallAccum += (performance.now() - e.wallStartedAt) / 1000;
     d.metrics.stoppedWallSec = d.stoppedWallAccum;
     d.event = null;
+    if (!d.queue.length) { d.metrics.stoppedSec -= dt; countedStop = false; }
   }
   const kind = d.queue.shift();
   if (kind) {
     d.event = { kind, elapsed: 0, wallStartedAt: performance.now() };
-    d.metrics.stoppedSec += dt;
+    if (!countedStop) d.metrics.stoppedSec += dt;
     d.metrics.events.push(kind);
     if (kind === 'line') {
-      d.metrics.lines++;
-      const targets = game.tsums.filter(n => !n.dead && !n.removing &&
-        n.y >= 140 - game.getBodyRadius(n) && n.y <= 580 && Math.abs(n.x - t.lineX) <= t.lineHalfWidth);
-      game.createShockwave?.(207, 360, '#ffda79', 5, 20, 0.24, 400);
-      game.clearPipeline.beginClear({ source: 'skill', targets, timer: t.lineSec / t.speed,
-        chargeMultiplier: 0, allowBomb: false, correctionType: 'correction_0',
-        meta: { evolution: session.id, automatic: true },
-        onFinalize: info => { if (getEvolution(game) === session) d.metrics.realClears += info.targets.length; } });
+      d.event.prefire = true; d.event.x = t.lineX;
     } else {
       d.phase = kind === 'phase2' ? 2 : 3;
       d.metrics[`phase${d.phase}AtSec`] = d.metrics.activeSec;
@@ -224,8 +253,9 @@ export function drawEvolution(ctx, game) {
   const e = d.event;
   if (e && game.skillVisualsEnabled !== false) {
     if (e.kind === 'line') {
+      if (e.prefire) { ctx.restore(); return; }
       ctx.globalAlpha = Math.max(0, 0.32 * (1 - e.elapsed / 0.3));
-      ctx.fillStyle = '#fff2bc'; ctx.fillRect(207 - EVOLUTION_TUNING.lineHalfWidth, 190, EVOLUTION_TUNING.lineHalfWidth * 2, 390);
+      ctx.fillStyle = '#fff2bc'; ctx.fillRect(e.x - EVOLUTION_TUNING.lineHalfWidth, 190, EVOLUTION_TUNING.lineHalfWidth * 2, 390);
     } else {
       ctx.globalAlpha = Math.min(1, Math.max(0, (0.6 - e.elapsed) * 5));
       ctx.fillStyle = '#0a192de8'; ctx.fillRect(35, 290, 344, 86);
