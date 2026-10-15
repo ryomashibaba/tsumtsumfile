@@ -88,7 +88,8 @@ test('generator creates an importable registered definition, refuses collisions 
     const snapshot = await readFile(join(root, 'tsums/sampleTsum/skill.js'), 'utf8');
     await assert.rejects(generateTsum('sampleTsum', root));
     assert.equal(await readFile(join(root, 'tsums/sampleTsum/skill.js'), 'utf8'), snapshot);
-    assert.match(await readFile(join(root, 'tsums/sampleTsum/skill.test.mjs'), 'utf8'), /testTsumContract/);
+    assert.match(await readFile(join(root, 'tsums/sampleTsum/skill.test.mjs'), 'utf8'), /testTsumCommonContract/);
+    assert.match(await readFile(join(root, 'tsums/sampleTsum/skill.test.mjs'), 'utf8'), /testTapTsumContract/);
     await generateTsum('sampleChain', root, { template: 'chain' });
     const generatedChain = (await import(pathToFileURL(join(root, 'tsums/sampleChain/definition.js')))).default;
     validateDefinition(generatedChain);
