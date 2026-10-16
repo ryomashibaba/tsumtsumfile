@@ -266,9 +266,7 @@ export class BattleController {
     }
     for (const game of [this.player, this.cpu]) {
       game.paused = paused;
-      if (paused && game.dragging) {
-        game.inputRouter.handlePointerUp(game.dragPointer);
-      }
+      if (paused) game.cancelInputForPause();
     }
     return true;
   }

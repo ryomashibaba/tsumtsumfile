@@ -1,0 +1,75 @@
+{
+  "checks": [
+    {
+      "case": "skill-activation-update-render-reset",
+      "id": "coingain"
+    },
+    {
+      "case": "skill-activation-update-render-reset",
+      "id": "coronationElsa"
+    },
+    {
+      "case": "skill-activation-update-render-reset",
+      "id": "captainLightyear"
+    },
+    {
+      "case": "skill-activation-update-render-reset",
+      "id": "namine"
+    },
+    {
+      "case": "skill-activation-update-render-reset",
+      "id": "gaston"
+    },
+    {
+      "case": "skill-activation-update-render-reset",
+      "id": "guidingMoana"
+    },
+    {
+      "case": "skill-activation-update-render-reset",
+      "id": "perfumeAlice"
+    },
+    {
+      "case": "skill-activation-update-render-reset",
+      "id": "jamilViper"
+    },
+    {
+      "case": "skill-activation-update-render-reset",
+      "id": "snowQueenElsa"
+    },
+    {
+      "case": "skill-activation-update-render-reset",
+      "id": "liliaVanrouge"
+    },
+    {
+      "case": "skill-activation-update-render-reset",
+      "id": "finalBattleHook"
+    },
+    {
+      "case": "skill-activation-update-render-reset",
+      "id": "judyNick"
+    },
+    {
+      "case": "skill-activation-update-render-reset",
+      "id": "dopa"
+    },
+    {
+      "case": "skill-activation-update-render-reset",
+      "id": "laserWeave"
+    },
+    {
+      "case": "skill-activation-update-render-reset",
+      "id": "autoChain"
+    },
+    {
+      "case": "skill-activation-update-render-reset",
+      "id": "evolutionTsum"
+    },
+    {
+      "case": "battle-start-pause-resume-results-title"
+    },
+    {
+      "case": "boot-with-denied-storage"
+    }
+  ],
+  "errors": []
+}

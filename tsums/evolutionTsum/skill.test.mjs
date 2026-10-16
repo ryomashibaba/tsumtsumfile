@@ -198,6 +198,9 @@ test('a reserved first line waits for refill, and sparse bomb-heavy boards recov
 test('game time-up waits for the committed chain and reserved evolution work', () => {
   const game = makeEvolution(), s = session(game), targets = nodes(game, 3);
   s.data.progress = 12; s.remainingMs = 1;
+  // Prevent a new fever's +5 seconds from legitimately reviving the run.
+  game.feverSystem.active = true;
+  game.feverSystem.gauge = 100;
   game.timeRemaining = 0.001;
   let finished = 0;
   game.finishRun = () => { finished++; game.state = 'result'; };
@@ -207,6 +210,8 @@ test('game time-up waits for the committed chain and reserved evolution work', (
   game.finishChain();
   pump(game, () => !session(game));
   assert.deepEqual(game.evolutionLastMetrics.events, ['line']);
+  // Result display also waits for the final awarded coins to arrive.
+  pump(game, () => game.coinFlights.length === 0 && finished > 0);
   assert.equal(finished, 1);
   assert.equal(game.pendingClear, null);
 });

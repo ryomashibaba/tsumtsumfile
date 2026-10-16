@@ -3252,7 +3252,13 @@ class Game {
     this.chainRule = null;
     this.chainBacktrackArmed = false;
     this.chainSelectedAt = new Map();
-    this.advancedSettingsStorage = this.persistenceEnabled && typeof localStorage !== "undefined" ? localStorage : null;
+    this.advancedSettingsStorage = null;
+    try {
+      // Accessing the storage property itself can throw in restricted browsers.
+      if (this.persistenceEnabled && typeof localStorage !== "undefined") this.advancedSettingsStorage = localStorage;
+    } catch {
+      // Keep settings available in memory when browser storage is blocked.
+    }
     this.advancedSettings = loadAdvancedSettings(this.advancedSettingsStorage);
     this.advancedSettingsOpen = false;
     this.advancedSettingsSection = "developer";
@@ -5262,6 +5268,11 @@ class Game {
   resetGame() {
     resetDopa(this);
     resetLaserWeave(this);
+    this.skillRuntime.reset();
+    this.boardState.reset();
+    this.inputRouter.reset();
+    this.paused = false;
+    this.timeUp = false;
     this.itemSelection = this.blankItemSelection();
     this.activeItems = this.blankItemSelection();
     this.score = 0;
@@ -11595,6 +11606,19 @@ class Game {
     };
   }
 
+  cancelInputForPause() {
+    this.heldBombInput = null;
+    this.manualDragPointerId = null;
+    this.manualDragPoint = null;
+    this.skillRuntime?.clearHeldFinalBattleHookInput?.();
+    this.inputRouter?.reset?.();
+    if (this.deferredSkillInput) {
+      this.deferredSkillInput.chain = null;
+      this.deferredSkillInput.bomb = null;
+    }
+    this.cancelActiveChain();
+  }
+
   togglePause() {
     if (this.state !== "playing" || this.timeUp) {
       return false;
@@ -11604,16 +11628,7 @@ class Game {
       this.battleController.setPaused(nextPaused);
     } else {
       this.paused = nextPaused;
-    }
-    if (this.paused) {
-      this.inputRouter.handlePointerUp(this.dragPointer);
-    }
-    if (this.paused && this.dragging) {
-      this.dragging = false;
-      this.chain.forEach((tsum) => { tsum.inChain = false; });
-      this.chain = [];
-      this.chainSet = new Set();
-      this.chainTypeId = null;
+      if (this.paused) this.cancelInputForPause();
     }
     this.noteAction();
     this.addFloatingText(PAUSE_BUTTON_RECT.x + PAUSE_BUTTON_RECT.w * 0.5, PAUSE_BUTTON_RECT.y + PAUSE_BUTTON_RECT.h + 18, this.paused ? "PAUSE" : "GO!", "#ffffff", 16, 0.4);

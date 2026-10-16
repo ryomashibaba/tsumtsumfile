@@ -1,0 +1,278 @@
+{
+  "results": [
+    {
+      "case": "skill",
+      "types": 3,
+      "input": "mouse",
+      "level": 1,
+      "cleared": 6,
+      "coins": 5,
+      "gauge": 3,
+      "sources": [
+        "skill"
+      ],
+      "storage": {
+        "reads": 0,
+        "writes": 0
+      },
+      "pause": {
+        "clockPaused": false,
+        "physicsPaused": false
+      },
+      "dragging": false
+    },
+    {
+      "case": "normal-chain",
+      "types": 3,
+      "level": 1,
+      "cleared": 6,
+      "coins": 5,
+      "gauge": 6,
+      "sources": [
+        "chain"
+      ],
+      "storage": {
+        "reads": 0,
+        "writes": 0
+      },
+      "pause": {
+        "clockPaused": false,
+        "physicsPaused": false
+      },
+      "dragging": false
+    },
+    {
+      "case": "skill",
+      "types": 3,
+      "input": "touch",
+      "level": 2,
+      "cleared": 6,
+      "coins": 5,
+      "gauge": 3,
+      "sources": [
+        "skill"
+      ],
+      "storage": {
+        "reads": 0,
+        "writes": 0
+      },
+      "pause": {
+        "clockPaused": false,
+        "physicsPaused": false
+      },
+      "dragging": false
+    },
+    {
+      "case": "normal-chain",
+      "types": 3,
+      "level": 2,
+      "cleared": 6,
+      "coins": 5,
+      "gauge": 6,
+      "sources": [
+        "chain"
+      ],
+      "storage": {
+        "reads": 0,
+        "writes": 0
+      },
+      "pause": {
+        "clockPaused": false,
+        "physicsPaused": false
+      },
+      "dragging": false
+    },
+    {
+      "case": "skill",
+      "types": 4,
+      "input": "mouse",
+      "level": 3,
+      "cleared": 6,
+      "coins": 5,
+      "gauge": 3,
+      "sources": [
+        "skill"
+      ],
+      "storage": {
+        "reads": 0,
+        "writes": 0
+      },
+      "pause": {
+        "clockPaused": false,
+        "physicsPaused": false
+      },
+      "dragging": false
+    },
+    {
+      "case": "normal-chain",
+      "types": 4,
+      "level": 3,
+      "cleared": 6,
+      "coins": 5,
+      "gauge": 6,
+      "sources": [
+        "chain"
+      ],
+      "storage": {
+        "reads": 0,
+        "writes": 0
+      },
+      "pause": {
+        "clockPaused": false,
+        "physicsPaused": false
+      },
+      "dragging": false
+    },
+    {
+      "case": "skill",
+      "types": 4,
+      "input": "touch",
+      "level": 4,
+      "cleared": 6,
+      "coins": 5,
+      "gauge": 3,
+      "sources": [
+        "skill"
+      ],
+      "storage": {
+        "reads": 0,
+        "writes": 0
+      },
+      "pause": {
+        "clockPaused": false,
+        "physicsPaused": false
+      },
+      "dragging": false
+    },
+    {
+      "case": "normal-chain",
+      "types": 4,
+      "level": 4,
+      "cleared": 6,
+      "coins": 5,
+      "gauge": 6,
+      "sources": [
+        "chain"
+      ],
+      "storage": {
+        "reads": 0,
+        "writes": 0
+      },
+      "pause": {
+        "clockPaused": false,
+        "physicsPaused": false
+      },
+      "dragging": false
+    },
+    {
+      "case": "skill",
+      "types": 5,
+      "input": "mouse",
+      "level": 5,
+      "cleared": 6,
+      "coins": 5,
+      "gauge": 3,
+      "sources": [
+        "skill"
+      ],
+      "storage": {
+        "reads": 0,
+        "writes": 0
+      },
+      "pause": {
+        "clockPaused": false,
+        "physicsPaused": false
+      },
+      "dragging": false
+    },
+    {
+      "case": "normal-chain",
+      "types": 5,
+      "level": 5,
+      "cleared": 6,
+      "coins": 5,
+      "gauge": 6,
+      "sources": [
+        "chain"
+      ],
+      "storage": {
+        "reads": 0,
+        "writes": 0
+      },
+      "pause": {
+        "clockPaused": false,
+        "physicsPaused": false
+      },
+      "dragging": false
+    },
+    {
+      "case": "skill",
+      "types": 5,
+      "input": "touch",
+      "level": 6,
+      "cleared": 6,
+      "coins": 5,
+      "gauge": 3,
+      "sources": [
+        "skill"
+      ],
+      "storage": {
+        "reads": 0,
+        "writes": 0
+      },
+      "pause": {
+        "clockPaused": false,
+        "physicsPaused": false
+      },
+      "dragging": false
+    },
+    {
+      "case": "normal-chain",
+      "types": 5,
+      "level": 6,
+      "cleared": 6,
+      "coins": 5,
+      "gauge": 6,
+      "sources": [
+        "chain"
+      ],
+      "storage": {
+        "reads": 0,
+        "writes": 0
+      },
+      "pause": {
+        "clockPaused": false,
+        "physicsPaused": false
+      },
+      "dragging": false
+    },
+    {
+      "case": "touch-cancel-and-natural-timeout",
+      "pass": true
+    },
+    {
+      "case": "natural-timeout-during-drag",
+      "pass": true
+    },
+    {
+      "case": "restart-during-drag",
+      "pass": true
+    },
+    {
+      "case": "game-clock-expiry-during-drag",
+      "boundaryTimerSetup": true,
+      "pass": true
+    },
+    {
+      "case": "legacy-tap-template",
+      "pass": true
+    },
+    {
+      "case": "return-to-normal",
+      "development": false,
+      "persistence": true,
+      "leaked": 0
+    }
+  ],
+  "errors": []
+}

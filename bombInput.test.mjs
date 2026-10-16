@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Game, ClearPipeline, InputRouter, SkillRuntimeManager } from './game.js';
 import { TSUM_TYPES } from './config.js';
+import { BattleController } from './battle.js';
 
 const type = TSUM_TYPES.find(type => type.id === 'perfumeAlice');
 const node = (id, x = 200, y = 400) => ({
@@ -43,6 +44,38 @@ function fixture(nodes = []) {
 }
 const down = (g, id, x = 200, y = 400) => g.onPointerDown({ pointerId: id, x, y });
 const up = (g, id, kind = 'pointerup') => g.onPointerUp({ pointerId: id, type: kind });
+
+for (const battle of [false, true]) test(`${battle ? 'battle' : 'solo'} pause cancels held pointer input before resume`, () => {
+  const g = fixture(); const b = bomb(); g.bombs = [b];
+  down(g, 1);
+  g.inputRouter.pendingBubbleGesture = { pointerId: 1 };
+  g.skillRuntime.heldFinalBattleHookInput = { pointerId: 1 };
+  if (battle) {
+    const controller = Object.create(BattleController.prototype);
+    controller.active = true;
+    controller.player = g;
+    controller.cpu = fixture();
+    const cpuNode = node('cpu-chain'); cpuNode.inChain = true;
+    controller.cpu.dragging = true;
+    controller.cpu.chain = [cpuNode];
+    controller.cpu.chainRule = { mode: 'normal' };
+    g.battleController = controller;
+  }
+  assert.equal(g.togglePause(), true);
+  assert.equal(g.heldBombInput, null);
+  assert.equal(g.manualDragPointerId, null);
+  assert.equal(g.inputRouter.pendingBubbleGesture, null);
+  assert.equal(g.skillRuntime.heldFinalBattleHookInput, null);
+  if (battle) {
+    assert.equal(g.battleController.cpu.dragging, false);
+    assert.equal(g.battleController.cpu.chainRule, null);
+  }
+  g.togglePause();
+  up(g, 1);
+  assert.equal(b.dead, false, 'release from before pause must not explode a bomb');
+  down(g, 2); up(g, 2);
+  assert.equal(b.dead, true, 'fresh input must work after resume');
+});
 function tick(g, dt = 1) {
   if (!g.pendingClear) return;
   if (!g.clearPipeline.updateSequentialChainClear(g.pendingClear, dt)) {
