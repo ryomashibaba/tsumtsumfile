@@ -7793,10 +7793,8 @@ class Game {
     if (this.isStrongestModeBusy()) {
       return false;
     }
-    if (this.myTsum?.id === "evolutionTsum" && getEvolution(this)) {
-      return false;
-    }
-    if (this.isSkillReadyForActivation()) {
+    const evolutionSkillActive = this.myTsum?.id === "evolutionTsum" && !!getEvolution(this);
+    if (!evolutionSkillActive && this.isSkillReadyForActivation()) {
       return this.attemptSkillActivation(false);
     }
     const finalBattleHookSession = this.myTsum?.id === FINAL_BATTLE_HOOK_TYPE_ID

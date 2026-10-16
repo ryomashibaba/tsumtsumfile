@@ -22,8 +22,19 @@ test("strongest mode does not reactivate the staged evolution skill during its a
   game.isStrongestModeBusy = () => false;
   game.isSkillReadyForActivation = () => true;
   game.attemptSkillActivation = () => { activations += 1; return true; };
+  game.tryPerformStrongestModeFeverBombCancel = () => false;
+  game.getJudyNickSession = () => null;
+  game.tryTapStrongestModeJudyNickJudyBubble = () => false;
+  game.resetStrongestModeCoronationElsaSettleOpportunityState = () => {};
+  game.resetStrongestModeCoronationElsaIceTapReadiness = () => {};
+  game.resetStrongestModeCoronationElsaTracePlan = () => {};
+  game.normalizeStrongestModeBombCount = () => false;
+  game.findStrongestSpecialTapTarget = () => null;
+  game.findStrongestModeChain = () => [{ id: 1 }, { id: 2 }, { id: 3 }];
+  game.findStrongestModeBombTarget = () => null;
+  game.performStrongestModeChains = () => true;
 
-  assert.equal(game.performStrongestModeStep(), false);
+  assert.equal(game.performStrongestModeStep(), true);
   assert.equal(activations, 0);
 });
 
