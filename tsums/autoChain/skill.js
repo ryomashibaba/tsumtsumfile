@@ -182,7 +182,8 @@ export default function createSkill(tables, visuals) {
     visuals.burst(game, chain, finish);
     return ctx.clear.beginClear({ source: 'chain', scoreMode: 'chain', clearMode: 'simultaneous',
       targets: chain, type: game.boardState.getResolvedType(chain[0]), x: last.x, y: last.y,
-      allowBomb: false, chargeMultiplier: 0.1, correctionType: tables.coinCorrectionType[5],
+      allowBomb: false, chargeMultiplier: 0.1,
+      correctionType: finish ? 'correction_3' : automatic ? 'correction_5' : tables.coinCorrectionType[5],
       applyLargeTsumCorrection: false, meta: { autoChain: true, finish, automatic } });
   };
   return {

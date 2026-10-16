@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import definition from './definition.js';
-import { longestPath, findAutomaticPath, getAutoChainSession, updateAutoChainClock } from './skill.js';
+import { longestPath, findAutomaticPath, getAutoChainSession } from './skill.js';
 import { makeTdkGame } from '../../tdk/testing.mjs';
 import { validateDefinition } from '../../tdk/core.js';
 import { resolveDevelopmentLaunch } from '../../tdk/development.js';
@@ -77,7 +77,7 @@ test('exact search matches exhaustive oracle on 100 deterministic small graphs',
 for (const length of [9, 10, 12]) test(`falling ${length}-node path threshold, usable clear and 10% charge`, () => {
   const {game, tick, activate} = setup(); fixture(game, length); const session = activate();
   const cleared = length >= 10 ? 10 : 0;
-  const coins = game.getCoinsByClearCount(cleared, 'autoChain', 'correction_0');
+  const coins = game.getCoinsByClearCount(cleared, 'autoChain', 'correction_5');
   tick(20);
   assert.equal(session.data.count, length >= 10 ? 1 : 0);
   assert.equal(game.totalCleared, cleared);
@@ -85,6 +85,22 @@ for (const length of [9, 10, 12]) test(`falling ${length}-node path threshold, u
   assert.equal(game.pendingClear, null); assert.equal(game.bombs.length, 0);
   game.updateSkillChargeFlights(2000);
   assert.ok(Math.abs(game.skillSystem.charge - cleared * .1) < 1e-8);
+});
+test('automatic chains use +5 coin correction and the final large clear uses +3', () => {
+  const {game, tick, activate} = setup();
+  fixture(game, 12);
+  const session = activate();
+  const specs = [];
+  const beginClear = game.clearPipeline.beginClear.bind(game.clearPipeline);
+  game.clearPipeline.beginClear = spec => { specs.push(spec); return beginClear(spec); };
+
+  tick(20);
+  assert.equal(specs[0].correctionType, 'correction_5');
+  session.data.count = 2;
+  tick(10000);
+  tick(10760);
+  tick(10960);
+  assert.equal(specs.at(-1).correctionType, 'correction_3');
 });
 test('bombs are removed without explosion, scoring or collateral clear', () => {
   const {game, activate} = setup(); game.bombs = [{ x: 200, y: 350, dead: false }];
@@ -168,7 +184,7 @@ for (const [limit, count] of [[45,11], [53,11], [45,20], [45,60], [45,0]]) test(
   assert.equal(game.totalCleared, before+targetCount);
   assert.equal(game.autoChainLastResult.finishCount, targetCount);
   assert.equal(game.autoChainLastResult.containedWaitMs, 200);
-  assert.equal(game.coinBonus, targetCount ? game.getCoinsByClearCount(targetCount,'autoChain','correction_0') : 0);
+  assert.equal(game.coinBonus, targetCount ? game.getCoinsByClearCount(targetCount,'autoChain','correction_3') : 0);
   assert.equal(game.comboSystem.combo, targetCount ? 1 : 0);
   assert.equal(game.getConfiguredTsumRadius(), radius);
   assert.equal(game.getTargetBodyCount(), beforeLimit);
