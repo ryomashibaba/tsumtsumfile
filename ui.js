@@ -103,6 +103,7 @@ export class UIRenderer {
   }
 
   drawVersion(ctx) {
+    const isSelectionScreen = this.game.state === "title" || this.game.state === "items";
     ctx.save();
     ctx.textAlign = "right";
     ctx.textBaseline = "bottom";
@@ -110,7 +111,7 @@ export class UIRenderer {
     ctx.fillStyle = "rgba(255,255,255,0.9)";
     ctx.shadowColor = "rgba(0,24,54,0.75)";
     ctx.shadowBlur = 2;
-    ctx.fillText(`v${APP_VERSION}`, WIDTH - 7, 139);
+    ctx.fillText(`v${APP_VERSION}`, WIDTH - (isSelectionScreen ? 23 : 7), isSelectionScreen ? 54 : 139);
     ctx.restore();
   }
 
