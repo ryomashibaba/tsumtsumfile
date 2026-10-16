@@ -1,0 +1,3519 @@
+
+> test
+> node --test --test-concurrency=1 laserWeave.test.mjs dopa.test.mjs battle.test.mjs cheatSettings.test.mjs lilia.test.mjs finalBattleHook.test.mjs perfumeAlice.test.mjs gameplayTiming.test.mjs skillInputOrder.test.mjs skillSpecs.test.mjs skillPresentationVisuals.test.mjs skillActiveVisuals.test.mjs bodyLifecycle.test.mjs strongestModeLogic.test.mjs coronationElsaPlanner.test.mjs bombLogic.test.mjs bombInput.test.mjs coinFlights.test.mjs boardTypeSelection.test.mjs tsumImages.test.mjs tsumPhysics.test.mjs tsumSpatialHash.test.mjs renderQuality.test.mjs gameFeel.test.mjs chainInput.test.mjs advancedSettings.test.mjs server.test.mjs tdk.test.mjs tsums/testTsum/skill.test.mjs tsums/chainTestTsum/skill.test.mjs tsums/evolutionTsum/skill.test.mjs tsums/autoChain/skill.test.mjs
+
+✔ selection screen opens and closes advanced settings without selecting a Tsum (0.8467ms)
+✔ game, display, Developer, and other-debug disclosure are navigable (0.1528ms)
+✔ Telemetry turns on and off from Developer and persists independently of progress (0.6922ms)
+✔ Overlay can be toggled while measurement continues, then reset (0.2119ms)
+✔ saved settings restore after relaunch and query can force measurement despite saved OFF (0.1288ms)
+✔ without either enable source there is no Telemetry object or processing (0.2464ms)
+✔ current debug entries sort above older entries by metadata (0.4936ms)
+✔ CPU battle always uses the strongest mode (0.6197ms)
+✔ adaptive multiplier requires three matches (0.1051ms)
+✔ battle outcome handles win, loss, and draw (0.0648ms)
+✔ strongest CPU win bonus is only awarded for wins (0.0744ms)
+✔ starting a CPU battle enables strongest mode and disables regular AI (0.7423ms)
+✔ render quality synchronization updates the other board (0.1428ms)
+✔ finalization awards and saves the battle bonus only once (0.1937ms)
+✔ sub Tsum candidates require artwork and explicit eligibility (0.6501ms)
+✔ every selectable my Tsum has color-safe 3, 4, and 5-type lineups (93.3675ms)
+✔ fixed sub-Tsum selections maximize board color separation for every board size (93.2454ms)
+✔ pair Tsum keeps Judy and Nick as the first two board types (1.3688ms)
+✔ injected randomness can select different valid lineups reproducibly (3.7258ms)
+✔ an impossible color-safe lineup fails explicitly (0.3921ms)
+✔ body lifecycle keeps waiting Tsums solid and makes removing Tsums visual-only (1.0153ms)
+✔ every removal route releases frozen chain occupancy at removal start (0.147ms)
+[COIN] Tsum=perfumeAlice Clears=1 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=perfumeAlice Clears=1 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=perfumeAlice Clears=1 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=perfumeAlice Clears=1 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=perfumeAlice Clears=1 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=perfumeAlice Clears=1 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=perfumeAlice Clears=1 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=perfumeAlice Clears=1 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=perfumeAlice Clears=1 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=perfumeAlice Clears=1 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=perfumeAlice Clears=1 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=perfumeAlice Clears=1 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=perfumeAlice Clears=1 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=perfumeAlice Clears=1 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=perfumeAlice Clears=8 Type=correction_0 → Coins=10 (base=10)
+[COIN] Tsum=perfumeAlice Clears=4 Type=correction_0 → Coins=1 (base=1)
+[COIN] Tsum=perfumeAlice Clears=4 Type=correction_0 → Coins=1 (base=1)
+[COIN] Tsum=perfumeAlice Clears=8 Type=correction_0 → Coins=10 (base=10)
+[COIN] Tsum=perfumeAlice Clears=1 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=perfumeAlice Clears=2 Type=correction_0 → Coins=0 (base=0)
+✔ stationary first contact does not block another finger; release uses the held moving bomb (1.5311ms)
+✔ another finger cannot use a bomb during a trace or trigger it later on release (0.2521ms)
+✔ bomb hit wins over overlapping frozen, bubble and skill tap routes and allows a small edge margin (0.1575ms)
+✔ cancelled, paused, expired, removed and foreign bombs never explode (0.3505ms)
+✔ multiple bombs during chain clear preserve and settle every clear exactly once (13.128ms)
+✔ multiple bombs during bomb clear preserve and settle every clear exactly once (0.5986ms)
+✔ multiple bombs during freeze clear preserve and settle every clear exactly once (0.4865ms)
+✔ multiple bombs during bubble clear preserve and settle every clear exactly once (0.389ms)
+✔ a clear transition between press and release does not invalidate a held bomb (0.2135ms)
+✔ additional clear waits for its timer and root cannot finish before all additional clears (0.4678ms)
+✔ overlapping bomb blasts award nonzero coins and gauge once per distinct target (0.6122ms)
+✔ a counted bomb contributes once across the cancelled chain and its additional blast clear (0.2898ms)
+✔ independent held bomb pointer survives a rejected skill and is consumed by an accepted one (0.2645ms)
+✔ all empirical bomb probability tables sum to one (1.2246ms)
+✔ standard bomb boundaries resolve without unnecessary RNG (0.3683ms)
+✔ +Bomb shifts both threshold and probability lookup by one (0.284ms)
+✔ large Tsum weights contribute five to effective clear count (0.2541ms)
+✔ 45 physical Tsums stay at 45 body slots while large Tsums add four clears each (0.2917ms)
+✔ one large MyTsum charges the skill gauge like five normal MyTsums (0.1604ms)
+✔ large Tsum correction keeps completed prefix and final marginal coin only (1.0657ms)
+✔ large Tsum correction uses marginal values from the active correction table (0.2076ms)
+✔ multiple large Tsums are corrected independently and synthetic clears append normally (0.2582ms)
+✔ explicit overrides and additive synthetic clears remain distinct (0.2339ms)
+✔ 9-clear weighted random boundaries are exact (0.1538ms)
+✔ 14-clear weighted random boundaries are exact (0.1554ms)
+✔ 18-clear thirds and floating point fallback always return a type (0.1075ms)
+✔ forced and disabled generation bypass standard selection (0.1002ms)
+✔ each resolver call represents one independent ClearEvent (0.1208ms)
+✔ large Tsum natural spawn uses pre-item count and the 1% boundary (0.1706ms)
+✔ natural large Tsum reservations are capped only when they enter the board (0.2316ms)
+✔ one fast pointermove adds four Tsums in travel order, independent of array order (2.0772ms)
+✔ a segment grazing the edge intersects without a center sample (0.1623ms)
+✔ chain start uses its own slightly larger input radius (0.1534ms)
+✔ an invalid crossed candidate does not block a valid candidate beyond it (0.1628ms)
+✔ a long movement remains continuous beyond the old 64-point interpolation limit (0.1294ms)
+✔ small jitter does not backtrack, while a deliberate return removes one node (0.149ms)
+✔ frozen nodes are skipped and a special unlimited-distance rule remains usable (0.1001ms)
+✔ a pointermove without coalesced events still uses its actual endpoint (0.3029ms)
+✔ coalesced points preserve a curved path instead of using the endpoint chord (0.2179ms)
+✔ pointercancel releases the manual chain without committing (0.3546ms)
+✔ mixed chains and distance multipliers apply to pointer extension only with player cheat enabled (0.2163ms)
+[COIN] Tsum=coingain Clears=20 Type=correction_-15 → Coins=17 (base=96)
+[COIN] Tsum=coingain Clears=20 Type=correction_100 → Coins=1796 (base=96)
+[COIN] Tsum=coingain Clears=20 Type=correction_15 → Coins=351 (base=96)
+✔ cheat settings normalize old, invalid, boundary, and special values (1.162ms)
+✔ Coronation Elsa freeze radii keep level defaults and normalize independent cheat overrides (0.2045ms)
+✔ skill cost overrides are character-specific and keep Judy and Nick separate (0.1717ms)
+✔ finite spawn scheduling is deterministic and does not bank tokens while full (0.1736ms)
+✔ instant finite fill and unlimited instant use the safe 999 per second rate (0.089ms)
+✔ gauge reconciliation preserves ratio across finite, zero, and unlimited costs (0.1146ms)
+✔ Judy and Nick support independent zero and unlimited thresholds (0.2925ms)
+✔ auto skill waits for locks and active sessions, then uses the normal activation entry (0.1754ms)
+✔ coin correction supports values outside the built-in table and shifts coingain stages (0.8096ms)
+✔ Judy and Nick expose ten independent count corrections plus the overlay (0.2799ms)
+✔ Final Battle Hook exposes one skill coin correction for both manual and diagonal clears (0.1534ms)
+✔ Tsum diameter is clamped and updates normal and large live bodies (0.1869ms)
+✔ common cheat ranges normalize, round-trip and reset old saves (0.1609ms)
+✔ spawn percentage endpoints and sub-Tsum distribution override only player cheats (0.312ms)
+✔ board conversion keeps geometry and bombs, cancels input and rejects unsafe states (0.2174ms)
+✔ pair My-Tsums split the configured probability and conversion between Judy and Nick (0.5375ms)
+✔ settings panel exposes all common controls and their updates persist through save/load (3.8376ms)
+✔ coin awards map every positive marginal coin to its physical Tsum (1.1997ms)
+✔ large Tsum coins stay bundled and synthetic clears use the event origin (0.1661ms)
+✔ zero coin clears create no awards (0.0944ms)
+✔ coin flight lingers, follows the exponential chase, flips, and lands exactly (0.3724ms)
+✔ ClearPipeline emits each disappeared Tsum and synthetic bundle exactly once (0.278ms)
+✔ arrivals increment only the displayed run coins and direct awards update both values (0.2374ms)
+✔ coin flight effects respect the quality cap without changing awarded coins (0.3609ms)
+✔ finishRun waits while a flying coin is still collecting (0.4762ms)
+✔ planner snapshot, adjacency, simulation, and enumeration never mutate the live board (10.4942ms)
+✔ the pure freeze transition is deterministic and increments each unique target by one layer (0.4668ms)
+✔ actual Coronation Elsa onChainCommit and planner simulation freeze the same IDs and layers (1.7104ms)
+✔ Coronation Elsa line and frozen-neighbor radii independently control prediction and actual freeze (0.835ms)
+✔ planner enumerates a legal upper central diagonal 3-chain without edge or stability filters (0.5335ms)
+✔ planner exhaustively enumerates every undirected 3-node path in a branching graph (0.4229ms)
+✔ equivalent future frozen masks dedupe in Phase A and remain available for Phase B (0.3833ms)
+✔ adjacency uses the live directed chain rule and excludes disallowed types (0.2106ms)
+✔ planner profiling reports counts and only logs under Coronation Elsa debug (0.6496ms)
+✔ recent fast-falling upper chain is legal but rejected as freeze-flow unsafe (2.32ms)
+✔ stable lower chain is rejected when its line preview freezes an upper inflow node (0.6562ms)
+✔ a fresh snapshot rejects a stale route after movement brings inflow into its freeze line (1.3178ms)
+✔ safe lower trace remains selectable while unrelated upper inflow is falling (0.6973ms)
+✔ moving lower chain on stable support remains freeze-flow safe (0.642ms)
+✔ TAP diagnostics compare pending geometry with the current Coronation ice when no trace is selected (0.2676ms)
+✔ ICE_TAP_READY ignores a falling Tsum that is far above the actual tap corridor (0.4334ms)
+✔ ICE_TAP_READY detects motion around the ice and immediately accepts an initially stable board (0.2858ms)
+✔ final-trace settle risk waits only for unsettled nodes that can change freeze or tap impact (0.388ms)
+✔ Phase A keeps temporary unsafe nodes as future structural trace potential (2.0539ms)
+✔ five supported trace groups remain projected before the first ice tap (17.5641ms)
+✔ ice taps without waiting when no legal root trace is flow-blocked (0.4202ms)
+✔ board refill waits separately when no ice or legal trace exists (0.3275ms)
+✔ condition-based wait releases immediately when the same upper chain becomes safe (0.5392ms)
+✔ settled upper chain remains usable when the lower board is filled (0.3119ms)
+✔ existing upper Coronation ice without active inflow taps instead of waiting (0.2422ms)
+✔ terminal solver traces every reachable isolated triple before tapping ice (1.8759ms)
+✔ terminal solver immediately taps the best component when no legal trace remains (0.1943ms)
+✔ equal-coin terminal components prefer the one with more physical MyTsum (0.1327ms)
+✔ terminal tap evaluator includes layered and large-Tsum effective clear units (0.3006ms)
+✔ terminal component evaluation recognizes a frozen bridge (0.225ms)
+✔ hard-budget timeout switches to deterministic adaptive beam mode (0.5432ms)
+✔ outer deadline returns WAIT instead of tapping when no safe candidate was confirmed (0.1975ms)
+✔ outer deadline returns the best confirmed safe trace instead of tapping (0.2999ms)
+✔ adaptive beam configuration covers depths 1 through 15 and all three rollouts (0.1463ms)
+✔ equivalent three- and six-chains keep the deterministic shorter representative (0.5133ms)
+✔ Phase A chooses a six-trace future over an edge-aligned four-trace freeze (10.828ms)
+✔ Phase B permits a four-chain when depth is equal and its real terminal coin is higher (0.7536ms)
+✔ streaming enumeration confirms a safe trace before enumerating the remaining dense paths (1.9551ms)
+✔ large-board progressive search resumes beyond leading starts after repeated budget expiry (3.1214ms)
+✔ an incomplete adjacency waits and resumes instead of declaring that no trace exists (2.5776ms)
+✔ spatial adjacency matches exact live rules for small, mixed, large and unlimited-distance Tsums (9.01ms)
+✔ dense cheat boards retain safe progress and prediction/commit parity across count, radius, gravity and spawn modes (655.2511ms)
+✔ a large board only uses budget-expiry tap fallback when ice exists and the caller's wait has expired (1.302ms)
+✔ spatial ice propagation and one-contact splash match a brute-force oracle on large mixed-radius boards (37.4541ms)
+✔ zero and maximum freeze-radius overrides preserve the exact frozen-neighbor expansion on a 999-body board (7.4871ms)
+✔ live planner context, identity execution and freeze/tap remain consistent through a 999-body cycle (52.959ms)
+✔ moving geometry invalidates suspended paths but rotates starts to reach a late legal chain (8.0457ms)
+[COIN] Tsum=dopa Clears=1003 Type=correction_-2 → Coins=9879 (base=0)
+✔ SL6 release snapshots directions, accelerates overlapping launches, spends exact reflected distances (8.5484ms)
+✔ SL6 swept contacts count re-entry, sustained overlap once, moving flyers and immediate growth (1.1292ms)
+✔ SL6 near-expiry flights freeze all ordinary updates, pause safely, clear once and unlock (2.5841ms)
+✔ SL6 repeated clears have no 317 cap in score, coin awards or display plan (1.7425ms)
+✔ Final Battle Hook SL1-6 tables match the calibrated specification (1.1715ms)
+✔ SL6 first special chain counts two physical Hooks plus Angry ten as twelve (0.1859ms)
+✔ slash geometry is 65 degrees and grows only through halfWidth calibration (0.2196ms)
+✔ visual scale follows every anchor, interpolates monotonically, and has no success cap (0.2028ms)
+✔ diagonal selection uses live capsule geometry and excludes bombs (0.1969ms)
+✔ representative 45-node boards expand geometrically for SL3, SL4, and SL6 (0.4203ms)
+✔ held input during every Final Battle Hook presentation resumes only after input is unlocked (1.5822ms)
+✔ Final Battle Hook cannot be reactivated until its active session ends (0.2961ms)
+✔ held Final Battle Hook input can resume from the Angry Hook (0.1613ms)
+✔ held Final Battle Hook input is discarded on release, invalid targets, and session end (0.2628ms)
+✔ successful chain emits separate manual and diagonal events and never clears Angry Hook (0.819ms)
+✔ strongest mode commits the exact three selected identities despite overlaps and intervening Hooks (0.3745ms)
+✔ strongest mode revalidates selected Hook identities immediately before committing (0.0934ms)
+✔ only ACTIVE_INPUT consumes the 1800 ms budget (0.1417ms)
+✔ an expired in-progress drag can commit, while expiry without a drag ends immediately (0.1386ms)
+✔ Angry Hook provides the only long-distance edge while physical Hooks retain normal distance (0.6594ms)
+✔ ClearPipeline uses independent bomb count and exact physical plus synthetic gauge contributions (0.295ms)
+✔ two finalized ClearEvents each add one combo and manual bomb resolution receives physical count (11.8596ms)
+✔ clear intensity boundaries resolve from effective count (1.4784ms)
+✔ chain anticipation uses weighted large-Tsum count and exact thresholds (0.7334ms)
+✔ combo milestones keep ordinary combos quiet and celebrate hundreds (0.1028ms)
+✔ fever anticipation uses 70, 85, 95, and 100 percent stages (0.1124ms)
+✔ skill ready fires once per false-to-true transition (0.4325ms)
+✔ quality progressively suppresses feedback without changing the event payload (0.4356ms)
+✔ particle and ring budgets cap a large bomb chain (0.225ms)
+✔ crossing the same chain threshold twice does not replay its accent (0.1677ms)
+✔ reset removes every transient and result state (0.2462ms)
+✔ result count-up reaches the exact score and reveals all rows within one second (0.2979ms)
+✔ disabled CPU-style controller creates no feedback state (0.1152ms)
+✔ gameplay pause state keeps clock and physics independent (1.6115ms)
+✔ coingain phase policies compose with pending clear policies (0.1557ms)
+✔ skill timing table keeps presentation, clear, and end phases independent (0.2243ms)
+✔ a paused initial clear freezes gameplay clocks and physics while body presentation continues (0.9347ms)
+✔ a skill presentation freezes gameplay while its raw timer still advances (0.1337ms)
+✔ time-up coin collection advances only the flying coins before result finalization (0.1227ms)
+✔ skill visual state derives elapsed time without exposing mutable runtime arrays (0.2738ms)
+✔ the global skill visual toggle persists and releases active skill timing when disabled (0.4585ms)
+✔ minimal quality limits drawing to 30 fps while every update still runs (0.2095ms)
+✔ gameplay clocks and physics resume without catch-up after the initial clear (0.3232ms)
+✔ Gaston runs the clock while Moana pauses both axes for the full initial clear (0.7647ms)
+✔ disabled skill visuals make Gaston and Moana initial clears non-pausing and immediate (0.129ms)
+✔ SkillRuntimeManager defers activation to the exact raw presentation boundary (0.4563ms)
+✔ disabled skill visuals activate immediately and skip secondary timing callbacks exactly once (0.1448ms)
+✔ turning visuals off during a presentation completes activation immediately (0.1ms)
+✔ natural skill end runs cleanup once and holds the configured raw end pause (0.2044ms)
+✔ forced runtime reset never adds a character end pause (0.1326ms)
+✔ central skill timing lock blocks user, bomb, fan, and skill entry points (0.4118ms)
+✔ an active sequential chain clear still allows the next manual chain to start (0.6081ms)
+✔ non-chain action locks still reject a new manual chain (0.0713ms)
+✔ Captain Lightyear final clear replaces the normal clear delay with 570 ms (0.2089ms)
+✔ Captain Lightyear final clear has zero skill delay when visuals are disabled (0.084ms)
+✔ one Moana special-bomb action creates one 670 ms pause even for multiple bombs (0.2015ms)
+✔ JudyNick initial activation uses the mode captured at acceptance (0.2825ms)
+✔ JudyNick reactivation switches from Judy to Nick even when Judy was prepared (0.1205ms)
+✔ JudyNick reactivation switches from Nick to Judy even when Nick was prepared (0.0464ms)
+✔ JudyNick repeated reactivation alternates Judy and Nick (0.0857ms)
+[COIN] Tsum=laserWeave Clears=4 Type=correction_-3 → Coins=1 (base=1)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-5 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-5 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-5 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-4 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-4 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-4 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-4 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-4 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-4 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-4 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=8 Type=correction_2 → Coins=20 (base=10)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-5 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_0 → Coins=0 (base=0)
+[FINISH] Score=600 BaseCoins=0 Multiplier=1 Final=1 TotalCoins=undefined
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=1 Type=correction_-2 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-5 → Coins=0 (base=0)
+[FINISH] Score=450 BaseCoins=0 Multiplier=1 Final=1 TotalCoins=undefined
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+[COIN] Tsum=laserWeave Clears=3 Type=correction_-3 → Coins=0 (base=0)
+✔ PHOTON LOOM retains save ID, exact six levels, 17 cost and 50% gauge (1.713ms)
+✔ one release fires one full-board thread, circle contacts and chain nodes clear once with half gauge (14.5235ms)
+✔ short endpoints use farthest chain pair, coincident anchors remain finite, off-board nodes are excluded (0.2213ms)
+✔ crossings enforce 20 degrees and merge nearby vertices; best combination maximizes distinct hits (0.314ms)
+✔ zones require laser-only bounded faces, split consistently and reject small/degenerate regions (1.0597ms)
+✔ preview shares thread/cross/zone geometry with the actual release (1.7863ms)
+✔ SL5 regression: 200ms bursts, ignition and optimal two-thread cascade retain their original timing (3.0137ms)
+✔ all SLs finish at the fixed thread count; no manual early finish or low-level cascade (6.868ms)
+✔ empty cross explosions are visual-only: no extra combo, score or charge (0.618ms)
+✔ SL6 waits for refill and selects the strongest live intersection at detonation (1.0555ms)
+✔ SL6 formed-zone energy expands real finish hits without synthetic clears or extra coin/score rules (0.9146ms)
+✔ SL6 cascade waits for fully entered, settled refill before one optimal two-line clear (0.543ms)
+✔ existing bombs are retained, blocked during gestures/attacks, preserve correction and charge half (1.2457ms)
+✔ time-up auto-commits 3+ once, drops 2-, and allows fever extension only after complete finish (4.1173ms)
+✔ time-up waits for a pending bomb reward, then performs partial finish before results (0.8788ms)
+✔ manual pause freezes everything, VFX toggles retain attack timing, 10fps matches 60fps (1.7367ms)
+✔ final refill keeps the clock/input/result locked until incoming bodies enter the field (0.5677ms)
+✔ drawing renders previews/threads/zones/finish at full and minimal quality, even with VFX disabled (2.074ms)
+✔ missing audio and failed devices cannot interrupt gameplay; CPU stays silent (0.2832ms)
+✔ Lilia basic skill tables use cost 19, durations 5-10 and required coin corrections (1.0084ms)
+✔ BAT state retains base type, applies to matching new spawns, and restores on end (0.1236ms)
+✔ chain classification separates Lilia and BAT and rejects mixing (0.1349ms)
+✔ most common non-MyTsum becomes BAT with available-type tie breaking (0.2174ms)
+✔ Lilia chain moves existing BATs up to the chained Lilia count (0.3279ms)
+✔ Lilia chain longer than the BAT count moves every available BAT and creates none (0.1346ms)
+✔ Lilia chain never uses a virtual BAT actor (0.1196ms)
+✔ default Lilia BAT flight speed is increased 1.5x to 315 (0.1682ms)
+✔ all Lilia BAT clear paths use the doubled default line thickness (0.6285ms)
+✔ BAT chain flies the selected BATs themselves in chain order (0.6401ms)
+✔ line clear uses capsule distance and ignores far tsums and bombs (0.3206ms)
+✔ aura clear includes only nodes within radius (0.258ms)
+✔ Lilia union deduplicates line and aura while BAT resolution has no aura (0.1954ms)
+✔ flight changes position during hold, is deterministic and snapshots stay immutable (0.3434ms)
+✔ flight reflects within the configured elliptical field boundary (0.3222ms)
+✔ flight boundary moves 10px toward the left, right, and bottom edges while top stays fixed (0.183ms)
+✔ registered skill advances flight without pausing game time and passes clear integration options (0.5543ms)
+✔ Lilia skill chain hooks prepare BAT drawing and clearing for strongest-mode execution (0.32ms)
+✔ different hold durations can produce different geometric clear sets (0.9656ms)
+✔ Perfume Alice raises the current board target by 25 only while active (0.516ms)
+✔ Perfume Alice adds 25 to the cheat board target and preserves an unlimited target (0.1061ms)
+✔ Perfume Alice's cheat refill also uses the raised board target (0.7526ms)
+✔ Perfume Alice clears each adjacent Alice simultaneously with its triggering chain Tsum (0.3792ms)
+✔ Perfume Alice does not alter non-chain clears (0.0796ms)
+✔ render quality modes normalize and cycle in display order (0.9424ms)
+✔ quality profiles progressively reduce expensive drawing (0.1558ms)
+✔ quality profiles cap backing resolution without reducing logical updates (0.0901ms)
+✔ static server serves every Tsum PNG in parallel while an idle socket is open (177.8612ms)
+✔ every requested skill resolves to a distinct active theme (0.6398ms)
+✔ Gaston state exists during initial clear but the red world waits for loopActive (0.1315ms)
+✔ Captain Lightyear reticles exactly follow remainingShots (0.24ms)
+✔ Judy and Nick switch through white without blending both worlds (0.1304ms)
+✔ minimal quality still draws identifying active surfaces and Captain reticles (0.4597ms)
+✔ Coronation Elsa and Perfume Alice use high-contrast active surfaces (0.2755ms)
+✔ runtime exposes a copied active snapshot and removes it on the session end frame (0.4329ms)
+✔ Moana remnants cannot keep the active world alive after its session ends (0.1332ms)
+✔ runtime snapshot follows Captain shots and Judy Nick currentMode (0.2005ms)
+✔ skill visual OFF does not suppress the independent ACTIVE state (0.4978ms)
+✔ FEVER frame remains drawable while an ACTIVE world exists (0.1732ms)
+✔ a stopped board waits for the first skill effect and clears even two surviving chain nodes (1.4244ms)
+✔ a moving board starts the held chain after skill acceptance (0.1666ms)
+✔ an in-progress clear retains its cursor and runs beside the skill clear on a moving board (0.1851ms)
+✔ a stopped board preserves its clear until the skill's initial work ends (0.1034ms)
+✔ targets claimed by the skill are removed from the deferred clear once (0.1855ms)
+✔ a target removed directly by the skill is pruned but an already popping target stays (0.0988ms)
+✔ a held bomb waits for release, while a cancelled hold never explodes (0.1839ms)
+✔ the skill is accepted before a held bomb explodes (0.213ms)
+✔ an unready skill does not consume the held bomb (0.1223ms)
+✔ a second pointer can tap the skill without taking over the tracing pointer (0.3927ms)
+✔ releasing a consumed tracing pointer cannot trigger a second action (0.1687ms)
+✔ all skill visual timeline boundaries resolve and draw without mutating game state (23.5896ms)
+✔ the same visual seed emits the same deterministic canvas command stream (0.977ms)
+✔ light quality emits fewer skill particle commands than normal quality (0.351ms)
+✔ unknown visual states fail closed without drawing gameplay effects (0.1058ms)
+✔ disabling all skill visuals skips both presentation and secondary drawing (0.1271ms)
+✔ Namine randomly fixes one board sub-Tsum type for its full session (1.2276ms)
+✔ Namine, Perfume Alice, and Jamil use the required skill-time gauge rates at every level (0.1424ms)
+✔ Perfume Alice and Jamil carry only the configured gauge rate into skill clears (0.3467ms)
+✔ Judy and Nick charge only the opposite gauge while a skill is active (0.2996ms)
+✔ JudyNick overlay switches the blocked gauge before returning from activation (0.557ms)
+✔ a tapped Judy bubble uses the existing bubble clear path (0.8491ms)
+✔ dragging from a Judy bubble keeps it in the normal chain instead of bursting (0.1271ms)
+✔ multiple bubbled Judy Tsums can use the ordinary chain extension (0.3956ms)
+✔ dual READY gauges honor the side selected by the player (0.0919ms)
+✔ the diagonal JudyNick button maps its Judy and Nick halves (0.1434ms)
+✔ selecting an unready JudyNick side does not activate the other ready side (0.067ms)
+✔ JudyNick COUNT score data is carried through ClearPipeline augmentation (0.3697ms)
+✔ ordinary Tsum skill activation ignores JudyNick side selection (0.1868ms)
+[CORONATION ELSA WAIT RELEASE] {
+  reason: 'recent-spawns-max-wait',
+  recentCount: 1,
+  settledCount: 0,
+  requiredSettled: 1,
+  unsettledCount: 1,
+  playableCount: 45,
+  frozenCount: 0,
+  waitDuration: 0.7,
+  newestSpawnAge: 0.29999999999999993,
+  noChainFrames: 0,
+  suppressRelaxedFallback: false,
+  suppressSpecialTapFrames: 0,
+  pendingExtraFreezeTap: false
+}
+✔ strongest mode does not reactivate the staged evolution skill during its active session (1.491ms)
+✔ Coronation Elsa opportunity wait starts on a lower safe trace and releases when the upper route improves (0.4542ms)
+✔ Coronation Elsa opportunity wait does not start when pending geometry is not above the selection (0.0999ms)
+✔ Coronation Elsa opportunity wait always releases to the fresh safe trace at 66.7 ms (0.705ms)
+✔ Coronation Elsa opportunity timeout never promotes the still-unsafe upper route (0.2382ms)
+✔ Coronation Elsa board readiness waits only for a future trace-relevant first board (0.1339ms)
+✔ Coronation Elsa trace recovery waits without a selected trace and remains bounded (0.1695ms)
+✔ Coronation Elsa recovery requires two stable physics ticks before TAP (0.1132ms)
+✔ Coronation Elsa trace potential does not become stable while relevant positions keep changing (0.1076ms)
+✔ Coronation Elsa settle cycle rearms after a tap (0.4782ms)
+✔ fever remaining clear count includes five and excludes four or fewer (0.097ms)
+✔ fever bomb cancel eligibility requires strongest mode, no fever, no skill, and a bomb (0.0853ms)
+✔ Coronation Elsa taps completed ice at 38 frozen Tsums or after 0.15 seconds with no trace (0.0587ms)
+✔ Coronation Elsa any-trace fallback keeps no position, direction, or stability filter (0.0988ms)
+✔ Coronation Elsa chain selection uses the terminal planner result (0.0969ms)
+✔ Coronation Elsa common ice-tap guard refuses every freeze target while a legal trace exists (0.0466ms)
+✔ Coronation Elsa completed ice revalidates the board before both 38-count and 0.15-second taps (0.2691ms)
+✔ Coronation Elsa completed-ice path cannot bypass physical ICE_TAP_READY (0.1645ms)
+✔ Coronation Elsa common ice-tap path taps only after confirming no legal trace (0.1416ms)
+✔ Coronation Elsa ICE_TAP_READY blocks planValidated TAP after four traces while upper ice-relevant motion remains (1.7182ms)
+✔ Coronation Elsa ICE_TAP_READY requires one distinct stable physics tick after motion (0.5136ms)
+✔ Coronation Elsa ICE_TAP_READY adds no fixed wait to an initially stable board (0.2148ms)
+✔ Coronation Elsa consumes moving ice after 100ms without restarting for component or refill changes (0.4655ms)
+✔ Coronation Elsa ice wait starts fresh for a new skill session (0.4292ms)
+✔ Coronation Elsa commits planned identities when smaller overlapping Tsums would intercept coordinate input (1.4046ms)
+✔ InputRouter taps the selected Coronation ice identity and rejects its removal rather than switching components (0.241ms)
+✔ Coronation Elsa InputRouter cannot bypass ICE_TAP_READY (0.1096ms)
+✔ Coronation Elsa planner always traces before attempting remaining ice (0.2592ms)
+✔ Coronation Elsa outer step does not double-count traces reported by the executor (0.0828ms)
+✔ Coronation Elsa settle opportunity WAIT performs no trace or ice tap and retries on the next frame (0.0877ms)
+✔ Coronation Elsa cancels a blocked TAP and traces when the next post-physics plan finds a safe chain (0.0952ms)
+✔ Coronation Elsa planner immediately taps only after a second no-trace confirmation (0.185ms)
+✔ Coronation Elsa discards an invalid planned route and replans once from the live board (0.0961ms)
+✔ Coronation Elsa planner cache separates freeze support from chain geometry (0.2669ms)
+✔ Coronation Elsa validation token reuses context only while its revision is current (0.5495ms)
+✔ Coronation Elsa records one WAIT episode and releases it to a safe trace (0.2356ms)
+✔ Coronation Elsa records opportunity telemetry separately from inflow waits (0.4326ms)
+✔ Coronation Elsa replans the second trace in the same step and stops after two (0.4038ms)
+✔ Coronation Elsa practical stability accepts non-contact Tsums at 1 velocity (0.5407ms)
+✔ Coronation Elsa active inflow excludes a moving Tsum already supported from below (0.242ms)
+✔ Coronation Elsa marks an unsupported descending support column as dynamic inflow (0.2031ms)
+✔ Coronation Elsa preview rejects a chain containing a practically unstable Tsum (1.2528ms)
+✔ Coronation Elsa recent-spawn wait always releases at 0.7 seconds (1.0424ms)
+✔ Coronation Elsa edge starts include exactly two Tsum radii and exclude top-only or central starts (0.1461ms)
+✔ Coronation Elsa maps bottom starts to horizontal and side starts to vertical searches (0.1077ms)
+✔ Coronation Elsa directional geometry requires 58 pixels of progress within 35 percent tilt (0.3599ms)
+✔ Coronation Elsa directional search builds a valid parallel chain from connected Tsums (0.2883ms)
+✔ Coronation Elsa rejects a chain whose middle Tsums snake out of the edge lane (0.0589ms)
+✔ Coronation Elsa deterministic search keeps a connected detour inside the edge lane (0.101ms)
+✔ Coronation Elsa primary search keeps endpoints within 58 pixels and allows middle Tsums within 116 pixels (9.015ms)
+✔ Coronation Elsa secondary search expands endpoints to 116 pixels when primary has no candidate (1.0666ms)
+✔ Coronation Elsa secondary search prioritizes endpoints nearest existing ice (1.5786ms)
+✔ Coronation Elsa preview selects the largest predicted clear without edge-direction bonuses (0.6169ms)
+✔ Coronation Elsa prioritizes a candidate that leaves another legal trace before the fourth commit (0.4522ms)
+✔ Coronation Elsa preview re-evaluates vertical and horizontal directions from the current board (0.3369ms)
+✔ Coronation Elsa preview does not use full-board fallback after four committed traces (0.1607ms)
+✔ Coronation Elsa expands to 174 pixels before four committed traces (0.2198ms)
+✔ Coronation Elsa uses a parallel full-board chain only before four committed traces (0.2057ms)
+✔ fever bomb cancel queues every snapshot chain once and ignores later nodes (0.4776ms)
+✔ fever bomb cancel does not consume a bomb when the snapshot has no chain (0.1047ms)
+✔ fever bomb cancel reselects a bomb when the reservation becomes invalid (0.1495ms)
+✔ strongest mode best bomb chooses the largest effect and preserves other bombs (0.1891ms)
+✔ Final Battle Hook strongest mode prioritizes an exact three-node chain through Angry Hook (0.3112ms)
+✔ Final Battle Hook strongest mode deterministically selects only two identities when extra Hooks intervene (0.1161ms)
+✔ Final Battle Hook strongest mode does not fall back while active and fewer than two Hooks exist (0.0594ms)
+✔ Final Battle Hook strongest mode falls back outside its active input window (0.0813ms)
+✔ Final Battle Hook active input retries its three-chain before bombs or other strongest actions (0.44ms)
+✔ normal catalog, registry and selectable list exclude development Tsum (1.0062ms)
+✔ definition validation rejects missing SL, invalid IDs, absent hooks, modes and visuals (0.3621ms)
+✔ adapter adds production and development definitions without changing legacy entries (6.462ms)
+✔ sub-Tsum validation rejects missing, duplicate, ineligible and indistinguishable lineups for 3/4/5 (3.2523ms)
+✔ catalog validator checks all files, registration, coin corrections and lineups (12.2086ms)
+✔ generator creates an importable registered definition, refuses collisions and preserves files (99.6215ms)
+✔ development launch writes no progress, learning, settings or battle storage (179.4813ms)
+✔ all supported Tsum artwork points to a valid versioned PNG (16.3297ms)
+✔ characters without supplied artwork keep their fallback rendering (0.8491ms)
+✔ Grogu aligns its circular body with the Tsum hit area while retaining ear overflow (0.1751ms)
+✔ cover source rectangles center-crop inconsistent artwork dimensions into a square (0.3158ms)
+✔ disabled artwork neither creates images nor issues draw calls (0.457ms)
+✔ contact tuning starts with subtle compression and an emergency floor (0.629ms)
+✔ low-speed contact does not create visible squash (0.6543ms)
+✔ high-speed contact is low-rebound and produces bounded impulse-driven squash (0.1418ms)
+✔ Coulomb friction limits tangent impulse and creates gentle rotation (0.1887ms)
+✔ multi-contact normals are weighted and interpolated instead of taking the last pair (0.2597ms)
+✔ Tsum/Bomb and Bomb/Bomb contacts select explicit materials (0.1272ms)
+✔ large Tsums retain their gameplay radius while contact radius uses a separate adapter (0.0937ms)
+✔ Coronation Elsa frozen overlay geometry stays on the logical hit area (0.6547ms)
+✔ frozen overlay geometry supports large and cheat-scaled effective radii (0.1206ms)
+✔ frozen and clear-occupying Tsums keep position and angle (1.1633ms)
+✔ chained Tsums continue falling with the rest of the board (0.1343ms)
+✔ FAN response supports quick repeated strengthening and wakes bodies (0.1711ms)
+✔ removing a support wakes every Tsum above it (0.1677ms)
+✔ wall and floor contacts are low-rebound and respect the emergency minimum (0.1813ms)
+✔ three-body stacks and long idle runs settle without invalid values (21.6693ms)
+✔ 45-body ten-second simulation stays bounded, finite, and performant (1242.4375ms)
+✔ visual deformation stays subtle, preserves varied angles, and recovers (0.3867ms)
+✔ high-body broadphase is restricted to cheat play above 80 bodies (0.5511ms)
+✔ spatial hash retains every touching variable-radius pair in stable brute-force order (15.7698ms)
+✔ spatial hash supports collision-position accessors and fails closed on invalid geometry (1.6367ms)
+✔ 999 sparse bodies reduce narrow-phase candidates by more than 80 percent (3.1318ms)
+✔ 999 standard-diameter bodies in a packed board still remove more than 80 percent (9.3195ms)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=0 Type=correction_0 → Coins=0 (base=0)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=9 Type=correction_0 → Coins=13 (base=13)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=14 Type=correction_0 → Coins=36 (base=36)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=19 Type=correction_0 → Coins=86 (base=86)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=55 Type=correction_0 → Coins=498 (base=498)
+[COIN] Tsum=autoChain Clears=55 Type=correction_0 → Coins=498 (base=498)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=55 Type=correction_0 → Coins=498 (base=498)
+[COIN] Tsum=autoChain Clears=55 Type=correction_0 → Coins=498 (base=498)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=100 Type=correction_0 → Coins=1038 (base=1038)
+[COIN] Tsum=autoChain Clears=100 Type=correction_0 → Coins=1038 (base=1038)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=300 Type=correction_0 → Coins=3438 (base=3438)
+[COIN] Tsum=autoChain Clears=300 Type=correction_0 → Coins=3438 (base=3438)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=55 Type=correction_0 → Coins=498 (base=498)
+[FINISH] Score=962537 BaseCoins=498 Multiplier=1 Final=498 TotalCoins=0
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=55 Type=correction_0 → Coins=498 (base=498)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=20 Type=correction_0 → Coins=96 (base=96)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=13 Type=correction_0 → Coins=31 (base=31)
+[COIN] Tsum=autoChain Clears=25 Type=correction_0 → Coins=146 (base=146)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+✔ AUTO CHAIN is selectable in the public game and remains SL6-only (6.2433ms)
+✔ selecting AUTO CHAIN locks its skill level to SL6 (1.3754ms)
+✔ path search excludes unreachable branches rather than counting a connected group (2.9163ms)
+✔ path search chooses the longest candidate and first equal candidate (0.4502ms)
+✔ exhausted search never presents a partial candidate as the longest (0.5609ms)
+✔ exact search matches exhaustive oracle on 100 deterministic small graphs (12.7012ms)
+✔ falling 9-node path threshold, usable clear and 10% charge (3.0132ms)
+✔ falling 10-node path threshold, usable clear and 10% charge (18.4425ms)
+✔ falling 12-node path threshold, usable clear and 10% charge (1.9217ms)
+✔ bombs are removed without explosion, scoring or collateral clear (0.7442ms)
+✔ automatic path cancels an overlapping drag with no double award (1.5139ms)
+✔ manual chain is instant, bomb-free, awards once and does not increment counter (1.0948ms)
+✔ manual commit gives automatic 10+ path priority (1.0686ms)
+✔ board is reevaluated after each automatic clear (1.9778ms)
+✔ automatic 20-node path clears as 10+10 (2.2078ms)
+✔ automatic 24-node path clears as 10+14 (1.1369ms)
+✔ automatic 39-node path clears as 10+10+19 (2.8057ms)
+✔ above-ceiling bodies do not qualify (0.453ms)
+✔ real wall clock expires at 10s even when runtime gameplay delta is zero (1.721ms)
+✔ normal game clock keeps running during AUTO CHAIN (29.52ms)
+✔ finish 11×5 from limit 45: containment, reward, resize and restore (4.4823ms)
+✔ finish 11×5 from limit 53: containment, reward, resize and restore (1.5579ms)
+✔ finish 20×5 from limit 45: containment, reward, resize and restore (3.6392ms)
+✔ finish 60×5 from limit 45: containment, reward, resize and restore (15.2328ms)
+✔ finish 0×5 from limit 45: containment, reward, resize and restore (1.0696ms)
+✔ time-up holds result screen until finish has awarded its clear (6.7065ms)
+✔ reset during expanded finish restores configuration and leaves no extra bodies (1.0734ms)
+✔ strongest candidate selection is capped at 9 only during active skill (5.7601ms)
+✔ strongest candidates require every center in the lower half and preserve stricter options (1.6007ms)
+✔ strongest mode waits without an eligible lower chain and restores upper candidates after skill (1.4391ms)
+✔ strongest execution rejects a moved center or oversized chain before input starts (1.6554ms)
+✔ dense 20-node clique with a hub and two leaves proves longest path without factorial search (4.3819ms)
+✔ finish queues exactly 10% of real my-tsum bodies and calls chain scoring once (3.0325ms)
+✔ automatic search returns a usable path without proving the longest (12.1091ms)
+✔ budget includes adjacency construction and moves past an expensive starting node (1.6105ms)
+✔ a connected star with ten bodies is not a ten-node automatic chain (0.1815ms)
+✔ automatic clears continue with real cheat board target 45 (3.7351ms)
+✔ automatic clears continue with real cheat board target 53 (3.0184ms)
+✔ automatic clears continue with real cheat board target 100 (5.4373ms)
+✔ automatic clears continue with real cheat board target 999 (20.8911ms)
+✔ automatic clears continue with real cheat board target unlimited (5.8153ms)
+✔ target changes during the skill take effect without restarting the session (0.9327ms)
+✔ automatic chain excludes dead bodies (0.401ms)
+✔ automatic chain excludes removing bodies (0.4242ms)
+✔ automatic chain excludes clearOccupying bodies (0.346ms)
+✔ automatic chain excludes isBomb bodies (0.2814ms)
+✔ automatic chain excludes frozen bodies (0.3852ms)
+✔ automatic chain excludes outside bodies (0.6104ms)
+✔ automatic clear rechecks removed and counts only successful groups (1.0863ms)
+✔ automatic clear rechecks disconnected and counts only successful groups (0.6569ms)
+✔ automatic clear rechecks deadline and counts only successful groups (0.7807ms)
+✔ automatic clear rechecks rejected and counts only successful groups (0.9163ms)
+✔ connections are checked again immediately before awarding a candidate (1.0352ms)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: true,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: true,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston' ] count: 4
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: true,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: true,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston' ] count: 4
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: true,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: true,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston' ] count: 4
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[FINISH] Score=0 BaseCoins=0 Multiplier=1 Final=1 TotalCoins=0
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=chainTestTsum Clears=5 Type=correction_0 → Coins=3 (base=3)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine' ] count: 3
+[COIN] Tsum=chainTestTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: true,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: true,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston' ] count: 4
+[COIN] Tsum=chainTestTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=chainTestTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine' ] count: 3
+[COIN] Tsum=chainTestTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: true,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: true,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston' ] count: 4
+[COIN] Tsum=chainTestTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=chainTestTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'chainTestTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+✔ chainTestTsum: valid definition, real registry and 3/4/5-type playable boards (6.3652ms)
+✔ chainTestTsum: common SL1 session and state restoration (1.7574ms)
+✔ chainTestTsum: common SL2 session and state restoration (0.9782ms)
+✔ chainTestTsum: common SL3 session and state restoration (1.21ms)
+✔ chainTestTsum: common SL4 session and state restoration (0.6907ms)
+✔ chainTestTsum: common SL5 session and state restoration (0.5037ms)
+✔ chainTestTsum: common SL6 session and state restoration (1.3732ms)
+✔ chainTestTsum: common presentation, timeout and reset restore pause state (0.9733ms)
+✔ chainTestTsum: duplicate start and cancelled gesture cannot replay a clear (1.8445ms)
+✔ chainTestTsum: game clock expiry cancels an active chain before result (17.5117ms)
+✔ chainTestTsum: configurable length, halo, correction and zero recovery use the real pipeline (4.8881ms)
+✔ chainTestTsum: pipeline rejection consumes commit and permits a fresh retry (1.6808ms)
+✔ chainTestTsum: chain SL1 real tracing, single skill clear, coin and gauge (1.4875ms)
+✔ chainTestTsum: chain SL2 real tracing, single skill clear, coin and gauge (1.0173ms)
+✔ chainTestTsum: chain SL3 real tracing, single skill clear, coin and gauge (1.7668ms)
+✔ chainTestTsum: chain SL4 real tracing, single skill clear, coin and gauge (0.8118ms)
+✔ chainTestTsum: chain SL5 real tracing, single skill clear, coin and gauge (0.8909ms)
+✔ chainTestTsum: chain SL6 real tracing, single skill clear, coin and gauge (0.9898ms)
+✔ chainTestTsum: rejects null chain without ordinary fallback (0.6356ms)
+✔ chainTestTsum: rejects unselected chain without ordinary fallback (0.329ms)
+✔ chainTestTsum: rejects short chain without ordinary fallback (0.3355ms)
+✔ chainTestTsum: rejects duplicate chain without ordinary fallback (0.3452ms)
+✔ chainTestTsum: rejects foreign chain without ordinary fallback (0.3734ms)
+✔ chainTestTsum: rejects dead chain without ordinary fallback (0.3429ms)
+✔ chainTestTsum: rejects removing chain without ordinary fallback (0.4602ms)
+✔ chainTestTsum: rejects bomb chain without ordinary fallback (0.5749ms)
+✔ chainTestTsum: rejects frozen chain without ordinary fallback (0.7001ms)
+✔ chainTestTsum: rejects outside chain without ordinary fallback (0.5106ms)
+✔ chainTestTsum: rejects mixed chain without ordinary fallback (0.3094ms)
+✔ chainTestTsum: rejects distant chain without ordinary fallback (0.381ms)
+✔ chainTestTsum: rejects noStart chain without ordinary fallback (0.2779ms)
+✔ chainTestTsum: rejects busy chain without ordinary fallback (0.3959ms)
+✔ chainTestTsum: rejects paused chain without ordinary fallback (0.3778ms)
+✔ chainTestTsum: rejects timeUp chain without ordinary fallback (0.2519ms)
+✔ chainTestTsum: timeout during drag restores state; normal chains still work (1.0425ms)
+✔ chainTestTsum: reset during drag restores state; normal chains still work (0.5097ms)
+✔ chainTestTsum: cancel during drag restores state; normal chains still work (0.4039ms)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+[COIN] Tsum=evolutionTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+[COIN] Tsum=evolutionTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+[COIN] Tsum=evolutionTsum Clears=8 Type=correction_0 → Coins=10 (base=10)
+[COIN] Tsum=evolutionTsum Clears=8 Type=correction_0 → Coins=10 (base=10)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+[COIN] Tsum=evolutionTsum Clears=45 Type=correction_0 → Coins=378 (base=378)
+[COIN] Tsum=evolutionTsum Clears=28 Type=correction_0 → Coins=176 (base=176)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+[COIN] Tsum=evolutionTsum Clears=3 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=evolutionTsum Clears=45 Type=correction_0 → Coins=378 (base=378)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+[COIN] Tsum=evolutionTsum Clears=3 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=evolutionTsum Clears=45 Type=correction_0 → Coins=378 (base=378)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+[COIN] Tsum=evolutionTsum Clears=45 Type=correction_0 → Coins=378 (base=378)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+[COIN] Tsum=evolutionTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+[COIN] Tsum=evolutionTsum Clears=3 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=evolutionTsum Clears=45 Type=correction_0 → Coins=378 (base=378)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+[COIN] Tsum=evolutionTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+✔ SL1–6 retain exact durations and all four incremental thresholds; Namine radius is fixed (1.3939ms)
+✔ large overflow retains first line, both evolutions and every periodic line in order (0.1611ms)
+✔ SL1–6 real session timeout restores clock, input, scale and session data (9412.8577ms)
+✔ manual chain uses normal pipeline once, three-times animation and 10% primary gauge (558.8156ms)
+✔ every manual node splashes, overlap is deduplicated, and offscreen top nodes remain reachable by splash (399.3859ms)
+✔ OD doubles award evaluation once; physical progress and primary-only 20% gauge stay separate (632.8889ms)
+✔ automatic lines never advance evolution or charge gauge; refill separates queued attacks (691.2093ms)
+✔ no evolution or automatic clear interrupts an active pointer chain (663.9026ms)
+✔ evolution freezes main, skill, combo, fever and effect clocks while physics/refill continue; resumes together (502.1906ms)
+✔ OD grows existing/spawned physical and input radii without expanding splash, reset removes modifiers (372.3163ms)
+✔ chain held across expiry retains original capability, finishes events, and cannot leak into next skill (613.2478ms)
+✔ watchdog finalizes a stuck automatic clear once and releases input (458.2124ms)
+✔ a reserved first line waits for refill, and sparse bomb-heavy boards recover without wasting it (560.8985ms)
+✖ game time-up waits for the committed chain and reserved evolution work (628.7903ms)
+✔ ordinary clears outside the skill retain original speed, radius, evaluation and full gauge (781.4888ms)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: true,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: true,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston' ] count: 4
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: true,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: true,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston' ] count: 4
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: true,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: true,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston' ] count: 4
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=testTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=testTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=testTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=testTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=testTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=testTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'testTsum', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+✔ testTsum: valid definition, real registry and 3/4/5-type playable boards (9.2294ms)
+✔ testTsum: common SL1 session and state restoration (2.2459ms)
+✔ testTsum: common SL2 session and state restoration (0.7342ms)
+✔ testTsum: common SL3 session and state restoration (1.6247ms)
+✔ testTsum: common SL4 session and state restoration (1.7893ms)
+✔ testTsum: common SL5 session and state restoration (0.7546ms)
+✔ testTsum: common SL6 session and state restoration (0.7002ms)
+✔ testTsum: common presentation, timeout and reset restore pause state (1.6194ms)
+✔ testTsum: repeated tap cannot schedule a second clear (2.9772ms)
+✔ testTsum: SL1 activation, tap, real clear/coin/gauge and cleanup (24.1855ms)
+✔ testTsum: SL2 activation, tap, real clear/coin/gauge and cleanup (5.1153ms)
+✔ testTsum: SL3 activation, tap, real clear/coin/gauge and cleanup (1.4595ms)
+✔ testTsum: SL4 activation, tap, real clear/coin/gauge and cleanup (0.9731ms)
+✔ testTsum: SL5 activation, tap, real clear/coin/gauge and cleanup (1.0227ms)
+✔ testTsum: SL6 activation, tap, real clear/coin/gauge and cleanup (1.115ms)
+✔ testTsum: presentation pause, natural timeout, reset and duplicate target safety (0.8388ms)
+✔ TDK zero recovery never becomes the legacy flight default of one (0.5042ms)
+ℹ tests 505
+ℹ suites 0
+ℹ pass 504
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 24585.1385
+
+✖ failing tests:
+
+test at tsums\evolutionTsum\skill.test.mjs:198:1
+✖ game time-up waits for the committed chain and reserved evolution work (628.7903ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///C:/Users/ryoma/Documents/Codex/tsumtsumfile/tsums/evolutionTsum/skill.test.mjs:210:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,1150 @@
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=0 Type=correction_0 → Coins=0 (base=0)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=9 Type=correction_0 → Coins=13 (base=13)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=14 Type=correction_0 → Coins=36 (base=36)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=19 Type=correction_0 → Coins=86 (base=86)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=55 Type=correction_0 → Coins=498 (base=498)
+[COIN] Tsum=autoChain Clears=55 Type=correction_0 → Coins=498 (base=498)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=55 Type=correction_0 → Coins=498 (base=498)
+[COIN] Tsum=autoChain Clears=55 Type=correction_0 → Coins=498 (base=498)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=100 Type=correction_0 → Coins=1038 (base=1038)
+[COIN] Tsum=autoChain Clears=100 Type=correction_0 → Coins=1038 (base=1038)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=300 Type=correction_0 → Coins=3438 (base=3438)
+[COIN] Tsum=autoChain Clears=300 Type=correction_0 → Coins=3438 (base=3438)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=55 Type=correction_0 → Coins=498 (base=498)
+[FINISH] Score=961926 BaseCoins=498 Multiplier=1 Final=498 TotalCoins=0
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=55 Type=correction_0 → Coins=498 (base=498)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=20 Type=correction_0 → Coins=96 (base=96)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=13 Type=correction_0 → Coins=31 (base=31)
+[COIN] Tsum=autoChain Clears=25 Type=correction_0 → Coins=146 (base=146)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=17 Type=correction_0 → Coins=66 (base=66)
+[COIN] Tsum=autoChain Clears=15 Type=correction_0 → Coins=46 (base=46)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=15 Type=correction_0 → Coins=46 (base=46)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'perfumeAlice', 'jamilViper', 'jafarGenie', 'grim' ] count: 5
+✔ AUTO CHAIN is selectable in the public game and remains SL6-only (6.6796ms)
+✔ selecting AUTO CHAIN locks its skill level to SL6 (0.8356ms)
+✔ path search excludes unreachable branches rather than counting a connected group (1.252ms)
+✔ path search chooses the longest candidate and first equal candidate (0.2256ms)
+✔ exhausted search never presents a partial candidate as the longest (0.1482ms)
+✔ exact search matches exhaustive oracle on 100 deterministic small graphs (13.1943ms)
+✔ falling 9-node path threshold, usable clear and 10% charge (2.0936ms)
+✔ falling 10-node path threshold, usable clear and 10% charge (18.586ms)
+✔ falling 12-node path threshold, usable clear and 10% charge (3.1927ms)
+✔ bombs are removed without explosion, scoring or collateral clear (1.0615ms)
+✔ automatic path cancels an overlapping drag with no double award (3.3842ms)
+✔ manual chain is instant, bomb-free, awards once and does not increment counter (2.7952ms)
+✔ manual commit gives automatic 10+ path priority (2.5498ms)
+✔ board is reevaluated after each automatic clear (3.3354ms)
+✔ automatic 20-node path clears as 10+10 (2.4804ms)
+✔ automatic 24-node path clears as 10+14 (1.4726ms)
+✔ automatic 39-node path clears as 10+10+19 (1.7005ms)
+✔ above-ceiling bodies do not qualify (0.5003ms)
+✔ real wall clock expires at 10s even when runtime gameplay delta is zero (2.4276ms)
+✔ normal game clock keeps running during AUTO CHAIN (30.3571ms)
+✔ finish 11×5 from limit 45: containment, reward, resize and restore (4.8748ms)
+✔ finish 11×5 from limit 53: containment, reward, resize and restore (2.67ms)
+✔ finish 20×5 from limit 45: containment, reward, resize and restore (3.9879ms)
+✔ finish 60×5 from limit 45: containment, reward, resize and restore (22.0355ms)
+✔ finish 0×5 from limit 45: containment, reward, resize and restore (1.2011ms)
+✔ time-up holds result screen until finish has awarded its clear (2.8406ms)
+✔ reset during expanded finish restores configuration and leaves no extra bodies (1.6501ms)
+✔ strongest candidate selection is capped at 9 only during active skill (7.2071ms)
+✔ strongest candidates require every center in the lower half and preserve stricter options (2.8568ms)
+✔ strongest mode waits without an eligible lower chain and restores upper candidates after skill (4.1221ms)
+✔ strongest execution rejects a moved center or oversized chain before input starts (2.6498ms)
+✔ dense 20-node clique with a hub and two leaves proves longest path without factorial search (7.6089ms)
+✔ finish queues exactly 10% of real my-tsum bodies and calls chain scoring once (2.9725ms)
+✔ automatic search returns a usable path without proving the longest (10.6083ms)
+✔ budget includes adjacency construction and moves past an expensive starting node (2.2586ms)
+✔ a connected star with ten bodies is not a ten-node automatic chain (0.3469ms)
+✔ automatic clears continue with real cheat board target 45 (7.1404ms)
+✔ automatic clears continue with real cheat board target 53 (6.9448ms)
+✔ automatic clears continue with real cheat board target 100 (7.1843ms)
+✔ automatic clears continue with real cheat board target 999 (26.7909ms)
+✔ automatic clears continue with real cheat board target unlimited (10.5801ms)
+✔ target changes during the skill take effect without restarting the session (1.4663ms)
+✔ automatic chain excludes dead bodies (0.5332ms)
+✔ automatic chain excludes removing bodies (0.5992ms)
+✔ automatic chain excludes clearOccupying bodies (0.5677ms)
+✔ automatic chain excludes isBomb bodies (0.5147ms)
+✔ automatic chain excludes frozen bodies (0.5946ms)
+✔ automatic chain excludes outside bodies (0.5234ms)
+✔ automatic clear rechecks removed and counts only successful groups (2.4209ms)
+✔ automatic clear rechecks disconnected and counts only successful groups (1.5761ms)
+✔ automatic clear rechecks deadline and counts only successful groups (0.6408ms)
+✔ automatic clear rechecks rejected and counts only successful groups (0.3729ms)
+✔ connections are checked again immediately before awarding a candidate (0.6424ms)
+ℹ tests 53
+ℹ suites 0
+ℹ pass 53
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 519.8346

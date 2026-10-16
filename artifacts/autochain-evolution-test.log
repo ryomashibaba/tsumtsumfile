@@ -1,0 +1,475 @@
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+[COIN] Tsum=evolutionTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+[COIN] Tsum=evolutionTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+[COIN] Tsum=evolutionTsum Clears=8 Type=correction_0 → Coins=10 (base=10)
+[COIN] Tsum=evolutionTsum Clears=8 Type=correction_0 → Coins=10 (base=10)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+[COIN] Tsum=evolutionTsum Clears=45 Type=correction_0 → Coins=378 (base=378)
+[COIN] Tsum=evolutionTsum Clears=30 Type=correction_0 → Coins=198 (base=198)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+[COIN] Tsum=evolutionTsum Clears=3 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=evolutionTsum Clears=45 Type=correction_0 → Coins=378 (base=378)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+[COIN] Tsum=evolutionTsum Clears=3 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=evolutionTsum Clears=45 Type=correction_0 → Coins=378 (base=378)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+[COIN] Tsum=evolutionTsum Clears=45 Type=correction_0 → Coins=378 (base=378)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+[COIN] Tsum=evolutionTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+[COIN] Tsum=evolutionTsum Clears=3 Type=correction_0 → Coins=0 (base=0)
+[COIN] Tsum=evolutionTsum Clears=45 Type=correction_0 → Coins=378 (base=378)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: true,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'evolutionTsum', 'jafarGenie', 'grim' ] count: 3
+[COIN] Tsum=evolutionTsum Clears=6 Type=correction_0 → Coins=5 (base=5)
+✔ SL1–6 retain exact durations and all four incremental thresholds; Namine radius is fixed (1.1958ms)
+✔ large overflow retains first line, both evolutions and every periodic line in order (0.3783ms)
+✔ SL1–6 real session timeout restores clock, input, scale and session data (9936.1685ms)
+✔ manual chain uses normal pipeline once, three-times animation and 10% primary gauge (508.0076ms)
+✔ every manual node splashes, overlap is deduplicated, and offscreen top nodes remain reachable by splash (349.6346ms)
+✔ OD doubles award evaluation once; physical progress and primary-only 20% gauge stay separate (555.9931ms)
+✔ automatic lines never advance evolution or charge gauge; refill separates queued attacks (572.4789ms)
+✔ no evolution or automatic clear interrupts an active pointer chain (598.1325ms)
+✔ evolution freezes main, skill, combo, fever and effect clocks while physics/refill continue; resumes together (433.5712ms)
+✔ OD grows existing/spawned physical and input radii without expanding splash, reset removes modifiers (361.0724ms)
+✔ chain held across expiry retains original capability, finishes events, and cannot leak into next skill (497.5381ms)
+✔ watchdog finalizes a stuck automatic clear once and releases input (430.9349ms)
+✔ a reserved first line waits for refill, and sparse bomb-heavy boards recover without wasting it (516.801ms)
+✖ game time-up waits for the committed chain and reserved evolution work (519.8878ms)
+✔ ordinary clears outside the skill retain original speed, radius, evaluation and full gauge (715.4746ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 14
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16244.8366
+
+✖ failing tests:
+
+test at tsums\evolutionTsum\skill.test.mjs:198:1
+✖ game time-up waits for the committed chain and reserved evolution work (519.8878ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///C:/Users/ryoma/Documents/Codex/tsumtsumfile/tsums/evolutionTsum/skill.test.mjs:210:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
