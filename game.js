@@ -1,4 +1,6 @@
 import { registerDefinitions } from './tdk/core.js';
+import { getAutoChainSession, updateAutoChainClock } from './tsums/autoChain/skill.js';
+import { drawAutoChain } from './tsums/autoChain/visuals.js';
 import { getEvolution, evolutionLocked, evolutionOverdrive, updateEvolutionRaw, drawEvolution } from './tsums/evolutionTsum/skill.js';
 import { tsumDefinitions } from './tsums/catalog.js';
 import {
@@ -1856,7 +1858,7 @@ class SkillRuntimeManager {
 
   activateNow(skillId, level, activationData = null) {
     const handler = SkillRegistry[skillId];
-    if (!handler || (skillId === FINAL_BATTLE_HOOK_TYPE_ID && this.isFinalBattleHookActive())) {
+    if (!handler || (skillId === "autoChain" && (level !== 6 || getAutoChainSession(this.game))) || (skillId === FINAL_BATTLE_HOOK_TYPE_ID && this.isFinalBattleHookActive())) {
       return false;
     }
     this.game.moveActiveClearAsideForSkill?.(skillId);
@@ -1915,6 +1917,7 @@ class SkillRuntimeManager {
   }
 
   isInputLocked() {
+    if (getAutoChainSession(this.game)?.data.phase === "finish") return true;
     return !!this.pendingActivation || this.timingPauses.length > 0;
   }
 
@@ -2551,6 +2554,11 @@ class ClearPipeline {
     let prepared = this.expandBubbleTargets(request);
     prepared = this.runtime.augmentClear(prepared);
     if (getLaserWeaveSession(this.game)) prepared.allowBomb = false;
+    if (getAutoChainSession(this.game)) {
+      prepared.allowBomb = false;
+      prepared.chargeMultiplier = 0.1;
+      prepared.clearMode = "simultaneous";
+    }
     prepared.targets = this.uniqueTargets(prepared.targets || []);
     if (!prepared.targets.length && prepared.allowEmptyEvent !== true) {
       return null;
@@ -2708,7 +2716,7 @@ class ClearPipeline {
     this.emitSyntheticCoinFlights(info, clearDisplayX, clearDisplayY);
 
     info.targets.forEach((tsum) => {
-      if (!info.meta?.laserWeave) {
+      if (!info.meta?.laserWeave && !info.meta?.autoChain) {
         this.game.spawnPopParticles(tsum.x, tsum.y, this.board.getResolvedType(tsum).color);
       }
     });
@@ -5155,6 +5163,7 @@ class Game {
   }
 
   getConfiguredTsumRadius() {
+    if (this.autoChainCapacity) return this.autoChainCapacity.radius;
     return this.isCheatActive() ? this.cheatSettings.tsumDiameter / 2 : TSUM_RADIUS;
   }
 
@@ -5317,6 +5326,7 @@ class Game {
     this.gameFeel?.capturePendingFrame(this.canvas);
     this.ctx.clearRect(0, 0, this.width, this.height);
     this.ui.render(this.ctx);
+    drawAutoChain(this.ctx, this);
     drawEvolution(this.ctx, this);
     if (this.chainTelemetry) this.chainTelemetry.sample("renderMs", performance.now() - measure);
   }
@@ -5843,12 +5853,15 @@ class Game {
         const selected = selectable[i];
         this.selectedMyTsumIndex = Math.max(0, TSUM_TYPES.findIndex((type) => type.id === selected.id));
         this.myTsum = TSUM_TYPES[this.selectedMyTsumIndex];
+        if (this.myTsum.id === "autoChain") this.selectedSkillLevel = 6;
         this.skillSystem.configure(this.myTsum, this.selectedSkillLevel);
         return;
       }
     }
 
     const levelButtons = this.getLevelButtonRects();
+    if (this.myTsum?.id === "autoChain" &&
+      (rectContains(levelButtons.minus, pos.x, pos.y) || rectContains(levelButtons.plus, pos.x, pos.y))) return;
     if (rectContains(levelButtons.minus, pos.x, pos.y)) {
       this.selectedSkillLevel = clamp(this.selectedSkillLevel - 1, 1, 6);
       this.skillSystem.configure(TSUM_TYPES[this.selectedMyTsumIndex], this.selectedSkillLevel);
@@ -6388,6 +6401,7 @@ class Game {
   }
 
   getTargetBodyCount() {
+    if (this.autoChainCapacity) return this.autoChainCapacity.count;
     let targetBodyCount = TARGET_TSUM_COUNT;
     if (this.isCheatActive?.()) {
       targetBodyCount = this.cheatSettings.boardTarget === CHEAT_SPECIAL.UNLIMITED
@@ -6552,6 +6566,7 @@ class Game {
   }
 
   isSkillReadyForActivation() {
+    if (getAutoChainSession(this)) return false;
     if (this.myTsum.id === "judyNick") {
       return !!this.getJudyNickReadySkillMode();
     }
@@ -8368,8 +8383,11 @@ class Game {
 
   findStrongestModeBestChain(options = {}) {
     const minLength = options.minLength || 3;
-    const maxLength = Number.isFinite(options.maxLength) ? options.maxLength : Infinity;
-    const minY = Number.isFinite(options.minY) ? options.minY : -Infinity;
+    const isAutoChainActive = getAutoChainSession(this)?.data.phase === "active";
+    const maxLength = Math.min(Number.isFinite(options.maxLength) ? options.maxLength : Infinity,
+      isAutoChainActive ? 9 : Infinity);
+    const minY = Math.max(Number.isFinite(options.minY) ? options.minY : -Infinity,
+      isAutoChainActive ? FIELD_CENTER_Y : -Infinity);
     const filterNode = typeof options.filterNode === "function" ? options.filterNode : null;
     const liveNodes = this.getStrongestModeChainNodes().filter((tsum) => (
       tsum.y >= minY &&
@@ -10755,6 +10773,10 @@ class Game {
     if (!Array.isArray(chain) || chain.length < 3 || !canAttemptChain) {
       return false;
     }
+    if (getAutoChainSession(this)?.data.phase === "active" &&
+      (chain.length > 9 || chain.some(node => !node || !(node.y >= FIELD_CENTER_Y)))) {
+      return false;
+    }
     if (
       this.myTsum?.id === FINAL_BATTLE_HOOK_TYPE_ID
       && chain.length === 3
@@ -11080,7 +11102,8 @@ class Game {
     this.selectedMyTsumIndex = idx >= 0 ? idx : 0;
     this.myTsum = TSUM_TYPES[this.selectedMyTsumIndex];
     // save chosen skill level (default to 6 if unspecified)
-    const level = Number.isFinite(Number(skillLevel)) ? clamp(Number(skillLevel), 1, 6) : 6;
+    const level = type.id === "autoChain" ? 6
+      : Number.isFinite(Number(skillLevel)) ? clamp(Number(skillLevel), 1, 6) : 6;
     this.currentSkillLevel = level;
     this.selectedSkillLevel = level;
     this.judyNickPreparedMode = "judy";
@@ -11211,6 +11234,7 @@ class Game {
   }
 
   spawnReplacementTsums() {
+    if (this.autoChainCapacity) return 0;
     if (this.isCoingainSpawnPaused()) {
       return 0;
     }
@@ -13371,6 +13395,7 @@ class Game {
   }
 
   finishRun() {
+    if (getAutoChainSession(this)) { updateAutoChainClock(this); return; }
     if (this.state !== "playing" || this.runFinished) {
       return;
     }
@@ -13788,7 +13813,9 @@ class Game {
 
     this.updateCheatSpawnScheduler?.(gameplayDt);
 
-    if (!gameplayPauseState.physicsPaused) {
+    updateAutoChainClock(this);
+
+    if (!gameplayPauseState.physicsPaused && !this.autoChainCapacity) {
       this.strongestModeCoronationElsaTemporalPositions = new Map(this.tsums.map((tsum) => [String(tsum.id), {
         x: Number(tsum.x) || 0,
         y: Number(tsum.y) || 0
