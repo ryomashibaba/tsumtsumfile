@@ -1,0 +1,43 @@
+[
+  {
+    "name": "tsum:validate",
+    "utc": "2026-10-15T12:33:18.314Z",
+    "exitCode": 0,
+    "wallMs": 216.41,
+    "summary": [
+      "TDK: 2定義、SL1〜6、登録、画像、サブツム3/4/5種類 OK"
+    ]
+  },
+  {
+    "name": "test:tdk",
+    "utc": "2026-10-15T12:33:19.760Z",
+    "exitCode": 0,
+    "wallMs": 1443.72,
+    "summary": [
+      "ℹ tests 61",
+      "ℹ pass 61",
+      "ℹ fail 0",
+      "ℹ cancelled 0",
+      "ℹ skipped 0",
+      "ℹ duration_ms 1284.6093"
+    ]
+  },
+  {
+    "name": "test",
+    "utc": "2026-10-15T12:33:22.380Z",
+    "exitCode": 1,
+    "wallMs": 2619.94,
+    "summary": [
+      "✖ 45-body ten-second simulation stays bounded, finite, and performant (1639.8887ms)",
+      "ℹ tests 423",
+      "ℹ pass 422",
+      "ℹ fail 1",
+      "ℹ cancelled 0",
+      "ℹ skipped 0",
+      "ℹ duration_ms 2539.3352",
+      "✖ failing tests:",
+      "✖ 45-body ten-second simulation stays bounded, finite, and performant (1639.8887ms)"
+    ],
+    "failureTail": "✖ failing tests:\n\ntest at tsumPhysics.test.mjs:271:1\n✖ 45-body ten-second simulation stays bounded, finite, and performant (1639.8887ms)\n  AssertionError [ERR_ASSERTION]: physics p95 4.222ms exceeded 4ms\n      at TestContext.<anonymous> (file:///C:/Users/ryoma/Documents/Codex/tsumtsumfile/tsumPhysics.test.mjs:305:10)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1325:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)\n      at Test.postRun (node:internal/test_runner/test:1465:19)\n      at Test.run (node:internal/test_runner/test:1390:12)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',\n    actual: false,\n    expected: true,\n    operator: '==',\n    diff: 'simple'\n  }\n"
+  }
+]

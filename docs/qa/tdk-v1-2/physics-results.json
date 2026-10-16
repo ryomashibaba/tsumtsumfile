@@ -1,0 +1,5286 @@
+{
+  "environment": {
+    "utc": "2026-10-15T12:32:11.533Z",
+    "platform": "win32",
+    "release": "10.0.26200",
+    "node": "v24.18.1",
+    "cpu": "AMD Ryzen AI 9 HX 375 w/ Radeon 890M           ",
+    "logicalCpus": 24,
+    "thresholdMs": 4,
+    "steps": 600,
+    "bodies": 45,
+    "explicitWarmupSteps": 0,
+    "concurrency": "one child Node process at a time; no concurrent test/benchmark jobs from this task",
+    "processSnapshotScope": "Get-Process accessible CPU counters; not a complete system utilization trace",
+    "startProcesses": [
+      {
+        "Id": 32444,
+        "ProcessName": "aihost",
+        "CPU": 1.25
+      },
+      {
+        "Id": 26676,
+        "ProcessName": "AIXHost",
+        "CPU": 1.40625
+      },
+      {
+        "Id": 45160,
+        "ProcessName": "amdpmfserviceuser",
+        "CPU": 11.484375
+      },
+      {
+        "Id": 17364,
+        "ProcessName": "AppActions",
+        "CPU": 3.03125
+      },
+      {
+        "Id": 42524,
+        "ProcessName": "audiodg",
+        "CPU": 83.3125
+      },
+      {
+        "Id": 13400,
+        "ProcessName": "blender-mcp",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 15796,
+        "ProcessName": "blender-mcp",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 18612,
+        "ProcessName": "blender-mcp",
+        "CPU": 0
+      },
+      {
+        "Id": 26652,
+        "ProcessName": "blender-mcp",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 38620,
+        "ProcessName": "blender-mcp",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 39488,
+        "ProcessName": "blender-mcp",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 45276,
+        "ProcessName": "blender-mcp",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 49284,
+        "ProcessName": "blender-mcp",
+        "CPU": 0
+      },
+      {
+        "Id": 43908,
+        "ProcessName": "BridgeCommunication",
+        "CPU": 0.890625
+      },
+      {
+        "Id": 4252,
+        "ProcessName": "ChatGPT",
+        "CPU": 0.5
+      },
+      {
+        "Id": 6220,
+        "ProcessName": "ChatGPT",
+        "CPU": 0.78125
+      },
+      {
+        "Id": 11160,
+        "ProcessName": "ChatGPT",
+        "CPU": 76.8125
+      },
+      {
+        "Id": 16216,
+        "ProcessName": "ChatGPT",
+        "CPU": 175.5
+      },
+      {
+        "Id": 16848,
+        "ProcessName": "ChatGPT",
+        "CPU": 32.875
+      },
+      {
+        "Id": 26396,
+        "ProcessName": "ChatGPT",
+        "CPU": 3.109375
+      },
+      {
+        "Id": 27788,
+        "ProcessName": "ChatGPT",
+        "CPU": 5016.40625
+      },
+      {
+        "Id": 28960,
+        "ProcessName": "ChatGPT",
+        "CPU": 1.984375
+      },
+      {
+        "Id": 32408,
+        "ProcessName": "ChatGPT",
+        "CPU": 1.1875
+      },
+      {
+        "Id": 33136,
+        "ProcessName": "ChatGPT",
+        "CPU": 272.078125
+      },
+      {
+        "Id": 34020,
+        "ProcessName": "ChatGPT",
+        "CPU": 10293.765625
+      },
+      {
+        "Id": 34104,
+        "ProcessName": "ChatGPT",
+        "CPU": 1470.359375
+      },
+      {
+        "Id": 34840,
+        "ProcessName": "ChatGPT",
+        "CPU": 0.09375
+      },
+      {
+        "Id": 35804,
+        "ProcessName": "ChatGPT",
+        "CPU": 129.390625
+      },
+      {
+        "Id": 37636,
+        "ProcessName": "ChatGPT",
+        "CPU": 0.359375
+      },
+      {
+        "Id": 39372,
+        "ProcessName": "ChatGPT",
+        "CPU": 0.5625
+      },
+      {
+        "Id": 40236,
+        "ProcessName": "ChatGPT",
+        "CPU": 0.109375
+      },
+      {
+        "Id": 44372,
+        "ProcessName": "ChatGPT",
+        "CPU": 0.5
+      },
+      {
+        "Id": 45600,
+        "ProcessName": "ChatGPT",
+        "CPU": 17.765625
+      },
+      {
+        "Id": 46276,
+        "ProcessName": "ChatGPT",
+        "CPU": 3.15625
+      },
+      {
+        "Id": 46800,
+        "ProcessName": "ChatGPT",
+        "CPU": 3.21875
+      },
+      {
+        "Id": 47692,
+        "ProcessName": "ChatGPT",
+        "CPU": 14.984375
+      },
+      {
+        "Id": 8,
+        "ProcessName": "chrome",
+        "CPU": 0.15625
+      },
+      {
+        "Id": 3268,
+        "ProcessName": "chrome",
+        "CPU": 64.1875
+      },
+      {
+        "Id": 3516,
+        "ProcessName": "chrome",
+        "CPU": 0.09375
+      },
+      {
+        "Id": 4624,
+        "ProcessName": "chrome",
+        "CPU": 64.109375
+      },
+      {
+        "Id": 10532,
+        "ProcessName": "chrome",
+        "CPU": 349.734375
+      },
+      {
+        "Id": 11768,
+        "ProcessName": "chrome",
+        "CPU": 0.109375
+      },
+      {
+        "Id": 14352,
+        "ProcessName": "chrome",
+        "CPU": 282.84375
+      },
+      {
+        "Id": 14584,
+        "ProcessName": "chrome",
+        "CPU": 17.25
+      },
+      {
+        "Id": 18640,
+        "ProcessName": "chrome",
+        "CPU": 24541.90625
+      },
+      {
+        "Id": 21356,
+        "ProcessName": "chrome",
+        "CPU": 0.703125
+      },
+      {
+        "Id": 24168,
+        "ProcessName": "chrome",
+        "CPU": 95.296875
+      },
+      {
+        "Id": 26732,
+        "ProcessName": "chrome",
+        "CPU": 403.65625
+      },
+      {
+        "Id": 26972,
+        "ProcessName": "chrome",
+        "CPU": 0.203125
+      },
+      {
+        "Id": 28796,
+        "ProcessName": "chrome",
+        "CPU": 0.125
+      },
+      {
+        "Id": 29256,
+        "ProcessName": "chrome",
+        "CPU": 122.578125
+      },
+      {
+        "Id": 30716,
+        "ProcessName": "chrome",
+        "CPU": 701.1875
+      },
+      {
+        "Id": 32204,
+        "ProcessName": "chrome",
+        "CPU": 1.328125
+      },
+      {
+        "Id": 32644,
+        "ProcessName": "chrome",
+        "CPU": 26.03125
+      },
+      {
+        "Id": 35668,
+        "ProcessName": "chrome",
+        "CPU": 1.953125
+      },
+      {
+        "Id": 40212,
+        "ProcessName": "chrome",
+        "CPU": 2.71875
+      },
+      {
+        "Id": 41004,
+        "ProcessName": "chrome",
+        "CPU": 1.828125
+      },
+      {
+        "Id": 41768,
+        "ProcessName": "chrome",
+        "CPU": 148.203125
+      },
+      {
+        "Id": 41828,
+        "ProcessName": "chrome",
+        "CPU": 1.40625
+      },
+      {
+        "Id": 44240,
+        "ProcessName": "chrome",
+        "CPU": 4.125
+      },
+      {
+        "Id": 45936,
+        "ProcessName": "chrome",
+        "CPU": 0.078125
+      },
+      {
+        "Id": 46572,
+        "ProcessName": "chrome",
+        "CPU": 3.09375
+      },
+      {
+        "Id": 47060,
+        "ProcessName": "chrome",
+        "CPU": 2417.875
+      },
+      {
+        "Id": 48480,
+        "ProcessName": "chrome",
+        "CPU": 0.703125
+      },
+      {
+        "Id": 48964,
+        "ProcessName": "chrome",
+        "CPU": 0.671875
+      },
+      {
+        "Id": 18308,
+        "ProcessName": "claude",
+        "CPU": 24.6875
+      },
+      {
+        "Id": 20656,
+        "ProcessName": "claude",
+        "CPU": 0.625
+      },
+      {
+        "Id": 23768,
+        "ProcessName": "claude",
+        "CPU": 9.375
+      },
+      {
+        "Id": 26528,
+        "ProcessName": "claude",
+        "CPU": 1.921875
+      },
+      {
+        "Id": 28124,
+        "ProcessName": "claude",
+        "CPU": 3.921875
+      },
+      {
+        "Id": 29768,
+        "ProcessName": "claude",
+        "CPU": 32.1875
+      },
+      {
+        "Id": 40284,
+        "ProcessName": "claude",
+        "CPU": 268.25
+      },
+      {
+        "Id": 43464,
+        "ProcessName": "claude",
+        "CPU": 0.28125
+      },
+      {
+        "Id": 26660,
+        "ProcessName": "ClickToDo",
+        "CPU": 2.359375
+      },
+      {
+        "Id": 3508,
+        "ProcessName": "cmd",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 11940,
+        "ProcessName": "cmd",
+        "CPU": 0.0625
+      },
+      {
+        "Id": 13024,
+        "ProcessName": "cmd",
+        "CPU": 0.0625
+      },
+      {
+        "Id": 15024,
+        "ProcessName": "cmd",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 15628,
+        "ProcessName": "cmd",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 20884,
+        "ProcessName": "cmd",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 21268,
+        "ProcessName": "cmd",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 26208,
+        "ProcessName": "cmd",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 30064,
+        "ProcessName": "cmd",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 37316,
+        "ProcessName": "cmd",
+        "CPU": 0
+      },
+      {
+        "Id": 37464,
+        "ProcessName": "cmd",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 38700,
+        "ProcessName": "cmd",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 39480,
+        "ProcessName": "cmd",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 39664,
+        "ProcessName": "cmd",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 43112,
+        "ProcessName": "cmd",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 44044,
+        "ProcessName": "cmd",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 44332,
+        "ProcessName": "cmd",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 49348,
+        "ProcessName": "cmd",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 34316,
+        "ProcessName": "cncmd",
+        "CPU": 0.1875
+      },
+      {
+        "Id": 584,
+        "ProcessName": "codex",
+        "CPU": 0.0625
+      },
+      {
+        "Id": 7260,
+        "ProcessName": "codex",
+        "CPU": 0.078125
+      },
+      {
+        "Id": 13540,
+        "ProcessName": "codex",
+        "CPU": 2.3125
+      },
+      {
+        "Id": 15176,
+        "ProcessName": "codex",
+        "CPU": 57.96875
+      },
+      {
+        "Id": 16120,
+        "ProcessName": "codex",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 17528,
+        "ProcessName": "codex",
+        "CPU": 0.09375
+      },
+      {
+        "Id": 18100,
+        "ProcessName": "codex",
+        "CPU": 0.078125
+      },
+      {
+        "Id": 18736,
+        "ProcessName": "codex",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 18872,
+        "ProcessName": "codex",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 21968,
+        "ProcessName": "codex",
+        "CPU": 0.15625
+      },
+      {
+        "Id": 24152,
+        "ProcessName": "codex",
+        "CPU": 0.15625
+      },
+      {
+        "Id": 25196,
+        "ProcessName": "codex",
+        "CPU": 0.0625
+      },
+      {
+        "Id": 25420,
+        "ProcessName": "codex",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 26064,
+        "ProcessName": "codex",
+        "CPU": 0.078125
+      },
+      {
+        "Id": 30248,
+        "ProcessName": "codex",
+        "CPU": 0.078125
+      },
+      {
+        "Id": 34292,
+        "ProcessName": "codex",
+        "CPU": 0.09375
+      },
+      {
+        "Id": 34424,
+        "ProcessName": "codex",
+        "CPU": 0.0625
+      },
+      {
+        "Id": 34444,
+        "ProcessName": "codex",
+        "CPU": 682.140625
+      },
+      {
+        "Id": 34452,
+        "ProcessName": "codex",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 36392,
+        "ProcessName": "codex",
+        "CPU": 7.84375
+      },
+      {
+        "Id": 40580,
+        "ProcessName": "codex",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 43544,
+        "ProcessName": "codex",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 43636,
+        "ProcessName": "codex",
+        "CPU": 0.078125
+      },
+      {
+        "Id": 48900,
+        "ProcessName": "codex",
+        "CPU": 0.109375
+      },
+      {
+        "Id": 50356,
+        "ProcessName": "codex",
+        "CPU": 0.078125
+      },
+      {
+        "Id": 50988,
+        "ProcessName": "codex",
+        "CPU": 0.0625
+      },
+      {
+        "Id": 51012,
+        "ProcessName": "codex",
+        "CPU": 0.0625
+      },
+      {
+        "Id": 51772,
+        "ProcessName": "codex",
+        "CPU": 1.765625
+      },
+      {
+        "Id": 24016,
+        "ProcessName": "codex-code-mode-host",
+        "CPU": 5.859375
+      },
+      {
+        "Id": 42812,
+        "ProcessName": "codex-computer-use",
+        "CPU": 42.4375
+      },
+      {
+        "Id": 16320,
+        "ProcessName": "codex-computer-use-swift",
+        "CPU": 6.15625
+      },
+      {
+        "Id": 568,
+        "ProcessName": "conhost",
+        "CPU": 0.078125
+      },
+      {
+        "Id": 860,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 3696,
+        "ProcessName": "conhost",
+        "CPU": 0.09375
+      },
+      {
+        "Id": 7208,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 7668,
+        "ProcessName": "conhost",
+        "CPU": 0.078125
+      },
+      {
+        "Id": 8596,
+        "ProcessName": "conhost",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 8720,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 8928,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 10316,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 10872,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 11604,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 11676,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 12272,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 12492,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 14244,
+        "ProcessName": "conhost",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 15064,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 15604,
+        "ProcessName": "conhost",
+        "CPU": 0
+      },
+      {
+        "Id": 15856,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 16328,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 16424,
+        "ProcessName": "conhost",
+        "CPU": 0.078125
+      },
+      {
+        "Id": 17416,
+        "ProcessName": "conhost",
+        "CPU": 0.125
+      },
+      {
+        "Id": 17840,
+        "ProcessName": "conhost",
+        "CPU": 0
+      },
+      {
+        "Id": 18160,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 19020,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 19660,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 19920,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 20360,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 21036,
+        "ProcessName": "conhost",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 21768,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 22096,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 22192,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 22772,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 23140,
+        "ProcessName": "conhost",
+        "CPU": 0.1875
+      },
+      {
+        "Id": 23248,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 23692,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 23984,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 24244,
+        "ProcessName": "conhost",
+        "CPU": 0
+      },
+      {
+        "Id": 24524,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 24828,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 25288,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 26112,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 26172,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 27108,
+        "ProcessName": "conhost",
+        "CPU": 0
+      },
+      {
+        "Id": 27604,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 27840,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 28112,
+        "ProcessName": "conhost",
+        "CPU": 0.140625
+      },
+      {
+        "Id": 28188,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 29252,
+        "ProcessName": "conhost",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 29496,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 29736,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 30236,
+        "ProcessName": "conhost",
+        "CPU": 0.0625
+      },
+      {
+        "Id": 30940,
+        "ProcessName": "conhost",
+        "CPU": 0.09375
+      },
+      {
+        "Id": 31132,
+        "ProcessName": "conhost",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 31548,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 31636,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 32216,
+        "ProcessName": "conhost",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 32576,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 33748,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 34280,
+        "ProcessName": "conhost",
+        "CPU": 0.0625
+      },
+      {
+        "Id": 34508,
+        "ProcessName": "conhost",
+        "CPU": 0.296875
+      },
+      {
+        "Id": 36436,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 36580,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 37180,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 37280,
+        "ProcessName": "conhost",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 37784,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 37868,
+        "ProcessName": "conhost",
+        "CPU": 0.109375
+      },
+      {
+        "Id": 38492,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 38864,
+        "ProcessName": "conhost",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 39252,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 39792,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 40256,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 40520,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 41640,
+        "ProcessName": "conhost",
+        "CPU": 0.0625
+      },
+      {
+        "Id": 41804,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 42580,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 43396,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 44396,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 44428,
+        "ProcessName": "conhost",
+        "CPU": 0
+      },
+      {
+        "Id": 44540,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 45720,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 47592,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 49156,
+        "ProcessName": "conhost",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 49952,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 50400,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 50548,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 50672,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 50692,
+        "ProcessName": "conhost",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 50956,
+        "ProcessName": "conhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 13364,
+        "ProcessName": "copilotapp",
+        "CPU": 2.25
+      },
+      {
+        "Id": 15972,
+        "ProcessName": "copilotapp",
+        "CPU": 5.9375
+      },
+      {
+        "Id": 18808,
+        "ProcessName": "copilotapp",
+        "CPU": 0.546875
+      },
+      {
+        "Id": 28964,
+        "ProcessName": "copilotapp",
+        "CPU": 0.15625
+      },
+      {
+        "Id": 34356,
+        "ProcessName": "copilotapp",
+        "CPU": 0.546875
+      },
+      {
+        "Id": 36492,
+        "ProcessName": "copilotapp",
+        "CPU": 1.796875
+      },
+      {
+        "Id": 41336,
+        "ProcessName": "copilotapp",
+        "CPU": 42.078125
+      },
+      {
+        "Id": 44036,
+        "ProcessName": "copilotapp",
+        "CPU": 0.9375
+      },
+      {
+        "Id": 44216,
+        "ProcessName": "copilotapp",
+        "CPU": 1.015625
+      },
+      {
+        "Id": 19740,
+        "ProcessName": "copilotapphost",
+        "CPU": 19.765625
+      },
+      {
+        "Id": 26668,
+        "ProcessName": "CrossDeviceResume",
+        "CPU": 0.984375
+      },
+      {
+        "Id": 3660,
+        "ProcessName": "ctfmon",
+        "CPU": 173.4375
+      },
+      {
+        "Id": 29476,
+        "ProcessName": "DefenderSessionHelper",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 41268,
+        "ProcessName": "DesktopExtension",
+        "CPU": 45.578125
+      },
+      {
+        "Id": 11788,
+        "ProcessName": "dllhost",
+        "CPU": 0.09375
+      },
+      {
+        "Id": 21580,
+        "ProcessName": "dllhost",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 31848,
+        "ProcessName": "dllhost",
+        "CPU": 0.078125
+      },
+      {
+        "Id": 38800,
+        "ProcessName": "dllhost",
+        "CPU": 0.109375
+      },
+      {
+        "Id": 40672,
+        "ProcessName": "dllhost",
+        "CPU": 0.0625
+      },
+      {
+        "Id": 44836,
+        "ProcessName": "dllhost",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 23520,
+        "ProcessName": "EpicWebHelper",
+        "CPU": 0.734375
+      },
+      {
+        "Id": 25072,
+        "ProcessName": "EpicWebHelper",
+        "CPU": 1.34375
+      },
+      {
+        "Id": 29988,
+        "ProcessName": "EpicWebHelper",
+        "CPU": 4.140625
+      },
+      {
+        "Id": 40836,
+        "ProcessName": "EpicWebHelper",
+        "CPU": 0.640625
+      },
+      {
+        "Id": 11268,
+        "ProcessName": "esbuild",
+        "CPU": 1.8125
+      },
+      {
+        "Id": 23124,
+        "ProcessName": "esbuild",
+        "CPU": 6
+      },
+      {
+        "Id": 23784,
+        "ProcessName": "esbuild",
+        "CPU": 0.46875
+      },
+      {
+        "Id": 39060,
+        "ProcessName": "esbuild",
+        "CPU": 18.53125
+      },
+      {
+        "Id": 44852,
+        "ProcessName": "esbuild",
+        "CPU": 17.40625
+      },
+      {
+        "Id": 41024,
+        "ProcessName": "ETDCtrl",
+        "CPU": 0.359375
+      },
+      {
+        "Id": 12068,
+        "ProcessName": "explorer",
+        "CPU": 318.359375
+      },
+      {
+        "Id": 5992,
+        "ProcessName": "extension-host",
+        "CPU": 1.9375
+      },
+      {
+        "Id": 24984,
+        "ProcessName": "FileCoAuth",
+        "CPU": 1.75
+      },
+      {
+        "Id": 13080,
+        "ProcessName": "GameBarPresenceWriter",
+        "CPU": 0.125
+      },
+      {
+        "Id": 36656,
+        "ProcessName": "GameInputRedistService",
+        "CPU": 0.515625
+      },
+      {
+        "Id": 43088,
+        "ProcessName": "Hermes",
+        "CPU": 0.796875
+      },
+      {
+        "Id": 48132,
+        "ProcessName": "Hermes",
+        "CPU": 435.25
+      },
+      {
+        "Id": 48296,
+        "ProcessName": "Hermes",
+        "CPU": 29.546875
+      },
+      {
+        "Id": 48432,
+        "ProcessName": "Hermes",
+        "CPU": 0.265625
+      },
+      {
+        "Id": 49104,
+        "ProcessName": "Hermes",
+        "CPU": 464.984375
+      },
+      {
+        "Id": 46288,
+        "ProcessName": "HP.OMEN.VirtualCamHelper",
+        "CPU": 36.140625
+      },
+      {
+        "Id": 37712,
+        "ProcessName": "HPMediaNetwork",
+        "CPU": 1.109375
+      },
+      {
+        "Id": 27912,
+        "ProcessName": "HPSystemEventUtilityBackground",
+        "CPU": 36.90625
+      },
+      {
+        "Id": 15256,
+        "ProcessName": "HPSystemEventUtilityHost",
+        "CPU": 0.75
+      },
+      {
+        "Id": 3636,
+        "ProcessName": "LM Studio",
+        "CPU": 0.0625
+      },
+      {
+        "Id": 14692,
+        "ProcessName": "LM Studio",
+        "CPU": 20.609375
+      },
+      {
+        "Id": 18268,
+        "ProcessName": "LM Studio",
+        "CPU": 2.109375
+      },
+      {
+        "Id": 24316,
+        "ProcessName": "LM Studio",
+        "CPU": 76.90625
+      },
+      {
+        "Id": 43236,
+        "ProcessName": "LM Studio",
+        "CPU": 2.46875
+      },
+      {
+        "Id": 4852,
+        "ProcessName": "LockApp",
+        "CPU": 1.828125
+      },
+      {
+        "Id": 31836,
+        "ProcessName": "Microsoft.CmdPal.Ext.PowerToys",
+        "CPU": 8.953125
+      },
+      {
+        "Id": 36220,
+        "ProcessName": "Microsoft.CmdPal.UI",
+        "CPU": 31.4375
+      },
+      {
+        "Id": 10528,
+        "ProcessName": "MicrosoftStartFeedProvider",
+        "CPU": 3.65625
+      },
+      {
+        "Id": 2160,
+        "ProcessName": "MixedRealityPairingHelper",
+        "CPU": 1.234375
+      },
+      {
+        "Id": 19192,
+        "ProcessName": "MoNotificationUx",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 10724,
+        "ProcessName": "msedge",
+        "CPU": 0.125
+      },
+      {
+        "Id": 15180,
+        "ProcessName": "msedge",
+        "CPU": 0.46875
+      },
+      {
+        "Id": 19644,
+        "ProcessName": "msedge",
+        "CPU": 0.1875
+      },
+      {
+        "Id": 42960,
+        "ProcessName": "msedge",
+        "CPU": 5.96875
+      },
+      {
+        "Id": 47400,
+        "ProcessName": "msedge",
+        "CPU": 1.125
+      },
+      {
+        "Id": 3112,
+        "ProcessName": "msedgewebview2",
+        "CPU": 5.203125
+      },
+      {
+        "Id": 6108,
+        "ProcessName": "msedgewebview2",
+        "CPU": 0.265625
+      },
+      {
+        "Id": 12316,
+        "ProcessName": "msedgewebview2",
+        "CPU": 0.265625
+      },
+      {
+        "Id": 13044,
+        "ProcessName": "msedgewebview2",
+        "CPU": 0.0625
+      },
+      {
+        "Id": 15544,
+        "ProcessName": "msedgewebview2",
+        "CPU": 1.890625
+      },
+      {
+        "Id": 21144,
+        "ProcessName": "msedgewebview2",
+        "CPU": 0.34375
+      },
+      {
+        "Id": 22812,
+        "ProcessName": "msedgewebview2",
+        "CPU": 0.09375
+      },
+      {
+        "Id": 37188,
+        "ProcessName": "msedgewebview2",
+        "CPU": 2.8125
+      },
+      {
+        "Id": 38464,
+        "ProcessName": "msedgewebview2",
+        "CPU": 0.25
+      },
+      {
+        "Id": 42368,
+        "ProcessName": "msedgewebview2",
+        "CPU": 13.671875
+      },
+      {
+        "Id": 44064,
+        "ProcessName": "msedgewebview2",
+        "CPU": 4.90625
+      },
+      {
+        "Id": 48176,
+        "ProcessName": "msedgewebview2",
+        "CPU": 0.140625
+      },
+      {
+        "Id": 39260,
+        "ProcessName": "MuseHub",
+        "CPU": 3693.15625
+      },
+      {
+        "Id": 23708,
+        "ProcessName": "NGenuity2GeneralHelper",
+        "CPU": 0.546875
+      },
+      {
+        "Id": 788,
+        "ProcessName": "node",
+        "CPU": 0.765625
+      },
+      {
+        "Id": 4664,
+        "ProcessName": "node",
+        "CPU": 2.0625
+      },
+      {
+        "Id": 5980,
+        "ProcessName": "node",
+        "CPU": 0.296875
+      },
+      {
+        "Id": 5988,
+        "ProcessName": "node",
+        "CPU": 1
+      },
+      {
+        "Id": 7064,
+        "ProcessName": "node",
+        "CPU": 0.25
+      },
+      {
+        "Id": 8488,
+        "ProcessName": "node",
+        "CPU": 0.375
+      },
+      {
+        "Id": 9172,
+        "ProcessName": "node",
+        "CPU": 0.375
+      },
+      {
+        "Id": 10252,
+        "ProcessName": "node",
+        "CPU": 0.375
+      },
+      {
+        "Id": 11184,
+        "ProcessName": "node",
+        "CPU": 2.0625
+      },
+      {
+        "Id": 12636,
+        "ProcessName": "node",
+        "CPU": 0.375
+      },
+      {
+        "Id": 12896,
+        "ProcessName": "node",
+        "CPU": 0.765625
+      },
+      {
+        "Id": 12916,
+        "ProcessName": "node",
+        "CPU": 0.453125
+      },
+      {
+        "Id": 14576,
+        "ProcessName": "node",
+        "CPU": 0.484375
+      },
+      {
+        "Id": 14736,
+        "ProcessName": "node",
+        "CPU": 0.734375
+      },
+      {
+        "Id": 16836,
+        "ProcessName": "node",
+        "CPU": 0.203125
+      },
+      {
+        "Id": 17228,
+        "ProcessName": "node",
+        "CPU": 0.765625
+      },
+      {
+        "Id": 19372,
+        "ProcessName": "node",
+        "CPU": 106.78125
+      },
+      {
+        "Id": 19620,
+        "ProcessName": "node",
+        "CPU": 1.015625
+      },
+      {
+        "Id": 22116,
+        "ProcessName": "node",
+        "CPU": 0.4375
+      },
+      {
+        "Id": 22404,
+        "ProcessName": "node",
+        "CPU": 0.21875
+      },
+      {
+        "Id": 23024,
+        "ProcessName": "node",
+        "CPU": 0.25
+      },
+      {
+        "Id": 24224,
+        "ProcessName": "node",
+        "CPU": 0.28125
+      },
+      {
+        "Id": 25732,
+        "ProcessName": "node",
+        "CPU": 0.4375
+      },
+      {
+        "Id": 26712,
+        "ProcessName": "node",
+        "CPU": 0.5
+      },
+      {
+        "Id": 27576,
+        "ProcessName": "node",
+        "CPU": 1
+      },
+      {
+        "Id": 28548,
+        "ProcessName": "node",
+        "CPU": 0.71875
+      },
+      {
+        "Id": 28920,
+        "ProcessName": "node",
+        "CPU": 1.03125
+      },
+      {
+        "Id": 31940,
+        "ProcessName": "node",
+        "CPU": 0.203125
+      },
+      {
+        "Id": 32400,
+        "ProcessName": "node",
+        "CPU": 0.234375
+      },
+      {
+        "Id": 33412,
+        "ProcessName": "node",
+        "CPU": 0.328125
+      },
+      {
+        "Id": 34696,
+        "ProcessName": "node",
+        "CPU": 0.234375
+      },
+      {
+        "Id": 34852,
+        "ProcessName": "node",
+        "CPU": 93.265625
+      },
+      {
+        "Id": 36304,
+        "ProcessName": "node",
+        "CPU": 0.734375
+      },
+      {
+        "Id": 36932,
+        "ProcessName": "node",
+        "CPU": 1.3125
+      },
+      {
+        "Id": 37432,
+        "ProcessName": "node",
+        "CPU": 18.421875
+      },
+      {
+        "Id": 37484,
+        "ProcessName": "node",
+        "CPU": 1.09375
+      },
+      {
+        "Id": 37560,
+        "ProcessName": "node",
+        "CPU": 0.5
+      },
+      {
+        "Id": 37628,
+        "ProcessName": "node",
+        "CPU": 0.8125
+      },
+      {
+        "Id": 37704,
+        "ProcessName": "node",
+        "CPU": 16.453125
+      },
+      {
+        "Id": 38192,
+        "ProcessName": "node",
+        "CPU": 1
+      },
+      {
+        "Id": 38396,
+        "ProcessName": "node",
+        "CPU": 0.296875
+      },
+      {
+        "Id": 39172,
+        "ProcessName": "node",
+        "CPU": 3.65625
+      },
+      {
+        "Id": 42124,
+        "ProcessName": "node",
+        "CPU": 0.0625
+      },
+      {
+        "Id": 42244,
+        "ProcessName": "node",
+        "CPU": 0.421875
+      },
+      {
+        "Id": 42612,
+        "ProcessName": "node",
+        "CPU": 1.078125
+      },
+      {
+        "Id": 42824,
+        "ProcessName": "node",
+        "CPU": 12.21875
+      },
+      {
+        "Id": 44264,
+        "ProcessName": "node",
+        "CPU": 1.171875
+      },
+      {
+        "Id": 44908,
+        "ProcessName": "node",
+        "CPU": 0.1875
+      },
+      {
+        "Id": 45448,
+        "ProcessName": "node",
+        "CPU": 0.25
+      },
+      {
+        "Id": 45820,
+        "ProcessName": "node",
+        "CPU": 0.421875
+      },
+      {
+        "Id": 45976,
+        "ProcessName": "node",
+        "CPU": 0.40625
+      },
+      {
+        "Id": 47508,
+        "ProcessName": "node",
+        "CPU": 0.171875
+      },
+      {
+        "Id": 47800,
+        "ProcessName": "node",
+        "CPU": 0.65625
+      },
+      {
+        "Id": 49296,
+        "ProcessName": "node",
+        "CPU": 0.484375
+      },
+      {
+        "Id": 50068,
+        "ProcessName": "node",
+        "CPU": 0.234375
+      },
+      {
+        "Id": 51752,
+        "ProcessName": "node",
+        "CPU": 3.53125
+      },
+      {
+        "Id": 51904,
+        "ProcessName": "node",
+        "CPU": 0.125
+      },
+      {
+        "Id": 4956,
+        "ProcessName": "node_repl",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 10428,
+        "ProcessName": "node_repl",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 10556,
+        "ProcessName": "node_repl",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 14888,
+        "ProcessName": "node_repl",
+        "CPU": 0.109375
+      },
+      {
+        "Id": 24364,
+        "ProcessName": "node_repl",
+        "CPU": 4.703125
+      },
+      {
+        "Id": 25220,
+        "ProcessName": "node_repl",
+        "CPU": 0.171875
+      },
+      {
+        "Id": 27308,
+        "ProcessName": "node_repl",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 31992,
+        "ProcessName": "node_repl",
+        "CPU": 0.078125
+      },
+      {
+        "Id": 39732,
+        "ProcessName": "node_repl",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 40048,
+        "ProcessName": "node_repl",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 42688,
+        "ProcessName": "node_repl",
+        "CPU": 1.03125
+      },
+      {
+        "Id": 43076,
+        "ProcessName": "node_repl",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 43188,
+        "ProcessName": "node_repl",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 43268,
+        "ProcessName": "node_repl",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 46884,
+        "ProcessName": "node_repl",
+        "CPU": 0.296875
+      },
+      {
+        "Id": 49680,
+        "ProcessName": "node_repl",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 16332,
+        "ProcessName": "Notepad",
+        "CPU": 3.203125
+      },
+      {
+        "Id": 37524,
+        "ProcessName": "ollama",
+        "CPU": 10.03125
+      },
+      {
+        "Id": 28464,
+        "ProcessName": "ollama app",
+        "CPU": 1.796875
+      },
+      {
+        "Id": 29424,
+        "ProcessName": "OmenCommandCenterBackground",
+        "CPU": 1448.8125
+      },
+      {
+        "Id": 45380,
+        "ProcessName": "OmenInstallMonitor",
+        "CPU": 4.640625
+      },
+      {
+        "Id": 41352,
+        "ProcessName": "OMENKeyboardRemapLauncher",
+        "CPU": 73.921875
+      },
+      {
+        "Id": 21640,
+        "ProcessName": "OMENKeyboardRemapper",
+        "CPU": 4.703125
+      },
+      {
+        "Id": 41100,
+        "ProcessName": "OneDrive",
+        "CPU": 510.609375
+      },
+      {
+        "Id": 14500,
+        "ProcessName": "OneDrive.Sync.Service",
+        "CPU": 163.078125
+      },
+      {
+        "Id": 7052,
+        "ProcessName": "OpenCode",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 12964,
+        "ProcessName": "OpenCode",
+        "CPU": 179.6875
+      },
+      {
+        "Id": 14008,
+        "ProcessName": "OpenCode",
+        "CPU": 45.625
+      },
+      {
+        "Id": 16112,
+        "ProcessName": "OpenCode",
+        "CPU": 6.34375
+      },
+      {
+        "Id": 21780,
+        "ProcessName": "OpenCode",
+        "CPU": 763.203125
+      },
+      {
+        "Id": 33436,
+        "ProcessName": "OpenCode",
+        "CPU": 1.140625
+      },
+      {
+        "Id": 48092,
+        "ProcessName": "OpenCode",
+        "CPU": 329.921875
+      },
+      {
+        "Id": 48220,
+        "ProcessName": "OpenCode",
+        "CPU": 0.140625
+      },
+      {
+        "Id": 3784,
+        "ProcessName": "opencode-cli",
+        "CPU": 127.484375
+      },
+      {
+        "Id": 23580,
+        "ProcessName": "OverlayHelper",
+        "CPU": 1297.203125
+      },
+      {
+        "Id": 22252,
+        "ProcessName": "Overwolf",
+        "CPU": 812.3125
+      },
+      {
+        "Id": 22584,
+        "ProcessName": "OverwolfBrowser",
+        "CPU": 103.390625
+      },
+      {
+        "Id": 37208,
+        "ProcessName": "OverwolfBrowser",
+        "CPU": 12.03125
+      },
+      {
+        "Id": 38996,
+        "ProcessName": "OverwolfBrowser",
+        "CPU": 13.984375
+      },
+      {
+        "Id": 42272,
+        "ProcessName": "OverwolfBrowser",
+        "CPU": 3.40625
+      },
+      {
+        "Id": 43712,
+        "ProcessName": "OverwolfBrowser",
+        "CPU": 0.765625
+      },
+      {
+        "Id": 28252,
+        "ProcessName": "OverwolfHelper",
+        "CPU": 840.390625
+      },
+      {
+        "Id": 7048,
+        "ProcessName": "OverwolfHelper64",
+        "CPU": 616.453125
+      },
+      {
+        "Id": 8980,
+        "ProcessName": "powershell",
+        "CPU": 0.390625
+      },
+      {
+        "Id": 25872,
+        "ProcessName": "powershell",
+        "CPU": 0.625
+      },
+      {
+        "Id": 40388,
+        "ProcessName": "powershell",
+        "CPU": 1.1875
+      },
+      {
+        "Id": 41780,
+        "ProcessName": "PowerToys",
+        "CPU": 8.4375
+      },
+      {
+        "Id": 12512,
+        "ProcessName": "PowerToys.AlwaysOnTop",
+        "CPU": 11.984375
+      },
+      {
+        "Id": 41936,
+        "ProcessName": "PowerToys.Awake",
+        "CPU": 5.390625
+      },
+      {
+        "Id": 36320,
+        "ProcessName": "PowerToys.ColorPickerUI",
+        "CPU": 4.265625
+      },
+      {
+        "Id": 47868,
+        "ProcessName": "PowerToys.FancyZones",
+        "CPU": 8.09375
+      },
+      {
+        "Id": 38840,
+        "ProcessName": "PowerToys.Peek.UI",
+        "CPU": 3.5
+      },
+      {
+        "Id": 16864,
+        "ProcessName": "PowerToys.QuickAccess",
+        "CPU": 4.09375
+      },
+      {
+        "Id": 18184,
+        "ProcessName": "pwsh",
+        "CPU": 0.828125
+      },
+      {
+        "Id": 22132,
+        "ProcessName": "pwsh",
+        "CPU": 0.75
+      },
+      {
+        "Id": 35212,
+        "ProcessName": "pwsh",
+        "CPU": 0.578125
+      },
+      {
+        "Id": 50504,
+        "ProcessName": "pwsh",
+        "CPU": 3.71875
+      },
+      {
+        "Id": 608,
+        "ProcessName": "python",
+        "CPU": 0
+      },
+      {
+        "Id": 4488,
+        "ProcessName": "python",
+        "CPU": 1.484375
+      },
+      {
+        "Id": 9712,
+        "ProcessName": "python",
+        "CPU": 4.671875
+      },
+      {
+        "Id": 9940,
+        "ProcessName": "python",
+        "CPU": 134.859375
+      },
+      {
+        "Id": 10572,
+        "ProcessName": "python",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 14536,
+        "ProcessName": "python",
+        "CPU": 0
+      },
+      {
+        "Id": 15168,
+        "ProcessName": "python",
+        "CPU": 3.21875
+      },
+      {
+        "Id": 17620,
+        "ProcessName": "python",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 23416,
+        "ProcessName": "python",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 23724,
+        "ProcessName": "python",
+        "CPU": 3.296875
+      },
+      {
+        "Id": 25224,
+        "ProcessName": "python",
+        "CPU": 1.953125
+      },
+      {
+        "Id": 26048,
+        "ProcessName": "python",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 30512,
+        "ProcessName": "python",
+        "CPU": 284.15625
+      },
+      {
+        "Id": 30772,
+        "ProcessName": "python",
+        "CPU": 0.671875
+      },
+      {
+        "Id": 34224,
+        "ProcessName": "python",
+        "CPU": 1.5625
+      },
+      {
+        "Id": 34960,
+        "ProcessName": "python",
+        "CPU": 1.96875
+      },
+      {
+        "Id": 36912,
+        "ProcessName": "python",
+        "CPU": 1.4375
+      },
+      {
+        "Id": 36916,
+        "ProcessName": "python",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 43808,
+        "ProcessName": "python",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 46756,
+        "ProcessName": "python",
+        "CPU": 0.859375
+      },
+      {
+        "Id": 49308,
+        "ProcessName": "python",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 49320,
+        "ProcessName": "python",
+        "CPU": 2
+      },
+      {
+        "Id": 16700,
+        "ProcessName": "RadeonSoftware",
+        "CPU": 3.8125
+      },
+      {
+        "Id": 5312,
+        "ProcessName": "Riot Client",
+        "CPU": 0.640625
+      },
+      {
+        "Id": 32136,
+        "ProcessName": "Riot Client",
+        "CPU": 29.515625
+      },
+      {
+        "Id": 34344,
+        "ProcessName": "Riot Client",
+        "CPU": 1.421875
+      },
+      {
+        "Id": 36620,
+        "ProcessName": "Riot Client",
+        "CPU": 4.53125
+      },
+      {
+        "Id": 36968,
+        "ProcessName": "Riot Client",
+        "CPU": 7.546875
+      },
+      {
+        "Id": 48656,
+        "ProcessName": "Riot Client",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 40492,
+        "ProcessName": "RiotClientCrashHandler",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 15840,
+        "ProcessName": "RiotClientServices",
+        "CPU": 347.28125
+      },
+      {
+        "Id": 38736,
+        "ProcessName": "RtkAudUService64",
+        "CPU": 10.703125
+      },
+      {
+        "Id": 3856,
+        "ProcessName": "RuntimeBroker",
+        "CPU": 4.984375
+      },
+      {
+        "Id": 15260,
+        "ProcessName": "RuntimeBroker",
+        "CPU": 2.78125
+      },
+      {
+        "Id": 30124,
+        "ProcessName": "RuntimeBroker",
+        "CPU": 0.125
+      },
+      {
+        "Id": 44188,
+        "ProcessName": "RuntimeBroker",
+        "CPU": 0.21875
+      },
+      {
+        "Id": 44720,
+        "ProcessName": "RuntimeBroker",
+        "CPU": 0.21875
+      },
+      {
+        "Id": 3892,
+        "ProcessName": "SearchHost",
+        "CPU": 11.78125
+      },
+      {
+        "Id": 30140,
+        "ProcessName": "SecurityHealthSystray",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 41108,
+        "ProcessName": "ShellExperienceHost",
+        "CPU": 1.40625
+      },
+      {
+        "Id": 47208,
+        "ProcessName": "ShellHost",
+        "CPU": 0.1875
+      },
+      {
+        "Id": 14424,
+        "ProcessName": "sihost",
+        "CPU": 29.6875
+      },
+      {
+        "Id": 46424,
+        "ProcessName": "StartMenuExperienceHost",
+        "CPU": 25.28125
+      },
+      {
+        "Id": 4464,
+        "ProcessName": "svchost",
+        "CPU": 5.359375
+      },
+      {
+        "Id": 5324,
+        "ProcessName": "svchost",
+        "CPU": 6.90625
+      },
+      {
+        "Id": 7284,
+        "ProcessName": "svchost",
+        "CPU": 6.109375
+      },
+      {
+        "Id": 9560,
+        "ProcessName": "svchost",
+        "CPU": 4.84375
+      },
+      {
+        "Id": 10832,
+        "ProcessName": "svchost",
+        "CPU": 0.21875
+      },
+      {
+        "Id": 20284,
+        "ProcessName": "svchost",
+        "CPU": 0.28125
+      },
+      {
+        "Id": 31668,
+        "ProcessName": "svchost",
+        "CPU": 1.890625
+      },
+      {
+        "Id": 38564,
+        "ProcessName": "svchost",
+        "CPU": 1.578125
+      },
+      {
+        "Id": 39824,
+        "ProcessName": "svchost",
+        "CPU": 0.546875
+      },
+      {
+        "Id": 22164,
+        "ProcessName": "SystemOptimizer",
+        "CPU": 60.28125
+      },
+      {
+        "Id": 23544,
+        "ProcessName": "taskhostw",
+        "CPU": 5.671875
+      },
+      {
+        "Id": 32096,
+        "ProcessName": "TextInputHost",
+        "CPU": 144.21875
+      },
+      {
+        "Id": 47604,
+        "ProcessName": "unsecapp",
+        "CPU": 0.390625
+      },
+      {
+        "Id": 36452,
+        "ProcessName": "UserOOBEBroker",
+        "CPU": 0.203125
+      },
+      {
+        "Id": 21396,
+        "ProcessName": "uv",
+        "CPU": 0.125
+      },
+      {
+        "Id": 23132,
+        "ProcessName": "uv",
+        "CPU": 0.140625
+      },
+      {
+        "Id": 30992,
+        "ProcessName": "uv",
+        "CPU": 0.28125
+      },
+      {
+        "Id": 37308,
+        "ProcessName": "uv",
+        "CPU": 0.421875
+      },
+      {
+        "Id": 40724,
+        "ProcessName": "uv",
+        "CPU": 0.203125
+      },
+      {
+        "Id": 45748,
+        "ProcessName": "uv",
+        "CPU": 0.328125
+      },
+      {
+        "Id": 49208,
+        "ProcessName": "uv",
+        "CPU": 0.234375
+      },
+      {
+        "Id": 50156,
+        "ProcessName": "uv",
+        "CPU": 0.25
+      },
+      {
+        "Id": 10084,
+        "ProcessName": "uvx",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 17144,
+        "ProcessName": "uvx",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 17164,
+        "ProcessName": "uvx",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 21664,
+        "ProcessName": "uvx",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 26812,
+        "ProcessName": "uvx",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 33780,
+        "ProcessName": "uvx",
+        "CPU": 0.046875
+      },
+      {
+        "Id": 36544,
+        "ProcessName": "uvx",
+        "CPU": 0.015625
+      },
+      {
+        "Id": 38296,
+        "ProcessName": "uvx",
+        "CPU": 0.03125
+      },
+      {
+        "Id": 3748,
+        "ProcessName": "VALORANT",
+        "CPU": 0.21875
+      },
+      {
+        "Id": 47932,
+        "ProcessName": "VALORANT-Win64-Shipping",
+        "CPU": 1859.359375
+      },
+      {
+        "Id": 7620,
+        "ProcessName": "vgtray",
+        "CPU": 1.328125
+      },
+      {
+        "Id": 41720,
+        "ProcessName": "WidgetBoard",
+        "CPU": 0.84375
+      },
+      {
+        "Id": 45436,
+        "ProcessName": "WidgetService",
+        "CPU": 2.265625
+      },
+      {
+        "Id": 38516,
+        "ProcessName": "XboxPcAppFT",
+        "CPU": 1.734375
+      }
+    ]
+  },
+  "sources": {
+    "v1.0": {
+      "commit": "170c737329c8aba659d2d31a0e4fd805e9a00886",
+      "testSha256": "23b9d9ef395c895f56701801aa1a50a9ddd60d931440b1a7733a1d0640b1dabc",
+      "physicsSha256": "1e8bfaf62c2010ce1e041d74f204d680829fe82f4cd94b0ef865e5088222d560"
+    },
+    "v1.1": {
+      "commit": "ab66ad3e9ccaad34d32a5c424576f9a4fbf5e4e1",
+      "testSha256": "23b9d9ef395c895f56701801aa1a50a9ddd60d931440b1a7733a1d0640b1dabc",
+      "physicsSha256": "1e8bfaf62c2010ce1e041d74f204d680829fe82f4cd94b0ef865e5088222d560"
+    }
+  },
+  "identicalTest": true,
+  "identicalPhysics": true,
+  "instrumentation": "diagnostic copies print p95 and first60/last540 p95 after sampling; all assertions and the 4ms threshold remain unchanged; original mode adds no diagnostics",
+  "results": [
+    {
+      "label": "v1.0",
+      "mode": "original",
+      "repetition": 1,
+      "utc": "2026-10-15T12:32:13.900Z",
+      "wallMs": 1858.38,
+      "status": 0,
+      "cpuDeltas": [
+        {
+          "process": "VALORANT-Win64-Shipping",
+          "cpuSecondsDelta": 12.875
+        },
+        {
+          "process": "chrome",
+          "cpuSecondsDelta": 3.719
+        },
+        {
+          "process": "chrome",
+          "cpuSecondsDelta": 3.094
+        },
+        {
+          "process": "node",
+          "cpuSecondsDelta": 2.75
+        },
+        {
+          "process": "python",
+          "cpuSecondsDelta": 0.547
+        },
+        {
+          "process": "node",
+          "cpuSecondsDelta": 0.266
+        },
+        {
+          "process": "OmenCommandCenterBackground",
+          "cpuSecondsDelta": 0.266
+        },
+        {
+          "process": "chrome",
+          "cpuSecondsDelta": 0.172
+        },
+        {
+          "process": "audiodg",
+          "cpuSecondsDelta": 0.125
+        },
+        {
+          "process": "chrome",
+          "cpuSecondsDelta": 0.125
+        }
+      ],
+      "stdout": "✔ 45-body ten-second simulation stays bounded, finite, and performant (1638.1027ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 1764.917\n",
+      "stderr": ""
+    },
+    {
+      "label": "v1.1",
+      "mode": "original",
+      "repetition": 1,
+      "utc": "2026-10-15T12:32:17.195Z",
+      "wallMs": 1604.22,
+      "status": 0,
+      "cpuDeltas": [
+        {
+          "process": "VALORANT-Win64-Shipping",
+          "cpuSecondsDelta": 12.422
+        },
+        {
+          "process": "node",
+          "cpuSecondsDelta": 2.297
+        },
+        {
+          "process": "chrome",
+          "cpuSecondsDelta": 0.859
+        },
+        {
+          "process": "OmenCommandCenterBackground",
+          "cpuSecondsDelta": 0.141
+        },
+        {
+          "process": "Hermes",
+          "cpuSecondsDelta": 0.125
+        },
+        {
+          "process": "MuseHub",
+          "cpuSecondsDelta": 0.125
+        },
+        {
+          "process": "audiodg",
+          "cpuSecondsDelta": 0.094
+        },
+        {
+          "process": "ChatGPT",
+          "cpuSecondsDelta": 0.078
+        },
+        {
+          "process": "chrome",
+          "cpuSecondsDelta": 0.078
+        },
+        {
+          "process": "Riot Client",
+          "cpuSecondsDelta": 0.078
+        }
+      ],
+      "stdout": "✔ 45-body ten-second simulation stays bounded, finite, and performant (1379.9181ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 1508.6651\n",
+      "stderr": ""
+    },
+    {
+      "label": "v1.0",
+      "mode": "diagnostic",
+      "repetition": 1,
+      "utc": "2026-10-15T12:32:20.112Z",
+      "wallMs": 2118.64,
+      "status": 1,
+      "p95": 4.499399999999923,
+      "first60P95": 6.191600000000008,
+      "last540P95": 4.425799999999981,
+      "cpuDeltas": [
+        {
+          "process": "VALORANT-Win64-Shipping",
+          "cpuSecondsDelta": 16.359
+        },
+        {
+          "process": "ChatGPT",
+          "cpuSecondsDelta": 0.656
+        },
+        {
+          "process": "OmenCommandCenterBackground",
+          "cpuSecondsDelta": 0.359
+        },
+        {
+          "process": "OverwolfHelper64",
+          "cpuSecondsDelta": 0.219
+        },
+        {
+          "process": "MuseHub",
+          "cpuSecondsDelta": 0.125
+        },
+        {
+          "process": "chrome",
+          "cpuSecondsDelta": 0.109
+        },
+        {
+          "process": "claude",
+          "cpuSecondsDelta": 0.109
+        },
+        {
+          "process": "codex",
+          "cpuSecondsDelta": 0.109
+        },
+        {
+          "process": "Overwolf",
+          "cpuSecondsDelta": 0.109
+        },
+        {
+          "process": "OverwolfHelper",
+          "cpuSecondsDelta": 0.094
+        }
+      ],
+      "stdout": "PHYSICS_SAMPLE {\"p95\":4.499399999999923,\"first60P95\":6.191600000000008,\"last540P95\":4.425799999999981}\n✖ 45-body ten-second simulation stays bounded, finite, and performant (1900.1974ms)\nℹ tests 1\nℹ suites 0\nℹ pass 0\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 2027.251\n\n✖ failing tests:\n\ntest at tsumPhysics.test.mjs:271:1\n✖ 45-body ten-second simulation stays bounded, finite, and performant (1900.1974ms)\n  AssertionError [ERR_ASSERTION]: physics p95 4.499ms exceeded 4ms\n      at TestContext.<anonymous> (file:///C:/Users/ryoma/AppData/Local/Temp/tdk-v12-physics-fsV9eM/tsumPhysics.test.mjs:306:10)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1325:25)\n      at Test.start (node:internal/test_runner/test:1191:17)\n      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',\n    actual: false,\n    expected: true,\n    operator: '==',\n    diff: 'simple'\n  }\n",
+      "stderr": ""
+    },
+    {
+      "label": "v1.1",
+      "mode": "diagnostic",
+      "repetition": 1,
+      "utc": "2026-10-15T12:32:23.986Z",
+      "wallMs": 2125.83,
+      "status": 1,
+      "p95": 4.415399999999977,
+      "first60P95": 7.215699999999998,
+      "last540P95": 4.360199999999963,
+      "cpuDeltas": [
+        {
+          "process": "VALORANT-Win64-Shipping",
+          "cpuSecondsDelta": 15.922
+        },
+        {
+          "process": "node",
+          "cpuSecondsDelta": 2.484
+        },
+        {
+          "process": "node",
+          "cpuSecondsDelta": 2.094
+        },
+        {
+          "process": "node",
+          "cpuSecondsDelta": 1.875
+        },
+        {
+          "process": "codex-computer-use",
+          "cpuSecondsDelta": 1.844
+        },
+        {
+          "process": "node",
+          "cpuSecondsDelta": 1.344
+        },
+        {
+          "process": "esbuild",
+          "cpuSecondsDelta": 0.578
+        },
+        {
+          "process": "audiodg",
+          "cpuSecondsDelta": 0.313
+        },
+        {
+          "process": "chrome",
+          "cpuSecondsDelta": 0.266
+        },
+        {
+          "process": "MuseHub",
+          "cpuSecondsDelta": 0.234
+        }
+      ],
+      "stdout": "PHYSICS_SAMPLE {\"p95\":4.415399999999977,\"first60P95\":7.215699999999998,\"last540P95\":4.360199999999963}\n✖ 45-body ten-second simulation stays bounded, finite, and performant (1880.1077ms)\nℹ tests 1\nℹ suites 0\nℹ pass 0\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 2018.2265\n\n✖ failing tests:\n\ntest at tsumPhysics.test.mjs:271:1\n✖ 45-body ten-second simulation stays bounded, finite, and performant (1880.1077ms)\n  AssertionError [ERR_ASSERTION]: physics p95 4.415ms exceeded 4ms\n      at TestContext.<anonymous> (file:///C:/Users/ryoma/AppData/Local/Temp/tdk-v12-physics-fsV9eM/tsumPhysics.test.mjs:306:10)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1325:25)\n      at Test.start (node:internal/test_runner/test:1191:17)\n      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',\n    actual: false,\n    expected: true,\n    operator: '==',\n    diff: 'simple'\n  }\n",
+      "stderr": ""
+    },
+    {
+      "label": "v1.1",
+      "mode": "diagnostic",
+      "repetition": 2,
+      "utc": "2026-10-15T12:32:27.768Z",
+      "wallMs": 1964.42,
+      "status": 1,
+      "p95": 4.38009999999997,
+      "first60P95": 7.387199999999993,
+      "last540P95": 4.1721,
+      "cpuDeltas": [
+        {
+          "process": "VALORANT-Win64-Shipping",
+          "cpuSecondsDelta": 12.859
+        },
+        {
+          "process": "node",
+          "cpuSecondsDelta": 4.063
+        },
+        {
+          "process": "ChatGPT",
+          "cpuSecondsDelta": 2.609
+        },
+        {
+          "process": "codex-computer-use",
+          "cpuSecondsDelta": 1.5
+        },
+        {
+          "process": "codex",
+          "cpuSecondsDelta": 0.281
+        },
+        {
+          "process": "audiodg",
+          "cpuSecondsDelta": 0.266
+        },
+        {
+          "process": "ChatGPT",
+          "cpuSecondsDelta": 0.266
+        },
+        {
+          "process": "OmenCommandCenterBackground",
+          "cpuSecondsDelta": 0.234
+        },
+        {
+          "process": "ChatGPT",
+          "cpuSecondsDelta": 0.203
+        },
+        {
+          "process": "chrome",
+          "cpuSecondsDelta": 0.203
+        }
+      ],
+      "stdout": "PHYSICS_SAMPLE {\"p95\":4.38009999999997,\"first60P95\":7.387199999999993,\"last540P95\":4.1721}\n✖ 45-body ten-second simulation stays bounded, finite, and performant (1719.5946ms)\nℹ tests 1\nℹ suites 0\nℹ pass 0\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 1861.9799\n\n✖ failing tests:\n\ntest at tsumPhysics.test.mjs:271:1\n✖ 45-body ten-second simulation stays bounded, finite, and performant (1719.5946ms)\n  AssertionError [ERR_ASSERTION]: physics p95 4.380ms exceeded 4ms\n      at TestContext.<anonymous> (file:///C:/Users/ryoma/AppData/Local/Temp/tdk-v12-physics-fsV9eM/tsumPhysics.test.mjs:306:10)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1325:25)\n      at Test.start (node:internal/test_runner/test:1191:17)\n      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',\n    actual: false,\n    expected: true,\n    operator: '==',\n    diff: 'simple'\n  }\n",
+      "stderr": ""
+    },
+    {
+      "label": "v1.0",
+      "mode": "diagnostic",
+      "repetition": 2,
+      "utc": "2026-10-15T12:32:31.235Z",
+      "wallMs": 1777.67,
+      "status": 0,
+      "p95": 3.7361999999999966,
+      "first60P95": 5.337299999999999,
+      "last540P95": 3.516899999999964,
+      "cpuDeltas": [
+        {
+          "process": "VALORANT-Win64-Shipping",
+          "cpuSecondsDelta": 12.234
+        },
+        {
+          "process": "node",
+          "cpuSecondsDelta": 2.531
+        },
+        {
+          "process": "ChatGPT",
+          "cpuSecondsDelta": 2.156
+        },
+        {
+          "process": "codex-computer-use",
+          "cpuSecondsDelta": 0.875
+        },
+        {
+          "process": "python",
+          "cpuSecondsDelta": 0.422
+        },
+        {
+          "process": "OmenCommandCenterBackground",
+          "cpuSecondsDelta": 0.234
+        },
+        {
+          "process": "MuseHub",
+          "cpuSecondsDelta": 0.219
+        },
+        {
+          "process": "chrome",
+          "cpuSecondsDelta": 0.141
+        },
+        {
+          "process": "OpenCode",
+          "cpuSecondsDelta": 0.125
+        },
+        {
+          "process": "ChatGPT",
+          "cpuSecondsDelta": 0.109
+        }
+      ],
+      "stdout": "PHYSICS_SAMPLE {\"p95\":3.7361999999999966,\"first60P95\":5.337299999999999,\"last540P95\":3.516899999999964}\n✔ 45-body ten-second simulation stays bounded, finite, and performant (1555.69ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 1680.8229\n",
+      "stderr": ""
+    },
+    {
+      "label": "v1.0",
+      "mode": "diagnostic",
+      "repetition": 3,
+      "utc": "2026-10-15T12:32:34.387Z",
+      "wallMs": 1567.09,
+      "status": 0,
+      "p95": 3.1918000000000006,
+      "first60P95": 5.441600000000001,
+      "last540P95": 2.946299999999951,
+      "cpuDeltas": [
+        {
+          "process": "VALORANT-Win64-Shipping",
+          "cpuSecondsDelta": 10.172
+        },
+        {
+          "process": "node",
+          "cpuSecondsDelta": 2.359
+        },
+        {
+          "process": "codex-computer-use",
+          "cpuSecondsDelta": 0.875
+        },
+        {
+          "process": "python",
+          "cpuSecondsDelta": 0.453
+        },
+        {
+          "process": "chrome",
+          "cpuSecondsDelta": 0.406
+        },
+        {
+          "process": "OmenCommandCenterBackground",
+          "cpuSecondsDelta": 0.234
+        },
+        {
+          "process": "audiodg",
+          "cpuSecondsDelta": 0.109
+        },
+        {
+          "process": "MuseHub",
+          "cpuSecondsDelta": 0.109
+        },
+        {
+          "process": "chrome",
+          "cpuSecondsDelta": 0.094
+        },
+        {
+          "process": "Overwolf",
+          "cpuSecondsDelta": 0.078
+        }
+      ],
+      "stdout": "PHYSICS_SAMPLE {\"p95\":3.1918000000000006,\"first60P95\":5.441600000000001,\"last540P95\":2.946299999999951}\n✔ 45-body ten-second simulation stays bounded, finite, and performant (1360.8792ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 1480.1531\n",
+      "stderr": ""
+    },
+    {
+      "label": "v1.1",
+      "mode": "diagnostic",
+      "repetition": 3,
+      "utc": "2026-10-15T12:32:37.282Z",
+      "wallMs": 1620.62,
+      "status": 0,
+      "p95": 3.37480000000005,
+      "first60P95": 6.733899999999998,
+      "last540P95": 3.0381000000000995,
+      "cpuDeltas": [
+        {
+          "process": "VALORANT-Win64-Shipping",
+          "cpuSecondsDelta": 12.766
+        },
+        {
+          "process": "node",
+          "cpuSecondsDelta": 2.469
+        },
+        {
+          "process": "codex-computer-use",
+          "cpuSecondsDelta": 1.156
+        },
+        {
+          "process": "python",
+          "cpuSecondsDelta": 0.281
+        },
+        {
+          "process": "OmenCommandCenterBackground",
+          "cpuSecondsDelta": 0.203
+        },
+        {
+          "process": "claude",
+          "cpuSecondsDelta": 0.094
+        },
+        {
+          "process": "audiodg",
+          "cpuSecondsDelta": 0.078
+        },
+        {
+          "process": "chrome",
+          "cpuSecondsDelta": 0.078
+        },
+        {
+          "process": "chrome",
+          "cpuSecondsDelta": 0.078
+        },
+        {
+          "process": "codex",
+          "cpuSecondsDelta": 0.078
+        }
+      ],
+      "stdout": "PHYSICS_SAMPLE {\"p95\":3.37480000000005,\"first60P95\":6.733899999999998,\"last540P95\":3.0381000000000995}\n✔ 45-body ten-second simulation stays bounded, finite, and performant (1412.0539ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 1523.9284\n",
+      "stderr": ""
+    }
+  ],
+  "endProcesses": [
+    {
+      "Id": 32444,
+      "ProcessName": "aihost",
+      "CPU": 1.25
+    },
+    {
+      "Id": 26676,
+      "ProcessName": "AIXHost",
+      "CPU": 1.40625
+    },
+    {
+      "Id": 45160,
+      "ProcessName": "amdpmfserviceuser",
+      "CPU": 11.484375
+    },
+    {
+      "Id": 17364,
+      "ProcessName": "AppActions",
+      "CPU": 3.03125
+    },
+    {
+      "Id": 42524,
+      "ProcessName": "audiodg",
+      "CPU": 84.703125
+    },
+    {
+      "Id": 13400,
+      "ProcessName": "blender-mcp",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 15796,
+      "ProcessName": "blender-mcp",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 18612,
+      "ProcessName": "blender-mcp",
+      "CPU": 0
+    },
+    {
+      "Id": 26652,
+      "ProcessName": "blender-mcp",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 38620,
+      "ProcessName": "blender-mcp",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 39488,
+      "ProcessName": "blender-mcp",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 45276,
+      "ProcessName": "blender-mcp",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 49284,
+      "ProcessName": "blender-mcp",
+      "CPU": 0
+    },
+    {
+      "Id": 43908,
+      "ProcessName": "BridgeCommunication",
+      "CPU": 0.890625
+    },
+    {
+      "Id": 4252,
+      "ProcessName": "ChatGPT",
+      "CPU": 0.5
+    },
+    {
+      "Id": 6220,
+      "ProcessName": "ChatGPT",
+      "CPU": 0.78125
+    },
+    {
+      "Id": 11160,
+      "ProcessName": "ChatGPT",
+      "CPU": 76.8125
+    },
+    {
+      "Id": 16216,
+      "ProcessName": "ChatGPT",
+      "CPU": 175.5625
+    },
+    {
+      "Id": 16848,
+      "ProcessName": "ChatGPT",
+      "CPU": 33.046875
+    },
+    {
+      "Id": 26396,
+      "ProcessName": "ChatGPT",
+      "CPU": 3.109375
+    },
+    {
+      "Id": 27788,
+      "ProcessName": "ChatGPT",
+      "CPU": 5017.234375
+    },
+    {
+      "Id": 28960,
+      "ProcessName": "ChatGPT",
+      "CPU": 1.984375
+    },
+    {
+      "Id": 32408,
+      "ProcessName": "ChatGPT",
+      "CPU": 1.1875
+    },
+    {
+      "Id": 33136,
+      "ProcessName": "ChatGPT",
+      "CPU": 272.078125
+    },
+    {
+      "Id": 34020,
+      "ProcessName": "ChatGPT",
+      "CPU": 10300
+    },
+    {
+      "Id": 34104,
+      "ProcessName": "ChatGPT",
+      "CPU": 1472.171875
+    },
+    {
+      "Id": 34840,
+      "ProcessName": "ChatGPT",
+      "CPU": 0.09375
+    },
+    {
+      "Id": 35804,
+      "ProcessName": "ChatGPT",
+      "CPU": 129.578125
+    },
+    {
+      "Id": 37636,
+      "ProcessName": "ChatGPT",
+      "CPU": 0.359375
+    },
+    {
+      "Id": 39372,
+      "ProcessName": "ChatGPT",
+      "CPU": 0.5625
+    },
+    {
+      "Id": 40236,
+      "ProcessName": "ChatGPT",
+      "CPU": 0.109375
+    },
+    {
+      "Id": 44372,
+      "ProcessName": "ChatGPT",
+      "CPU": 0.5
+    },
+    {
+      "Id": 45600,
+      "ProcessName": "ChatGPT",
+      "CPU": 17.8125
+    },
+    {
+      "Id": 46276,
+      "ProcessName": "ChatGPT",
+      "CPU": 3.15625
+    },
+    {
+      "Id": 46800,
+      "ProcessName": "ChatGPT",
+      "CPU": 3.21875
+    },
+    {
+      "Id": 47692,
+      "ProcessName": "ChatGPT",
+      "CPU": 14.984375
+    },
+    {
+      "Id": 8,
+      "ProcessName": "chrome",
+      "CPU": 0.15625
+    },
+    {
+      "Id": 3268,
+      "ProcessName": "chrome",
+      "CPU": 64.1875
+    },
+    {
+      "Id": 3516,
+      "ProcessName": "chrome",
+      "CPU": 0.09375
+    },
+    {
+      "Id": 4624,
+      "ProcessName": "chrome",
+      "CPU": 64.109375
+    },
+    {
+      "Id": 10532,
+      "ProcessName": "chrome",
+      "CPU": 349.734375
+    },
+    {
+      "Id": 11768,
+      "ProcessName": "chrome",
+      "CPU": 0.109375
+    },
+    {
+      "Id": 14352,
+      "ProcessName": "chrome",
+      "CPU": 283.046875
+    },
+    {
+      "Id": 14584,
+      "ProcessName": "chrome",
+      "CPU": 17.3125
+    },
+    {
+      "Id": 18640,
+      "ProcessName": "chrome",
+      "CPU": 24546.359375
+    },
+    {
+      "Id": 21356,
+      "ProcessName": "chrome",
+      "CPU": 0.703125
+    },
+    {
+      "Id": 24168,
+      "ProcessName": "chrome",
+      "CPU": 96.515625
+    },
+    {
+      "Id": 26732,
+      "ProcessName": "chrome",
+      "CPU": 404.171875
+    },
+    {
+      "Id": 26972,
+      "ProcessName": "chrome",
+      "CPU": 0.203125
+    },
+    {
+      "Id": 28796,
+      "ProcessName": "chrome",
+      "CPU": 0.125
+    },
+    {
+      "Id": 29256,
+      "ProcessName": "chrome",
+      "CPU": 122.578125
+    },
+    {
+      "Id": 30716,
+      "ProcessName": "chrome",
+      "CPU": 702.515625
+    },
+    {
+      "Id": 32204,
+      "ProcessName": "chrome",
+      "CPU": 1.34375
+    },
+    {
+      "Id": 32644,
+      "ProcessName": "chrome",
+      "CPU": 26.171875
+    },
+    {
+      "Id": 35668,
+      "ProcessName": "chrome",
+      "CPU": 1.953125
+    },
+    {
+      "Id": 40212,
+      "ProcessName": "chrome",
+      "CPU": 2.71875
+    },
+    {
+      "Id": 41004,
+      "ProcessName": "chrome",
+      "CPU": 1.828125
+    },
+    {
+      "Id": 41768,
+      "ProcessName": "chrome",
+      "CPU": 148.53125
+    },
+    {
+      "Id": 41828,
+      "ProcessName": "chrome",
+      "CPU": 1.40625
+    },
+    {
+      "Id": 44240,
+      "ProcessName": "chrome",
+      "CPU": 4.125
+    },
+    {
+      "Id": 45936,
+      "ProcessName": "chrome",
+      "CPU": 0.078125
+    },
+    {
+      "Id": 46572,
+      "ProcessName": "chrome",
+      "CPU": 3.09375
+    },
+    {
+      "Id": 47060,
+      "ProcessName": "chrome",
+      "CPU": 2425.828125
+    },
+    {
+      "Id": 48480,
+      "ProcessName": "chrome",
+      "CPU": 0.703125
+    },
+    {
+      "Id": 48964,
+      "ProcessName": "chrome",
+      "CPU": 0.671875
+    },
+    {
+      "Id": 18308,
+      "ProcessName": "claude",
+      "CPU": 24.703125
+    },
+    {
+      "Id": 20656,
+      "ProcessName": "claude",
+      "CPU": 0.625
+    },
+    {
+      "Id": 23768,
+      "ProcessName": "claude",
+      "CPU": 9.375
+    },
+    {
+      "Id": 26528,
+      "ProcessName": "claude",
+      "CPU": 1.921875
+    },
+    {
+      "Id": 28124,
+      "ProcessName": "claude",
+      "CPU": 3.921875
+    },
+    {
+      "Id": 29768,
+      "ProcessName": "claude",
+      "CPU": 32.1875
+    },
+    {
+      "Id": 40284,
+      "ProcessName": "claude",
+      "CPU": 269.75
+    },
+    {
+      "Id": 43464,
+      "ProcessName": "claude",
+      "CPU": 0.28125
+    },
+    {
+      "Id": 26660,
+      "ProcessName": "ClickToDo",
+      "CPU": 2.46875
+    },
+    {
+      "Id": 3508,
+      "ProcessName": "cmd",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 11940,
+      "ProcessName": "cmd",
+      "CPU": 0.0625
+    },
+    {
+      "Id": 13024,
+      "ProcessName": "cmd",
+      "CPU": 0.0625
+    },
+    {
+      "Id": 15024,
+      "ProcessName": "cmd",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 15628,
+      "ProcessName": "cmd",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 20884,
+      "ProcessName": "cmd",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 21268,
+      "ProcessName": "cmd",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 26208,
+      "ProcessName": "cmd",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 30064,
+      "ProcessName": "cmd",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 37316,
+      "ProcessName": "cmd",
+      "CPU": 0
+    },
+    {
+      "Id": 37464,
+      "ProcessName": "cmd",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 38700,
+      "ProcessName": "cmd",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 39480,
+      "ProcessName": "cmd",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 39664,
+      "ProcessName": "cmd",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 43112,
+      "ProcessName": "cmd",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 44044,
+      "ProcessName": "cmd",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 44332,
+      "ProcessName": "cmd",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 49348,
+      "ProcessName": "cmd",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 34316,
+      "ProcessName": "cncmd",
+      "CPU": 0.1875
+    },
+    {
+      "Id": 584,
+      "ProcessName": "codex",
+      "CPU": 0.0625
+    },
+    {
+      "Id": 7260,
+      "ProcessName": "codex",
+      "CPU": 0.078125
+    },
+    {
+      "Id": 13540,
+      "ProcessName": "codex",
+      "CPU": 2.359375
+    },
+    {
+      "Id": 15176,
+      "ProcessName": "codex",
+      "CPU": 58.03125
+    },
+    {
+      "Id": 16120,
+      "ProcessName": "codex",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 17528,
+      "ProcessName": "codex",
+      "CPU": 0.09375
+    },
+    {
+      "Id": 18100,
+      "ProcessName": "codex",
+      "CPU": 0.078125
+    },
+    {
+      "Id": 18736,
+      "ProcessName": "codex",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 18872,
+      "ProcessName": "codex",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 21968,
+      "ProcessName": "codex",
+      "CPU": 0.15625
+    },
+    {
+      "Id": 24152,
+      "ProcessName": "codex",
+      "CPU": 0.15625
+    },
+    {
+      "Id": 25196,
+      "ProcessName": "codex",
+      "CPU": 0.0625
+    },
+    {
+      "Id": 25420,
+      "ProcessName": "codex",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 26064,
+      "ProcessName": "codex",
+      "CPU": 0.078125
+    },
+    {
+      "Id": 30248,
+      "ProcessName": "codex",
+      "CPU": 0.078125
+    },
+    {
+      "Id": 32560,
+      "ProcessName": "codex",
+      "CPU": 0.0625
+    },
+    {
+      "Id": 34292,
+      "ProcessName": "codex",
+      "CPU": 0.09375
+    },
+    {
+      "Id": 34424,
+      "ProcessName": "codex",
+      "CPU": 0.0625
+    },
+    {
+      "Id": 34444,
+      "ProcessName": "codex",
+      "CPU": 683.1875
+    },
+    {
+      "Id": 34452,
+      "ProcessName": "codex",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 36392,
+      "ProcessName": "codex",
+      "CPU": 7.875
+    },
+    {
+      "Id": 40580,
+      "ProcessName": "codex",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 43544,
+      "ProcessName": "codex",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 43636,
+      "ProcessName": "codex",
+      "CPU": 0.078125
+    },
+    {
+      "Id": 48900,
+      "ProcessName": "codex",
+      "CPU": 0.109375
+    },
+    {
+      "Id": 50356,
+      "ProcessName": "codex",
+      "CPU": 0.078125
+    },
+    {
+      "Id": 50988,
+      "ProcessName": "codex",
+      "CPU": 0.0625
+    },
+    {
+      "Id": 51012,
+      "ProcessName": "codex",
+      "CPU": 0.0625
+    },
+    {
+      "Id": 51772,
+      "ProcessName": "codex",
+      "CPU": 1.765625
+    },
+    {
+      "Id": 24016,
+      "ProcessName": "codex-code-mode-host",
+      "CPU": 5.890625
+    },
+    {
+      "Id": 42812,
+      "ProcessName": "codex-computer-use",
+      "CPU": 52.25
+    },
+    {
+      "Id": 16320,
+      "ProcessName": "codex-computer-use-swift",
+      "CPU": 6.171875
+    },
+    {
+      "Id": 568,
+      "ProcessName": "conhost",
+      "CPU": 0.078125
+    },
+    {
+      "Id": 860,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 3696,
+      "ProcessName": "conhost",
+      "CPU": 0.09375
+    },
+    {
+      "Id": 7208,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 7668,
+      "ProcessName": "conhost",
+      "CPU": 0.078125
+    },
+    {
+      "Id": 8596,
+      "ProcessName": "conhost",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 8720,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 8928,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 10316,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 10872,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 11604,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 11676,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 12272,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 12492,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 14244,
+      "ProcessName": "conhost",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 15064,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 15604,
+      "ProcessName": "conhost",
+      "CPU": 0
+    },
+    {
+      "Id": 15856,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 16328,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 16424,
+      "ProcessName": "conhost",
+      "CPU": 0.078125
+    },
+    {
+      "Id": 17416,
+      "ProcessName": "conhost",
+      "CPU": 0.140625
+    },
+    {
+      "Id": 17840,
+      "ProcessName": "conhost",
+      "CPU": 0
+    },
+    {
+      "Id": 18160,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 19020,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 19660,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 19920,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 20360,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 21036,
+      "ProcessName": "conhost",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 21768,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 22096,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 22192,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 22772,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 23140,
+      "ProcessName": "conhost",
+      "CPU": 0.1875
+    },
+    {
+      "Id": 23248,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 23692,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 23984,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 24244,
+      "ProcessName": "conhost",
+      "CPU": 0
+    },
+    {
+      "Id": 24524,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 24828,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 25288,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 25384,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 26112,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 26172,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 27108,
+      "ProcessName": "conhost",
+      "CPU": 0
+    },
+    {
+      "Id": 27604,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 27840,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 28112,
+      "ProcessName": "conhost",
+      "CPU": 0.140625
+    },
+    {
+      "Id": 28188,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 29252,
+      "ProcessName": "conhost",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 29496,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 29736,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 30236,
+      "ProcessName": "conhost",
+      "CPU": 0.0625
+    },
+    {
+      "Id": 30940,
+      "ProcessName": "conhost",
+      "CPU": 0.09375
+    },
+    {
+      "Id": 31132,
+      "ProcessName": "conhost",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 31548,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 31636,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 32216,
+      "ProcessName": "conhost",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 32576,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 33748,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 34280,
+      "ProcessName": "conhost",
+      "CPU": 0.0625
+    },
+    {
+      "Id": 34508,
+      "ProcessName": "conhost",
+      "CPU": 0.296875
+    },
+    {
+      "Id": 36436,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 36580,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 37180,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 37280,
+      "ProcessName": "conhost",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 37784,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 37868,
+      "ProcessName": "conhost",
+      "CPU": 0.109375
+    },
+    {
+      "Id": 38492,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 38864,
+      "ProcessName": "conhost",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 39252,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 39792,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 40256,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 40520,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 41640,
+      "ProcessName": "conhost",
+      "CPU": 0.0625
+    },
+    {
+      "Id": 41804,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 42580,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 43396,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 44396,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 44428,
+      "ProcessName": "conhost",
+      "CPU": 0
+    },
+    {
+      "Id": 44540,
+      "ProcessName": "conhost",
+      "CPU": 0.0625
+    },
+    {
+      "Id": 45720,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 47592,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 49156,
+      "ProcessName": "conhost",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 49952,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 50400,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 50548,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 50672,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 50692,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 50956,
+      "ProcessName": "conhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 51312,
+      "ProcessName": "conhost",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 13364,
+      "ProcessName": "copilotapp",
+      "CPU": 2.265625
+    },
+    {
+      "Id": 15972,
+      "ProcessName": "copilotapp",
+      "CPU": 5.9375
+    },
+    {
+      "Id": 18808,
+      "ProcessName": "copilotapp",
+      "CPU": 0.546875
+    },
+    {
+      "Id": 28964,
+      "ProcessName": "copilotapp",
+      "CPU": 0.15625
+    },
+    {
+      "Id": 34356,
+      "ProcessName": "copilotapp",
+      "CPU": 0.546875
+    },
+    {
+      "Id": 36492,
+      "ProcessName": "copilotapp",
+      "CPU": 1.796875
+    },
+    {
+      "Id": 41336,
+      "ProcessName": "copilotapp",
+      "CPU": 42.09375
+    },
+    {
+      "Id": 44036,
+      "ProcessName": "copilotapp",
+      "CPU": 0.9375
+    },
+    {
+      "Id": 44216,
+      "ProcessName": "copilotapp",
+      "CPU": 1.015625
+    },
+    {
+      "Id": 19740,
+      "ProcessName": "copilotapphost",
+      "CPU": 19.890625
+    },
+    {
+      "Id": 26668,
+      "ProcessName": "CrossDeviceResume",
+      "CPU": 0.984375
+    },
+    {
+      "Id": 3660,
+      "ProcessName": "ctfmon",
+      "CPU": 173.453125
+    },
+    {
+      "Id": 29476,
+      "ProcessName": "DefenderSessionHelper",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 41268,
+      "ProcessName": "DesktopExtension",
+      "CPU": 45.59375
+    },
+    {
+      "Id": 11788,
+      "ProcessName": "dllhost",
+      "CPU": 0.09375
+    },
+    {
+      "Id": 21580,
+      "ProcessName": "dllhost",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 31848,
+      "ProcessName": "dllhost",
+      "CPU": 0.078125
+    },
+    {
+      "Id": 38800,
+      "ProcessName": "dllhost",
+      "CPU": 0.109375
+    },
+    {
+      "Id": 40672,
+      "ProcessName": "dllhost",
+      "CPU": 0.0625
+    },
+    {
+      "Id": 44836,
+      "ProcessName": "dllhost",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 23520,
+      "ProcessName": "EpicWebHelper",
+      "CPU": 0.734375
+    },
+    {
+      "Id": 25072,
+      "ProcessName": "EpicWebHelper",
+      "CPU": 1.34375
+    },
+    {
+      "Id": 29988,
+      "ProcessName": "EpicWebHelper",
+      "CPU": 4.140625
+    },
+    {
+      "Id": 40836,
+      "ProcessName": "EpicWebHelper",
+      "CPU": 0.640625
+    },
+    {
+      "Id": 11268,
+      "ProcessName": "esbuild",
+      "CPU": 1.8125
+    },
+    {
+      "Id": 23124,
+      "ProcessName": "esbuild",
+      "CPU": 6.015625
+    },
+    {
+      "Id": 39060,
+      "ProcessName": "esbuild",
+      "CPU": 18.53125
+    },
+    {
+      "Id": 44852,
+      "ProcessName": "esbuild",
+      "CPU": 17.40625
+    },
+    {
+      "Id": 46936,
+      "ProcessName": "esbuild",
+      "CPU": 0.78125
+    },
+    {
+      "Id": 41024,
+      "ProcessName": "ETDCtrl",
+      "CPU": 0.359375
+    },
+    {
+      "Id": 12068,
+      "ProcessName": "explorer",
+      "CPU": 318.515625
+    },
+    {
+      "Id": 5992,
+      "ProcessName": "extension-host",
+      "CPU": 1.9375
+    },
+    {
+      "Id": 24984,
+      "ProcessName": "FileCoAuth",
+      "CPU": 1.75
+    },
+    {
+      "Id": 13080,
+      "ProcessName": "GameBarPresenceWriter",
+      "CPU": 0.125
+    },
+    {
+      "Id": 36656,
+      "ProcessName": "GameInputRedistService",
+      "CPU": 0.515625
+    },
+    {
+      "Id": 43088,
+      "ProcessName": "Hermes",
+      "CPU": 0.828125
+    },
+    {
+      "Id": 48132,
+      "ProcessName": "Hermes",
+      "CPU": 435.25
+    },
+    {
+      "Id": 48296,
+      "ProcessName": "Hermes",
+      "CPU": 29.625
+    },
+    {
+      "Id": 48432,
+      "ProcessName": "Hermes",
+      "CPU": 0.265625
+    },
+    {
+      "Id": 49104,
+      "ProcessName": "Hermes",
+      "CPU": 465.578125
+    },
+    {
+      "Id": 46288,
+      "ProcessName": "HP.OMEN.VirtualCamHelper",
+      "CPU": 36.15625
+    },
+    {
+      "Id": 37712,
+      "ProcessName": "HPMediaNetwork",
+      "CPU": 1.109375
+    },
+    {
+      "Id": 27912,
+      "ProcessName": "HPSystemEventUtilityBackground",
+      "CPU": 36.9375
+    },
+    {
+      "Id": 15256,
+      "ProcessName": "HPSystemEventUtilityHost",
+      "CPU": 0.75
+    },
+    {
+      "Id": 3636,
+      "ProcessName": "LM Studio",
+      "CPU": 0.0625
+    },
+    {
+      "Id": 14692,
+      "ProcessName": "LM Studio",
+      "CPU": 20.609375
+    },
+    {
+      "Id": 18268,
+      "ProcessName": "LM Studio",
+      "CPU": 2.109375
+    },
+    {
+      "Id": 24316,
+      "ProcessName": "LM Studio",
+      "CPU": 76.921875
+    },
+    {
+      "Id": 43236,
+      "ProcessName": "LM Studio",
+      "CPU": 2.46875
+    },
+    {
+      "Id": 4852,
+      "ProcessName": "LockApp",
+      "CPU": 1.828125
+    },
+    {
+      "Id": 31836,
+      "ProcessName": "Microsoft.CmdPal.Ext.PowerToys",
+      "CPU": 8.96875
+    },
+    {
+      "Id": 36220,
+      "ProcessName": "Microsoft.CmdPal.UI",
+      "CPU": 31.46875
+    },
+    {
+      "Id": 10528,
+      "ProcessName": "MicrosoftStartFeedProvider",
+      "CPU": 3.65625
+    },
+    {
+      "Id": 2160,
+      "ProcessName": "MixedRealityPairingHelper",
+      "CPU": 1.234375
+    },
+    {
+      "Id": 19192,
+      "ProcessName": "MoNotificationUx",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 10724,
+      "ProcessName": "msedge",
+      "CPU": 0.125
+    },
+    {
+      "Id": 15180,
+      "ProcessName": "msedge",
+      "CPU": 0.46875
+    },
+    {
+      "Id": 19644,
+      "ProcessName": "msedge",
+      "CPU": 0.1875
+    },
+    {
+      "Id": 42960,
+      "ProcessName": "msedge",
+      "CPU": 5.96875
+    },
+    {
+      "Id": 47400,
+      "ProcessName": "msedge",
+      "CPU": 1.125
+    },
+    {
+      "Id": 3112,
+      "ProcessName": "msedgewebview2",
+      "CPU": 5.203125
+    },
+    {
+      "Id": 6108,
+      "ProcessName": "msedgewebview2",
+      "CPU": 0.265625
+    },
+    {
+      "Id": 12316,
+      "ProcessName": "msedgewebview2",
+      "CPU": 0.265625
+    },
+    {
+      "Id": 13044,
+      "ProcessName": "msedgewebview2",
+      "CPU": 0.0625
+    },
+    {
+      "Id": 15544,
+      "ProcessName": "msedgewebview2",
+      "CPU": 1.890625
+    },
+    {
+      "Id": 21144,
+      "ProcessName": "msedgewebview2",
+      "CPU": 0.34375
+    },
+    {
+      "Id": 22812,
+      "ProcessName": "msedgewebview2",
+      "CPU": 0.09375
+    },
+    {
+      "Id": 37188,
+      "ProcessName": "msedgewebview2",
+      "CPU": 2.8125
+    },
+    {
+      "Id": 38464,
+      "ProcessName": "msedgewebview2",
+      "CPU": 0.265625
+    },
+    {
+      "Id": 42368,
+      "ProcessName": "msedgewebview2",
+      "CPU": 13.6875
+    },
+    {
+      "Id": 44064,
+      "ProcessName": "msedgewebview2",
+      "CPU": 4.984375
+    },
+    {
+      "Id": 48176,
+      "ProcessName": "msedgewebview2",
+      "CPU": 0.140625
+    },
+    {
+      "Id": 39260,
+      "ProcessName": "MuseHub",
+      "CPU": 3694.828125
+    },
+    {
+      "Id": 23708,
+      "ProcessName": "NGenuity2GeneralHelper",
+      "CPU": 0.546875
+    },
+    {
+      "Id": 788,
+      "ProcessName": "node",
+      "CPU": 0.765625
+    },
+    {
+      "Id": 4664,
+      "ProcessName": "node",
+      "CPU": 2.15625
+    },
+    {
+      "Id": 5980,
+      "ProcessName": "node",
+      "CPU": 0.296875
+    },
+    {
+      "Id": 5988,
+      "ProcessName": "node",
+      "CPU": 1
+    },
+    {
+      "Id": 7064,
+      "ProcessName": "node",
+      "CPU": 0.25
+    },
+    {
+      "Id": 8488,
+      "ProcessName": "node",
+      "CPU": 0.375
+    },
+    {
+      "Id": 9172,
+      "ProcessName": "node",
+      "CPU": 0.375
+    },
+    {
+      "Id": 10252,
+      "ProcessName": "node",
+      "CPU": 0.375
+    },
+    {
+      "Id": 11184,
+      "ProcessName": "node",
+      "CPU": 2.078125
+    },
+    {
+      "Id": 12636,
+      "ProcessName": "node",
+      "CPU": 0.375
+    },
+    {
+      "Id": 12896,
+      "ProcessName": "node",
+      "CPU": 0.765625
+    },
+    {
+      "Id": 12916,
+      "ProcessName": "node",
+      "CPU": 0.453125
+    },
+    {
+      "Id": 14576,
+      "ProcessName": "node",
+      "CPU": 0.484375
+    },
+    {
+      "Id": 14736,
+      "ProcessName": "node",
+      "CPU": 0.734375
+    },
+    {
+      "Id": 16836,
+      "ProcessName": "node",
+      "CPU": 0.203125
+    },
+    {
+      "Id": 17228,
+      "ProcessName": "node",
+      "CPU": 0.765625
+    },
+    {
+      "Id": 19372,
+      "ProcessName": "node",
+      "CPU": 106.78125
+    },
+    {
+      "Id": 19620,
+      "ProcessName": "node",
+      "CPU": 1.015625
+    },
+    {
+      "Id": 22116,
+      "ProcessName": "node",
+      "CPU": 0.4375
+    },
+    {
+      "Id": 22404,
+      "ProcessName": "node",
+      "CPU": 0.21875
+    },
+    {
+      "Id": 23024,
+      "ProcessName": "node",
+      "CPU": 0.25
+    },
+    {
+      "Id": 24224,
+      "ProcessName": "node",
+      "CPU": 0.28125
+    },
+    {
+      "Id": 25732,
+      "ProcessName": "node",
+      "CPU": 0.4375
+    },
+    {
+      "Id": 26712,
+      "ProcessName": "node",
+      "CPU": 0.5
+    },
+    {
+      "Id": 27576,
+      "ProcessName": "node",
+      "CPU": 1
+    },
+    {
+      "Id": 28548,
+      "ProcessName": "node",
+      "CPU": 0.71875
+    },
+    {
+      "Id": 28920,
+      "ProcessName": "node",
+      "CPU": 1.03125
+    },
+    {
+      "Id": 29656,
+      "ProcessName": "node",
+      "CPU": 3.84375
+    },
+    {
+      "Id": 31940,
+      "ProcessName": "node",
+      "CPU": 0.203125
+    },
+    {
+      "Id": 32400,
+      "ProcessName": "node",
+      "CPU": 0.234375
+    },
+    {
+      "Id": 33412,
+      "ProcessName": "node",
+      "CPU": 0.328125
+    },
+    {
+      "Id": 34696,
+      "ProcessName": "node",
+      "CPU": 0.234375
+    },
+    {
+      "Id": 34852,
+      "ProcessName": "node",
+      "CPU": 93.28125
+    },
+    {
+      "Id": 36304,
+      "ProcessName": "node",
+      "CPU": 0.734375
+    },
+    {
+      "Id": 36932,
+      "ProcessName": "node",
+      "CPU": 1.3125
+    },
+    {
+      "Id": 37484,
+      "ProcessName": "node",
+      "CPU": 1.09375
+    },
+    {
+      "Id": 37560,
+      "ProcessName": "node",
+      "CPU": 0.5
+    },
+    {
+      "Id": 37628,
+      "ProcessName": "node",
+      "CPU": 0.8125
+    },
+    {
+      "Id": 37704,
+      "ProcessName": "node",
+      "CPU": 16.453125
+    },
+    {
+      "Id": 38192,
+      "ProcessName": "node",
+      "CPU": 1
+    },
+    {
+      "Id": 38396,
+      "ProcessName": "node",
+      "CPU": 0.296875
+    },
+    {
+      "Id": 39172,
+      "ProcessName": "node",
+      "CPU": 3.65625
+    },
+    {
+      "Id": 42124,
+      "ProcessName": "node",
+      "CPU": 0.0625
+    },
+    {
+      "Id": 42244,
+      "ProcessName": "node",
+      "CPU": 0.421875
+    },
+    {
+      "Id": 42612,
+      "ProcessName": "node",
+      "CPU": 1.078125
+    },
+    {
+      "Id": 42824,
+      "ProcessName": "node",
+      "CPU": 13.171875
+    },
+    {
+      "Id": 44264,
+      "ProcessName": "node",
+      "CPU": 1.171875
+    },
+    {
+      "Id": 44908,
+      "ProcessName": "node",
+      "CPU": 0.1875
+    },
+    {
+      "Id": 45448,
+      "ProcessName": "node",
+      "CPU": 0.25
+    },
+    {
+      "Id": 45820,
+      "ProcessName": "node",
+      "CPU": 0.421875
+    },
+    {
+      "Id": 45976,
+      "ProcessName": "node",
+      "CPU": 0.40625
+    },
+    {
+      "Id": 47508,
+      "ProcessName": "node",
+      "CPU": 0.171875
+    },
+    {
+      "Id": 47800,
+      "ProcessName": "node",
+      "CPU": 0.65625
+    },
+    {
+      "Id": 49296,
+      "ProcessName": "node",
+      "CPU": 0.484375
+    },
+    {
+      "Id": 50068,
+      "ProcessName": "node",
+      "CPU": 0.234375
+    },
+    {
+      "Id": 51288,
+      "ProcessName": "node",
+      "CPU": 19.109375
+    },
+    {
+      "Id": 51904,
+      "ProcessName": "node",
+      "CPU": 0.625
+    },
+    {
+      "Id": 4956,
+      "ProcessName": "node_repl",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 10428,
+      "ProcessName": "node_repl",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 10556,
+      "ProcessName": "node_repl",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 14888,
+      "ProcessName": "node_repl",
+      "CPU": 0.109375
+    },
+    {
+      "Id": 24364,
+      "ProcessName": "node_repl",
+      "CPU": 4.703125
+    },
+    {
+      "Id": 25220,
+      "ProcessName": "node_repl",
+      "CPU": 0.171875
+    },
+    {
+      "Id": 27308,
+      "ProcessName": "node_repl",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 31992,
+      "ProcessName": "node_repl",
+      "CPU": 0.078125
+    },
+    {
+      "Id": 39732,
+      "ProcessName": "node_repl",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 40048,
+      "ProcessName": "node_repl",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 42688,
+      "ProcessName": "node_repl",
+      "CPU": 1.046875
+    },
+    {
+      "Id": 43076,
+      "ProcessName": "node_repl",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 43188,
+      "ProcessName": "node_repl",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 43268,
+      "ProcessName": "node_repl",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 46884,
+      "ProcessName": "node_repl",
+      "CPU": 0.296875
+    },
+    {
+      "Id": 49680,
+      "ProcessName": "node_repl",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 16332,
+      "ProcessName": "Notepad",
+      "CPU": 3.203125
+    },
+    {
+      "Id": 37524,
+      "ProcessName": "ollama",
+      "CPU": 10.078125
+    },
+    {
+      "Id": 28464,
+      "ProcessName": "ollama app",
+      "CPU": 1.796875
+    },
+    {
+      "Id": 29424,
+      "ProcessName": "OmenCommandCenterBackground",
+      "CPU": 1451.53125
+    },
+    {
+      "Id": 45380,
+      "ProcessName": "OmenInstallMonitor",
+      "CPU": 4.640625
+    },
+    {
+      "Id": 41352,
+      "ProcessName": "OMENKeyboardRemapLauncher",
+      "CPU": 74.015625
+    },
+    {
+      "Id": 21640,
+      "ProcessName": "OMENKeyboardRemapper",
+      "CPU": 4.796875
+    },
+    {
+      "Id": 41100,
+      "ProcessName": "OneDrive",
+      "CPU": 510.625
+    },
+    {
+      "Id": 14500,
+      "ProcessName": "OneDrive.Sync.Service",
+      "CPU": 163.375
+    },
+    {
+      "Id": 7052,
+      "ProcessName": "OpenCode",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 12964,
+      "ProcessName": "OpenCode",
+      "CPU": 179.734375
+    },
+    {
+      "Id": 14008,
+      "ProcessName": "OpenCode",
+      "CPU": 45.640625
+    },
+    {
+      "Id": 16112,
+      "ProcessName": "OpenCode",
+      "CPU": 6.34375
+    },
+    {
+      "Id": 21780,
+      "ProcessName": "OpenCode",
+      "CPU": 764.265625
+    },
+    {
+      "Id": 33436,
+      "ProcessName": "OpenCode",
+      "CPU": 1.140625
+    },
+    {
+      "Id": 48092,
+      "ProcessName": "OpenCode",
+      "CPU": 329.921875
+    },
+    {
+      "Id": 48220,
+      "ProcessName": "OpenCode",
+      "CPU": 0.140625
+    },
+    {
+      "Id": 3784,
+      "ProcessName": "opencode-cli",
+      "CPU": 127.96875
+    },
+    {
+      "Id": 23580,
+      "ProcessName": "OverlayHelper",
+      "CPU": 1297.875
+    },
+    {
+      "Id": 22252,
+      "ProcessName": "Overwolf",
+      "CPU": 812.875
+    },
+    {
+      "Id": 22584,
+      "ProcessName": "OverwolfBrowser",
+      "CPU": 103.53125
+    },
+    {
+      "Id": 37208,
+      "ProcessName": "OverwolfBrowser",
+      "CPU": 12.03125
+    },
+    {
+      "Id": 38996,
+      "ProcessName": "OverwolfBrowser",
+      "CPU": 13.984375
+    },
+    {
+      "Id": 42272,
+      "ProcessName": "OverwolfBrowser",
+      "CPU": 3.40625
+    },
+    {
+      "Id": 43712,
+      "ProcessName": "OverwolfBrowser",
+      "CPU": 0.765625
+    },
+    {
+      "Id": 28252,
+      "ProcessName": "OverwolfHelper",
+      "CPU": 841.25
+    },
+    {
+      "Id": 7048,
+      "ProcessName": "OverwolfHelper64",
+      "CPU": 617.515625
+    },
+    {
+      "Id": 8980,
+      "ProcessName": "powershell",
+      "CPU": 0.390625
+    },
+    {
+      "Id": 40388,
+      "ProcessName": "powershell",
+      "CPU": 1.25
+    },
+    {
+      "Id": 50464,
+      "ProcessName": "powershell",
+      "CPU": 0.734375
+    },
+    {
+      "Id": 41780,
+      "ProcessName": "PowerToys",
+      "CPU": 8.609375
+    },
+    {
+      "Id": 12512,
+      "ProcessName": "PowerToys.AlwaysOnTop",
+      "CPU": 11.984375
+    },
+    {
+      "Id": 41936,
+      "ProcessName": "PowerToys.Awake",
+      "CPU": 5.390625
+    },
+    {
+      "Id": 36320,
+      "ProcessName": "PowerToys.ColorPickerUI",
+      "CPU": 4.265625
+    },
+    {
+      "Id": 47868,
+      "ProcessName": "PowerToys.FancyZones",
+      "CPU": 8.125
+    },
+    {
+      "Id": 38840,
+      "ProcessName": "PowerToys.Peek.UI",
+      "CPU": 3.5
+    },
+    {
+      "Id": 16864,
+      "ProcessName": "PowerToys.QuickAccess",
+      "CPU": 4.09375
+    },
+    {
+      "Id": 18184,
+      "ProcessName": "pwsh",
+      "CPU": 0.890625
+    },
+    {
+      "Id": 19900,
+      "ProcessName": "pwsh",
+      "CPU": 0.78125
+    },
+    {
+      "Id": 22132,
+      "ProcessName": "pwsh",
+      "CPU": 0.75
+    },
+    {
+      "Id": 35212,
+      "ProcessName": "pwsh",
+      "CPU": 0.578125
+    },
+    {
+      "Id": 50504,
+      "ProcessName": "pwsh",
+      "CPU": 3.734375
+    },
+    {
+      "Id": 608,
+      "ProcessName": "python",
+      "CPU": 0
+    },
+    {
+      "Id": 4488,
+      "ProcessName": "python",
+      "CPU": 1.484375
+    },
+    {
+      "Id": 9712,
+      "ProcessName": "python",
+      "CPU": 4.671875
+    },
+    {
+      "Id": 9940,
+      "ProcessName": "python",
+      "CPU": 135.859375
+    },
+    {
+      "Id": 10572,
+      "ProcessName": "python",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 14536,
+      "ProcessName": "python",
+      "CPU": 0
+    },
+    {
+      "Id": 15168,
+      "ProcessName": "python",
+      "CPU": 3.21875
+    },
+    {
+      "Id": 17620,
+      "ProcessName": "python",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 23416,
+      "ProcessName": "python",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 23724,
+      "ProcessName": "python",
+      "CPU": 3.296875
+    },
+    {
+      "Id": 25224,
+      "ProcessName": "python",
+      "CPU": 1.953125
+    },
+    {
+      "Id": 26048,
+      "ProcessName": "python",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 30512,
+      "ProcessName": "python",
+      "CPU": 284.25
+    },
+    {
+      "Id": 30772,
+      "ProcessName": "python",
+      "CPU": 0.703125
+    },
+    {
+      "Id": 34224,
+      "ProcessName": "python",
+      "CPU": 1.5625
+    },
+    {
+      "Id": 34960,
+      "ProcessName": "python",
+      "CPU": 1.96875
+    },
+    {
+      "Id": 36912,
+      "ProcessName": "python",
+      "CPU": 1.4375
+    },
+    {
+      "Id": 36916,
+      "ProcessName": "python",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 43808,
+      "ProcessName": "python",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 44296,
+      "ProcessName": "python",
+      "CPU": 1.75
+    },
+    {
+      "Id": 46756,
+      "ProcessName": "python",
+      "CPU": 0.859375
+    },
+    {
+      "Id": 49308,
+      "ProcessName": "python",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 49320,
+      "ProcessName": "python",
+      "CPU": 2
+    },
+    {
+      "Id": 16700,
+      "ProcessName": "RadeonSoftware",
+      "CPU": 3.8125
+    },
+    {
+      "Id": 5312,
+      "ProcessName": "Riot Client",
+      "CPU": 0.640625
+    },
+    {
+      "Id": 32136,
+      "ProcessName": "Riot Client",
+      "CPU": 29.921875
+    },
+    {
+      "Id": 34344,
+      "ProcessName": "Riot Client",
+      "CPU": 1.421875
+    },
+    {
+      "Id": 36620,
+      "ProcessName": "Riot Client",
+      "CPU": 4.59375
+    },
+    {
+      "Id": 36968,
+      "ProcessName": "Riot Client",
+      "CPU": 7.546875
+    },
+    {
+      "Id": 48656,
+      "ProcessName": "Riot Client",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 40492,
+      "ProcessName": "RiotClientCrashHandler",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 15840,
+      "ProcessName": "RiotClientServices",
+      "CPU": 347.640625
+    },
+    {
+      "Id": 38736,
+      "ProcessName": "RtkAudUService64",
+      "CPU": 10.71875
+    },
+    {
+      "Id": 3856,
+      "ProcessName": "RuntimeBroker",
+      "CPU": 5
+    },
+    {
+      "Id": 15260,
+      "ProcessName": "RuntimeBroker",
+      "CPU": 2.78125
+    },
+    {
+      "Id": 30124,
+      "ProcessName": "RuntimeBroker",
+      "CPU": 0.125
+    },
+    {
+      "Id": 44188,
+      "ProcessName": "RuntimeBroker",
+      "CPU": 0.21875
+    },
+    {
+      "Id": 44720,
+      "ProcessName": "RuntimeBroker",
+      "CPU": 0.21875
+    },
+    {
+      "Id": 3892,
+      "ProcessName": "SearchHost",
+      "CPU": 11.890625
+    },
+    {
+      "Id": 30140,
+      "ProcessName": "SecurityHealthSystray",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 41108,
+      "ProcessName": "ShellExperienceHost",
+      "CPU": 1.40625
+    },
+    {
+      "Id": 47208,
+      "ProcessName": "ShellHost",
+      "CPU": 0.1875
+    },
+    {
+      "Id": 14424,
+      "ProcessName": "sihost",
+      "CPU": 29.6875
+    },
+    {
+      "Id": 46424,
+      "ProcessName": "StartMenuExperienceHost",
+      "CPU": 25.359375
+    },
+    {
+      "Id": 4464,
+      "ProcessName": "svchost",
+      "CPU": 5.359375
+    },
+    {
+      "Id": 5324,
+      "ProcessName": "svchost",
+      "CPU": 6.90625
+    },
+    {
+      "Id": 7284,
+      "ProcessName": "svchost",
+      "CPU": 6.109375
+    },
+    {
+      "Id": 9560,
+      "ProcessName": "svchost",
+      "CPU": 4.84375
+    },
+    {
+      "Id": 10832,
+      "ProcessName": "svchost",
+      "CPU": 0.21875
+    },
+    {
+      "Id": 20284,
+      "ProcessName": "svchost",
+      "CPU": 0.28125
+    },
+    {
+      "Id": 31668,
+      "ProcessName": "svchost",
+      "CPU": 1.890625
+    },
+    {
+      "Id": 38564,
+      "ProcessName": "svchost",
+      "CPU": 1.578125
+    },
+    {
+      "Id": 39824,
+      "ProcessName": "svchost",
+      "CPU": 0.546875
+    },
+    {
+      "Id": 22164,
+      "ProcessName": "SystemOptimizer",
+      "CPU": 60.34375
+    },
+    {
+      "Id": 23544,
+      "ProcessName": "taskhostw",
+      "CPU": 5.6875
+    },
+    {
+      "Id": 32096,
+      "ProcessName": "TextInputHost",
+      "CPU": 144.21875
+    },
+    {
+      "Id": 47604,
+      "ProcessName": "unsecapp",
+      "CPU": 0.390625
+    },
+    {
+      "Id": 36452,
+      "ProcessName": "UserOOBEBroker",
+      "CPU": 0.203125
+    },
+    {
+      "Id": 21396,
+      "ProcessName": "uv",
+      "CPU": 0.125
+    },
+    {
+      "Id": 23132,
+      "ProcessName": "uv",
+      "CPU": 0.140625
+    },
+    {
+      "Id": 30992,
+      "ProcessName": "uv",
+      "CPU": 0.28125
+    },
+    {
+      "Id": 37308,
+      "ProcessName": "uv",
+      "CPU": 0.421875
+    },
+    {
+      "Id": 40724,
+      "ProcessName": "uv",
+      "CPU": 0.203125
+    },
+    {
+      "Id": 45748,
+      "ProcessName": "uv",
+      "CPU": 0.328125
+    },
+    {
+      "Id": 49208,
+      "ProcessName": "uv",
+      "CPU": 0.234375
+    },
+    {
+      "Id": 50156,
+      "ProcessName": "uv",
+      "CPU": 0.25
+    },
+    {
+      "Id": 10084,
+      "ProcessName": "uvx",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 17144,
+      "ProcessName": "uvx",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 17164,
+      "ProcessName": "uvx",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 21664,
+      "ProcessName": "uvx",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 26812,
+      "ProcessName": "uvx",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 33780,
+      "ProcessName": "uvx",
+      "CPU": 0.046875
+    },
+    {
+      "Id": 36544,
+      "ProcessName": "uvx",
+      "CPU": 0.015625
+    },
+    {
+      "Id": 38296,
+      "ProcessName": "uvx",
+      "CPU": 0.03125
+    },
+    {
+      "Id": 3748,
+      "ProcessName": "VALORANT",
+      "CPU": 0.21875
+    },
+    {
+      "Id": 47932,
+      "ProcessName": "VALORANT-Win64-Shipping",
+      "CPU": 2002.3125
+    },
+    {
+      "Id": 7620,
+      "ProcessName": "vgtray",
+      "CPU": 1.359375
+    },
+    {
+      "Id": 41720,
+      "ProcessName": "WidgetBoard",
+      "CPU": 0.84375
+    },
+    {
+      "Id": 45436,
+      "ProcessName": "WidgetService",
+      "CPU": 2.265625
+    },
+    {
+      "Id": 38516,
+      "ProcessName": "XboxPcAppFT",
+      "CPU": 1.734375
+    }
+  ]
+}

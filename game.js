@@ -7793,6 +7793,9 @@ class Game {
     if (this.isStrongestModeBusy()) {
       return false;
     }
+    if (this.myTsum?.id === "evolutionTsum" && getEvolution(this)) {
+      return false;
+    }
     if (this.isSkillReadyForActivation()) {
       return this.attemptSkillActivation(false);
     }
@@ -12947,7 +12950,8 @@ class Game {
       }
     };
     const gravityMultiplier = (this.isCheatActive() ? this.cheatSettings.gravityMultiplier : 1)
-      * (isLaserWeaveFiring(this) ? LASER_WEAVE_TUNING.refillGravity : 1);
+      * (isLaserWeaveFiring(this) ? LASER_WEAVE_TUNING.refillGravity : 1)
+      * (evolutionOverdrive(this) ? 2 : 1);
     const gravity = {
       x: TSUM_PHYSICS_TUNING.gravity.x * gravityMultiplier,
       y: GRAVITY * gravityMultiplier

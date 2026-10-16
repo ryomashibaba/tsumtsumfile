@@ -14,6 +14,19 @@ import {
 import { CORONATION_ELSA_PLANNER_CONFIG } from "./coronationElsaPlanner.js";
 import { FINAL_BATTLE_HOOK_PHASE, FINAL_BATTLE_HOOK_TYPE_ID } from "./finalBattleHook.js";
 
+test("strongest mode does not reactivate the staged evolution skill during its active session", () => {
+  const game = Object.create(Game.prototype);
+  let activations = 0;
+  game.myTsum = { id: "evolutionTsum" };
+  game.skillRuntime = { sessions: [{ handlerId: "evolutionTsum", data: { event: null, queue: [] } }] };
+  game.isStrongestModeBusy = () => false;
+  game.isSkillReadyForActivation = () => true;
+  game.attemptSkillActivation = () => { activations += 1; return true; };
+
+  assert.equal(game.performStrongestModeStep(), false);
+  assert.equal(activations, 0);
+});
+
 const gaugeAfterClears = (count) => (count / FEVER_ENTRY_CLEAR_COUNT) * 100;
 
 const makeOpportunityPlan = (overrides = {}) => Object.freeze({

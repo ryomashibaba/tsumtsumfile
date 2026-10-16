@@ -5,6 +5,7 @@ export const EVOLUTION_ID = 'evolutionTsum';
 export const EVOLUTION_TUNING = Object.freeze({
   cost: 24, speed: 3, diameter: 1.2, splashRadius: 29 * 2.8,
   manualCharge: 0.1, lineHalfWidth: 72, lineX: 207,
+  lineTop: 190, lineBottom: 580, lineWidthSkill6: 2.5, lineHeightSkill6: 1.2,
   lineSec: 0.18, evolutionSec: 0.48, refillMinSec: 0.14,
   refillMaxSec: 2.5, watchdogSec: 4
 });
@@ -67,8 +68,19 @@ function tone(game, phase) {
   } catch { /* Audio can be unavailable without blocking gameplay. */ }
 }
 
-function readyNodes(game) {
-  return game.tsums.filter(n => !n.dead && !n.removing && n.y >= 140 - game.getBodyRadius(n) && n.y <= 580);
+function readyNodes(game, top = 140) {
+  return game.tsums.filter(n => !n.dead && !n.removing && n.y >= top - game.getBodyRadius(n) && n.y <= 580);
+}
+
+function lineGeometry(level) {
+  const t = EVOLUTION_TUNING;
+  const skill6 = level >= 6;
+  const height = (t.lineBottom - t.lineTop) * (skill6 ? t.lineHeightSkill6 : 1);
+  return {
+    halfWidth: t.lineHalfWidth * (skill6 ? t.lineWidthSkill6 : 1),
+    top: t.lineBottom - height,
+    bottom: t.lineBottom
+  };
 }
 
 function fireLine(game, session, event, targets) {
@@ -109,8 +121,9 @@ export function updateEvolutionRaw(game, dt) {
     e.elapsed += dt; d.metrics.stoppedSec += dt;
     countedStop = true;
     if (e.prefire) {
-      const candidates = readyNodes(game);
-      let targets = candidates.filter(n => Math.abs(n.x - t.lineX) <= t.lineHalfWidth);
+      const geometry = lineGeometry(session.level);
+      const candidates = readyNodes(game, session.level >= 6 ? geometry.top : 140);
+      let targets = candidates.filter(n => Math.abs(n.x - t.lineX) <= geometry.halfWidth);
       const minimum = Math.min(6, Math.max(1, Math.ceil(game.tsums.length * 0.15)));
       if (targets.length < minimum && e.elapsed < t.refillMaxSec) return;
       if (targets.length < minimum) {
@@ -119,7 +132,7 @@ export function updateEvolutionRaw(game, dt) {
         // reserved shot by aiming at the densest remaining lane after the cap.
         const fallback = candidates.length ? candidates : game.tsums.filter(n => !n.dead && !n.removing);
         for (const node of fallback) {
-          const lane = fallback.filter(n => Math.abs(n.x - node.x) <= t.lineHalfWidth);
+          const lane = fallback.filter(n => Math.abs(n.x - node.x) <= geometry.halfWidth);
           if (lane.length > targets.length) { targets = lane; e.x = node.x; }
         }
       }
@@ -240,6 +253,7 @@ export const evolutionHandler = {
 };
 
 export function drawEvolution(ctx, game) {
+  if (game.state !== 'playing') return;
   const s = getEvolution(game);
   if (!s) return;
   const d = s.data, color = ['#72e6ff', '#70fff2', '#ffda79'][d.phase - 1];
@@ -254,8 +268,15 @@ export function drawEvolution(ctx, game) {
   if (e && game.skillVisualsEnabled !== false) {
     if (e.kind === 'line') {
       if (e.prefire) { ctx.restore(); return; }
+      const geometry = lineGeometry(s.level);
+      if (game.isGameplayInputLocked?.()) {
+        ctx.globalAlpha = 0.38;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 140, 414, 440);
+      }
       ctx.globalAlpha = Math.max(0, 0.32 * (1 - e.elapsed / 0.3));
-      ctx.fillStyle = '#fff2bc'; ctx.fillRect(e.x - EVOLUTION_TUNING.lineHalfWidth, 190, EVOLUTION_TUNING.lineHalfWidth * 2, 390);
+      ctx.fillStyle = '#fff2bc'; ctx.fillRect(e.x - geometry.halfWidth, geometry.top,
+        geometry.halfWidth * 2, geometry.bottom - geometry.top);
     } else {
       ctx.globalAlpha = Math.min(1, Math.max(0, (0.6 - e.elapsed) * 5));
       ctx.fillStyle = '#0a192de8'; ctx.fillRect(35, 290, 344, 86);
