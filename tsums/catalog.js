@@ -1,5 +1,6 @@
+import tdk_autoChain from './autoChain/definition.js';
 import tdk_chainTestTsum from './chainTestTsum/definition.js';
 import testTsum from './testTsum/definition.js';
 
 // Generated entries are added here. Definitions must never import config/game/UI.
-export const tsumDefinitions = [tdk_chainTestTsum, testTsum];
+export const tsumDefinitions = [tdk_autoChain, tdk_chainTestTsum, testTsum];

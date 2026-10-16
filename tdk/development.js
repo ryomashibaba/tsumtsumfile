@@ -6,6 +6,7 @@ export function resolveDevelopmentLaunch(params) {
   const definition = tsumDefinitions.find(d => d.id === id);
   if (!definition) throw new Error(`TDK unknown Tsum: ${id}`);
   const level = Number(params.get('sl') || 1);
+  if (id === 'autoChain' && level !== 6) throw new Error('AUTO CHAIN supports SL6 only: use sl=6');
   const count = Number(params.get('types') || 5);
   if (!Number.isInteger(level) || level < 1 || level > 6 || ![3, 4, 5].includes(count)) throw new Error('TDK requires sl=1..6 and types=3/4/5');
   return { definition, level, count };

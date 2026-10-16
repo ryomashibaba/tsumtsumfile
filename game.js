@@ -1,3 +1,5 @@
+import { getAutoChainSession, updateAutoChainClock } from './tsums/autoChain/skill.js';
+import { drawAutoChain } from './tsums/autoChain/visuals.js';
 import { registerDefinitions } from './tdk/core.js';
 import { tsumDefinitions } from './tsums/catalog.js';
 import {
@@ -1855,7 +1857,7 @@ class SkillRuntimeManager {
 
   activateNow(skillId, level, activationData = null) {
     const handler = SkillRegistry[skillId];
-    if (!handler || (skillId === FINAL_BATTLE_HOOK_TYPE_ID && this.isFinalBattleHookActive())) {
+    if (!handler || (skillId === "autoChain" && (level !== 6 || getAutoChainSession(this.game))) || (skillId === FINAL_BATTLE_HOOK_TYPE_ID && this.isFinalBattleHookActive())) {
       return false;
     }
     this.game.moveActiveClearAsideForSkill?.(skillId);
@@ -1914,6 +1916,7 @@ class SkillRuntimeManager {
   }
 
   isInputLocked() {
+    if (getAutoChainSession(this.game)?.data.phase === "finish") return true;
     return !!this.pendingActivation || this.timingPauses.length > 0;
   }
 
@@ -2541,6 +2544,11 @@ class ClearPipeline {
     let prepared = this.expandBubbleTargets(request);
     prepared = this.runtime.augmentClear(prepared);
     if (getLaserWeaveSession(this.game)) prepared.allowBomb = false;
+    if (getAutoChainSession(this.game)) {
+      prepared.allowBomb = false;
+      prepared.chargeMultiplier = 0.1;
+      prepared.clearMode = "simultaneous";
+    }
     prepared.targets = this.uniqueTargets(prepared.targets || []);
     if (!prepared.targets.length && prepared.allowEmptyEvent !== true) {
       return null;
@@ -2691,7 +2699,7 @@ class ClearPipeline {
     this.emitSyntheticCoinFlights(info, clearDisplayX, clearDisplayY);
 
     info.targets.forEach((tsum) => {
-      if (!info.meta?.laserWeave) {
+      if (!info.meta?.laserWeave && !info.meta?.autoChain) {
         this.game.spawnPopParticles(tsum.x, tsum.y, this.board.getResolvedType(tsum).color);
       }
     });
@@ -5132,6 +5140,7 @@ class Game {
   }
 
   getConfiguredTsumRadius() {
+    if (this.autoChainCapacity) return this.autoChainCapacity.radius;
     return this.isCheatActive() ? this.cheatSettings.tsumDiameter / 2 : TSUM_RADIUS;
   }
 
@@ -5294,6 +5303,7 @@ class Game {
     this.gameFeel?.capturePendingFrame(this.canvas);
     this.ctx.clearRect(0, 0, this.width, this.height);
     this.ui.render(this.ctx);
+    drawAutoChain(this.ctx, this);
     if (this.chainTelemetry) this.chainTelemetry.sample("renderMs", performance.now() - measure);
   }
 
@@ -6358,6 +6368,7 @@ class Game {
   }
 
   getTargetBodyCount() {
+    if (this.autoChainCapacity) return this.autoChainCapacity.count;
     let targetBodyCount = TARGET_TSUM_COUNT;
     if (this.isCheatActive?.()) {
       targetBodyCount = this.cheatSettings.boardTarget === CHEAT_SPECIAL.UNLIMITED
@@ -6522,6 +6533,7 @@ class Game {
   }
 
   isSkillReadyForActivation() {
+    if (getAutoChainSession(this)) return false;
     if (this.myTsum.id === "judyNick") {
       return !!this.getJudyNickReadySkillMode();
     }
@@ -8334,7 +8346,8 @@ class Game {
 
   findStrongestModeBestChain(options = {}) {
     const minLength = options.minLength || 3;
-    const maxLength = Number.isFinite(options.maxLength) ? options.maxLength : Infinity;
+    const maxLength = Math.min(Number.isFinite(options.maxLength) ? options.maxLength : Infinity,
+      getAutoChainSession(this)?.data.phase === "active" ? 9 : Infinity);
     const minY = Number.isFinite(options.minY) ? options.minY : -Infinity;
     const filterNode = typeof options.filterNode === "function" ? options.filterNode : null;
     const liveNodes = this.getStrongestModeChainNodes().filter((tsum) => (
@@ -11177,6 +11190,7 @@ class Game {
   }
 
   spawnReplacementTsums() {
+    if (this.autoChainCapacity) return 0;
     if (this.isCoingainSpawnPaused()) {
       return 0;
     }
@@ -13359,6 +13373,7 @@ class Game {
   }
 
   finishRun() {
+    if (getAutoChainSession(this)) { updateAutoChainClock(this); return; }
     if (this.state !== "playing" || this.runFinished) {
       return;
     }
@@ -13751,6 +13766,8 @@ class Game {
       }
     }
 
+    updateAutoChainClock(this);
+
     if (this.tempLockTimer > 0) {
       this.tempLockTimer -= dt;
       if (this.tempLockTimer <= 0) {
@@ -13772,7 +13789,7 @@ class Game {
 
     this.updateCheatSpawnScheduler?.(gameplayDt);
 
-    if (!gameplayPauseState.physicsPaused) {
+    if (!gameplayPauseState.physicsPaused && !this.autoChainCapacity) {
       this.strongestModeCoronationElsaTemporalPositions = new Map(this.tsums.map((tsum) => [String(tsum.id), {
         x: Number(tsum.x) || 0,
         y: Number(tsum.y) || 0
