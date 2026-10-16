@@ -8346,9 +8346,11 @@ class Game {
 
   findStrongestModeBestChain(options = {}) {
     const minLength = options.minLength || 3;
+    const isAutoChainActive = getAutoChainSession(this)?.data.phase === "active";
     const maxLength = Math.min(Number.isFinite(options.maxLength) ? options.maxLength : Infinity,
-      getAutoChainSession(this)?.data.phase === "active" ? 9 : Infinity);
-    const minY = Number.isFinite(options.minY) ? options.minY : -Infinity;
+      isAutoChainActive ? 9 : Infinity);
+    const minY = Math.max(Number.isFinite(options.minY) ? options.minY : -Infinity,
+      isAutoChainActive ? FIELD_CENTER_Y : -Infinity);
     const filterNode = typeof options.filterNode === "function" ? options.filterNode : null;
     const liveNodes = this.getStrongestModeChainNodes().filter((tsum) => (
       tsum.y >= minY &&
@@ -10732,6 +10734,10 @@ class Game {
       (allowChainQueueDuringActiveClear && this.canQueueChainDuringActiveClear())
     );
     if (!Array.isArray(chain) || chain.length < 3 || !canAttemptChain) {
+      return false;
+    }
+    if (getAutoChainSession(this)?.data.phase === "active" &&
+      (chain.length > 9 || chain.some(node => !node || !(node.y >= FIELD_CENTER_Y)))) {
       return false;
     }
     if (

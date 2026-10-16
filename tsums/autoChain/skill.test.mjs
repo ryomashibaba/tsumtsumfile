@@ -5,6 +5,7 @@ import { longestPath, getAutoChainSession, updateAutoChainClock } from './skill.
 import { makeTdkGame } from '../../tdk/testing.mjs';
 import { validateDefinition } from '../../tdk/core.js';
 import { resolveDevelopmentLaunch } from '../../tdk/development.js';
+import { FIELD_CENTER_Y } from '../../config.js';
 
 function setup(count = 45) {
   const game = makeTdkGame(definition, 6);
@@ -166,12 +167,57 @@ test('reset during expanded finish restores configuration and leaves no extra bo
   assert.ok(game.tsums.every(n=>n.radius===radius));
 });
 test('strongest candidate selection is capped at 9 only during active skill', () => {
-  const {game, activate} = setup(); fixture(game,12);
+  const {game, activate} = setup(); fixture(game,12).forEach(n => n.y += 80);
   const before = game.findStrongestModeBestChain(); assert.ok(before.length>=10);
   const session = activate();
   assert.equal(game.findStrongestModeBestChain().length,9);
   game.skillRuntime.endSession(session,'cancelled');
   assert.ok(game.findStrongestModeBestChain().length>=10);
+});
+
+test('strongest candidates require every center in the lower half and preserve stricter options', () => {
+  const {game, activate} = setup(); const nodes = fixture(game, 9);
+  nodes.forEach((n, i) => { n.x = 120 + i * 20; n.y = FIELD_CENTER_Y; });
+  activate();
+  assert.ok(game.findStrongestModeChain().length >= 3);
+  nodes[4].y = FIELD_CENTER_Y - 0.01;
+  const chain = game.findStrongestModeChain();
+  assert.ok(chain.length >= 3);
+  assert.ok(chain.every(n => n.y >= FIELD_CENTER_Y));
+  assert.ok(!chain.includes(nodes[4]));
+  assert.equal(game.findStrongestModeBestChain({minY: FIELD_CENTER_Y + 1}).length, 0);
+  assert.equal(game.findStrongestModeBestChain({maxLength: 4, minY: 0, filterNode: n => n !== nodes[0]}).length, 4);
+  assert.ok(!game.findStrongestModeBestChain({filterNode: n => n !== nodes[0]}).includes(nodes[0]));
+});
+
+test('strongest mode waits without an eligible lower chain and restores upper candidates after skill', () => {
+  const {game, activate} = setup(); const nodes = fixture(game, 9);
+  nodes.forEach((n, i) => { n.x = 120 + i * 20; n.y = FIELD_CENTER_Y - 1; });
+  assert.ok(game.findStrongestModeChain().length >= 3);
+  const session = activate();
+  assert.deepEqual(game.findStrongestModeChain(), []);
+  assert.equal(game.performStrongestModeChains(game.findStrongestModeChain()), false);
+  assert.equal(game.totalCleared, 0);
+  game.skillRuntime.endSession(session, 'cancelled');
+  assert.ok(game.findStrongestModeChain().length >= 3);
+});
+
+test('strongest execution rejects a moved center or oversized chain before input starts', () => {
+  const {game, activate} = setup(); const nodes = fixture(game, 12);
+  nodes.forEach(n => n.y = FIELD_CENTER_Y);
+  activate();
+  const chain = game.findStrongestModeChain();
+  assert.equal(chain.length, 9);
+  chain[4].y = FIELD_CENTER_Y - 0.01;
+  let starts = 0;
+  game.startChain = () => { starts++; return false; };
+  assert.equal(game.performStrongestModeChain(chain), false);
+  chain[4].y = FIELD_CENTER_Y;
+  assert.equal(game.performStrongestModeChain(nodes.slice(0, 10)), false);
+  assert.equal(starts, 0);
+  assert.equal(game.totalCleared, 0);
+  assert.equal(game.performStrongestModeChain(chain), false);
+  assert.equal(starts, 1);
 });
 
 test('dense 20-node clique with a hub and two leaves proves longest path without factorial search', () => {
