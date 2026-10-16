@@ -30,7 +30,12 @@ export function longestPath(nodes, connected, { minimum = 10, maxSteps = 120000,
         while (todo.length) for (const j of adjacency[todo.pop()]) {
           if (!used.has(j) && !reachable.has(j)) { reachable.add(j); todo.push(j); }
         }
-        if (path.length + reachable.size - 1 > best.length) {
+        // A remaining degree-one node can only be the final endpoint. If there
+        // are several, a path starting at i must leave all but one behind.
+        let leaves = 0;
+        for (const j of reachable) if (j !== i && adjacency[j].filter(k => reachable.has(k)).length <= 1) leaves++;
+        const upper = path.length + reachable.size - 1 - Math.max(0, leaves - 1);
+        if (upper > best.length) {
           for (const j of adjacency[i]) {
             if (!used.has(j)) visit(j);
             if (solved || !complete) break;

@@ -1,0 +1,539 @@
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=autoChain Clears=9 Type=correction_0 → Coins=13 (base=13)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=autoChain Clears=12 Type=correction_0 → Coins=26 (base=26)
+[COIN] Tsum=autoChain Clears=12 Type=correction_0 → Coins=26 (base=26)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=autoChain Clears=12 Type=correction_0 → Coins=26 (base=26)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=autoChain Clears=9 Type=correction_0 → Coins=13 (base=13)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=autoChain Clears=12 Type=correction_0 → Coins=26 (base=26)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=autoChain Clears=12 Type=correction_0 → Coins=26 (base=26)
+[COIN] Tsum=autoChain Clears=10 Type=correction_0 → Coins=16 (base=16)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=autoChain Clears=15 Type=correction_0 → Coins=46 (base=46)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=autoChain Clears=55 Type=correction_0 → Coins=498 (base=498)
+[COIN] Tsum=autoChain Clears=55 Type=correction_0 → Coins=498 (base=498)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=autoChain Clears=55 Type=correction_0 → Coins=498 (base=498)
+[COIN] Tsum=autoChain Clears=55 Type=correction_0 → Coins=498 (base=498)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=autoChain Clears=100 Type=correction_0 → Coins=1038 (base=1038)
+[COIN] Tsum=autoChain Clears=100 Type=correction_0 → Coins=1038 (base=1038)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=autoChain Clears=300 Type=correction_0 → Coins=3438 (base=3438)
+[COIN] Tsum=autoChain Clears=300 Type=correction_0 → Coins=3438 (base=3438)
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=autoChain Clears=55 Type=correction_0 → Coins=498 (base=498)
+[FINISH] Score=963147 BaseCoins=498 Multiplier=1 Final=498 TotalCoins=0
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+=== startGame() 開始 ===
+activeItems: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+itemSelection: {
+  score: false,
+  coin: false,
+  exp: false,
+  time: false,
+  bomb: false,
+  reduce: false,
+  reduce3: false,
+  combo: false
+}
+selectedアイテルコスト: 0
+board types: [ 'autoChain', 'coronationElsa', 'namine', 'gaston', 'jamilViper' ] count: 5
+[COIN] Tsum=autoChain Clears=55 Type=correction_0 → Coins=498 (base=498)
+✔ AUTO CHAIN definition validates, development isolation, SL6-only launcher and runtime (5.0181ms)
+✔ path search excludes unreachable branches rather than counting a connected group (0.915ms)
+✔ path search chooses the longest candidate and first equal candidate (0.1419ms)
+✔ exhausted search never presents a partial candidate as the longest (0.1165ms)
+✔ exact search matches exhaustive oracle on 100 deterministic small graphs (9.5435ms)
+✔ falling 9-node path threshold, exact clear and 10% charge (2.3039ms)
+✔ falling 10-node path threshold, exact clear and 10% charge (14.5846ms)
+✔ falling 12-node path threshold, exact clear and 10% charge (1.4831ms)
+✔ bombs are removed without explosion, scoring or collateral clear (0.5772ms)
+✔ automatic path cancels an overlapping drag with no double award (1.7541ms)
+✔ manual chain is instant, bomb-free, awards once and does not increment counter (0.9564ms)
+✔ manual commit gives automatic 10+ path priority (1.1353ms)
+✔ board is reevaluated after each automatic clear (2.1351ms)
+✔ above-ceiling bodies do not qualify (1.0753ms)
+✔ real wall clock expires at 10s even when runtime gameplay delta is zero (3.3974ms)
+✔ normal game clock keeps running during AUTO CHAIN (24.9651ms)
+✔ finish 11×5 from limit 45: containment, reward, resize and restore (4.8798ms)
+✔ finish 11×5 from limit 53: containment, reward, resize and restore (2.927ms)
+✔ finish 20×5 from limit 45: containment, reward, resize and restore (2.5167ms)
+✔ finish 60×5 from limit 45: containment, reward, resize and restore (15.8792ms)
+✔ finish 0×5 from limit 45: containment, reward, resize and restore (0.762ms)
+✔ time-up holds result screen until finish has awarded its clear (1.8157ms)
+✔ reset during expanded finish restores configuration and leaves no extra bodies (0.5969ms)
+✔ strongest candidate selection is capped at 9 only during active skill (6.6031ms)
+✔ dense 20-node clique with a hub and two leaves proves longest path without factorial search (5.7034ms)
+✔ finish queues exactly 10% of real my-tsum bodies and calls chain scoring once (4.8101ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 315.2036

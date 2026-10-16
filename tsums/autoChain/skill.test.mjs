@@ -173,3 +173,22 @@ test('strongest candidate selection is capped at 9 only during active skill', ()
   game.skillRuntime.endSession(session,'cancelled');
   assert.ok(game.findStrongestModeBestChain().length>=10);
 });
+
+test('dense 20-node clique with a hub and two leaves proves longest path without factorial search', () => {
+  const nodes = Array.from({length:23}, (_,i)=>i);
+  const connected = (a,b) => a!==b && (a<20&&b<20 || a===20 || b===20);
+  const result = longestPath(nodes,connected,{maxMs:Infinity});
+  assert.equal(result.complete,true);assert.equal(result.chain.length,22);
+  assert.ok(result.steps<2000);
+});
+
+test('finish queues exactly 10% of real my-tsum bodies and calls chain scoring once', () => {
+  const {game,activate,tick}=setup();const session=activate();session.data.count=11;
+  const calls=[];let myCount=0;
+  const score=game.calculateChainScore.bind(game);
+  game.calculateChainScore=(base,length)=>{calls.push(length);return score(base,length);};
+  const clear=game.clearPipeline.beginClear.bind(game.clearPipeline);
+  game.clearPipeline.beginClear=spec=>{myCount=spec.targets.filter(n=>game.boardState.getResolvedType(n).id===game.myTsum.id).length;assert.equal(spec.chargeMultiplier,.1);return clear(spec);};
+  tick(10000);tick(10760);tick(10960);game.updateSkillChargeFlights(2000);
+  assert.deepEqual(calls,[55]);assert.ok(Math.abs(game.skillSystem.charge-myCount*.1)<1e-8);
+});
