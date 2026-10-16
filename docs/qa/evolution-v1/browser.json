@@ -1,0 +1,36 @@
+{
+  "checks": [
+    "real mouse chain: six physical clears, five coins",
+    "real touch chain",
+    "pointer held across expiry completes chain and queued line",
+    "natural SL6 mouse run reaches PHASE 2/3 and restores normal state",
+    "metrics JSON download"
+  ],
+  "metrics": {
+    "level": 6,
+    "activeSec": 18.000000000000114,
+    "wallSec": 21.847700000000174,
+    "phase2AtSec": 9.498700000000007,
+    "phase3AtSec": 17.24800000000011,
+    "phase3PlayableSec": 0.751999999999991,
+    "realClears": 139,
+    "manualClears": 68,
+    "splashClears": 59,
+    "coins": 893,
+    "lines": 1,
+    "stoppedSec": 1.7000000000000008,
+    "realWallSec": 27.43559999999404,
+    "stoppedWallSec": 2.421699999988079,
+    "gauge": 4.3000000000000025,
+    "watchdogRecoveries": 0,
+    "refillTimeouts": 0,
+    "events": [
+      "line",
+      "phase2",
+      "phase3"
+    ],
+    "reason": "timeout"
+  },
+  "errors": [],
+  "method": "natural 3-type SL6, greedy automated real mouse input; no reaction delay; not human play or a fun verdict"
+}

@@ -40,6 +40,18 @@ export function mountDevelopmentControls(game, launch) {
   const status = document.createElement('output');
   status.style.display = 'block';
   panel.append(label, modes, charge, restart, status);
+  if (launch.definition.id === 'evolutionTsum') {
+    const exportMetrics = document.createElement('button');
+    exportMetrics.textContent = '進化ツム計測JSONを保存';
+    exportMetrics.onclick = () => {
+      const current = game.getActiveSkillSession('evolutionTsum')?.data.metrics;
+      const blob = new Blob([JSON.stringify({ completed: game.evolutionHistory || [], current }, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob), link = document.createElement('a');
+      link.href = url; link.download = 'evolution-sl6-metrics.json'; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+    panel.append(exportMetrics);
+  }
   document.body.append(panel);
   const update = () => { status.textContent = `消去 ${game.totalCleared} / コイン ${game.coinBonus} / ゲージ ${game.skillSystem.charge}/${game.skillSystem.maxCharge} / スキル ${game.skillRuntime.sessions.length}`; };
   update();

@@ -1,0 +1,18 @@
+npm test: node --test --test-concurrency=1 (all existing suites + evolution)
+2026-10-16
+
+ℹ tests 438
+ℹ suites 0
+ℹ pass 438
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 19155.4554
+
+Dedicated evolution coverage: 15 tests.
+Catalog validation: node scripts/tsum-validate.mjs (3 definitions, SL1-6, registration, artwork, 3/4/5 types).
+Syntax: node --check game.js; node --check tsums/evolutionTsum/skill.js.
+Whitespace: git diff --check.
+
+Earlier parallel regression run: 435/436 passed, physics p95 4.632ms exceeded 4ms under concurrent CPU work. Physics alone: 17/17 passed. Final npm test serializes files; the threshold is unchanged.
