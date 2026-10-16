@@ -4,6 +4,7 @@ import { adaptDefinitions, isDevelopmentMode } from './tdk/core.js';
 
 export const WIDTH = 414;
 export const HEIGHT = 736;
+export const APP_VERSION = "1.0";
 export const HUD_HEIGHT = 150;
 export const FIELD_CENTER_X = WIDTH * 0.5;
 export const FIELD_CENTER_Y = 360;

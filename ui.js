@@ -1,6 +1,7 @@
 import {
   WIDTH,
   HEIGHT,
+  APP_VERSION,
   HUD_HEIGHT,
   FIELD_CENTER_X,
   FIELD_TOP,
@@ -98,6 +99,19 @@ export class UIRenderer {
     } else if (this.game.state === "result") {
       this.drawResultScreen(ctx);
     }
+    this.drawVersion(ctx);
+  }
+
+  drawVersion(ctx) {
+    ctx.save();
+    ctx.textAlign = "right";
+    ctx.textBaseline = "bottom";
+    ctx.font = '700 9px "Trebuchet MS", sans-serif';
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.shadowColor = "rgba(0,24,54,0.75)";
+    ctx.shadowBlur = 2;
+    ctx.fillText(`v${APP_VERSION}`, WIDTH - 7, 139);
+    ctx.restore();
   }
 
   createFeltTexture() {
