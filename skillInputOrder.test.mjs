@@ -22,6 +22,7 @@ function makeGame({ skillId = "coronationElsa", visuals = true } = {}) {
   game.bombs = [];
   game.gameFeel = { setChain() {} };
   game.skillRuntime = { pendingActivation: null, timingPauses: [] };
+  game.isCoingainInputLocked = () => false;
   game.boardState = { getResolvedType: (tsum) => tsum.type };
   return game;
 }

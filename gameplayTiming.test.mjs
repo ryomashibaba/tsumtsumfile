@@ -682,6 +682,8 @@ test("one Moana special-bomb action creates one 670 ms pause even for multiple b
     { id: "bomb-2", bombType: "moanaSpecial", x: 120, y: 100, dead: false, effectRadius: 200 }
   ];
   const game = {
+    state: "playing",
+    isCoingainInputLocked: () => false,
     actionLock: false,
     bombs,
     tsums: [target],

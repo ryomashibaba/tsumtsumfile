@@ -2407,6 +2407,7 @@ class ClearPipeline {
   }
 
   updateSequentialChainClear(info, dt) {
+    this.updatePendingBombClears(info, dt);
     if (!info || !info.sequentialChain) {
       return false;
     }
@@ -2422,19 +2423,6 @@ class ClearPipeline {
         }
       }
     }
-    if (info.bombCancelPending) {
-      info.bombCancelPending.timer -= dt;
-      const bombCancelComplete = info.bombCancelPending.targets.every((target) => (
-        !target ||
-        target.dead ||
-        !this.game.tsums.includes(target)
-      ));
-      const bombCancelTimedOut = info.bombCancelPending.timer <= -0.35;
-      if (bombCancelComplete || bombCancelTimedOut) {
-        this.finalize(info.bombCancelPending, { preserveActiveClear: true });
-        info.bombCancelPending = null;
-      }
-    }
     const primaryTargets = Array.isArray(info.sequentialPrimaryTargets) && info.sequentialPrimaryTargets.length
       ? info.sequentialPrimaryTargets
       : info.targets;
@@ -2445,10 +2433,25 @@ class ClearPipeline {
         this.startNextSequentialChainTarget(info);
       }
     }
-    if (!info.bombCancelPending && chainComplete()) {
+    if (!info.pendingBombClears?.length && chainComplete()) {
       this.finalize(info);
     }
     return true;
+  }
+
+  updatePendingBombClears(info, dt) {
+    if (!info?.pendingBombClears?.length) return;
+    const pending = info.pendingBombClears;
+    info.pendingBombClears = [];
+    for (const clear of pending) {
+      clear.timer -= dt;
+      const complete = clear.targets.every((target) => !target || target.dead || !this.game.tsums.includes(target));
+      if (clear.timer <= 0 && (complete || clear.timer <= -0.35)) {
+        this.finalize(clear, { preserveActiveClear: true });
+      } else {
+        info.pendingBombClears.push(clear);
+      }
+    }
   }
 
   cancelSequentialChainWithBomb(extraClearCount = 0, options = {}) {
@@ -2648,6 +2651,13 @@ class ClearPipeline {
     prepared.applyLargeTsumCorrection = prepared.applyLargeTsumCorrection !== false;
     this.game.actionLock = true;
     prepared.targets.forEach((target) => target.beginRemove());
+    if (prepared.source === "bomb" && this.game.pendingClear) {
+      (this.game.pendingClear.pendingBombClears ||= []).push({
+        ...prepared,
+        chainLength: prepared.targets.length
+      });
+      return true;
+    }
     this.game.pendingClear = {
       ...prepared,
       chainLength: prepared.targets.length
@@ -4112,14 +4122,14 @@ class Game {
       source: info?.source || null,
       sequentialChain: !!info?.sequentialChain,
       bombCancelled: !!info?.bombCancelled,
-      bombCancelPending: !!info?.bombCancelPending,
+      bombCancelPending: !!info?.pendingBombClears?.length,
       nextRemoveIndex: info?.nextRemoveIndex ?? null,
       chainLength: info?.chainLength ?? (info?.targets ? info.targets.length : null),
       targetsRemaining: info?.targets
         ? info.targets.filter((target) => target && !target.dead).length
         : null,
-      pendingBombTargets: info?.bombCancelPending?.targets
-        ? info.bombCancelPending.targets.filter((target) => target && !target.dead).length
+      pendingBombTargets: info?.pendingBombClears
+        ? info.pendingBombClears.reduce((count, clear) => count + clear.targets.filter((target) => target && !target.dead).length, 0)
         : null,
       canBombCancel: this.canBombCancelActiveChain()
     };
@@ -4138,8 +4148,8 @@ class Game {
     if (this.findBombAt(bomb.x, bomb.y) !== bomb) {
       return "bomb-not-topmost-at-position";
     }
-    if (this.actionLock && !this.canBombCancelActiveChain()) {
-      return "action-lock-without-bomb-cancel-window";
+    if (!this.canAcceptBombInput()) {
+      return "bomb-input-locked";
     }
     return null;
   }
@@ -4185,7 +4195,7 @@ class Game {
         y: Math.round(selectedBomb.y)
       } : null,
       sequentialClear: this.getSequentialClearDebugState(),
-      bombCancelPending: !!this.pendingClear?.bombCancelPending,
+      bombCancelPending: !!this.pendingClear?.pendingBombClears?.length,
       handleTapResult,
       tapExecuted,
       explodeBombCalled,
@@ -4236,7 +4246,7 @@ class Game {
 
   tryAiBombCancelDuringSequentialClear() {
     const info = this.pendingClear;
-    if (!info || info.source !== "chain" || !info.sequentialChain || info.bombCancelled || info.bombCancelPending) {
+    if (!info || info.source !== "chain" || !info.sequentialChain || info.bombCancelled || info.pendingBombClears?.length) {
       this.aiBombCancelAttemptClear = null;
       this.aiBombCancelAttemptBombId = null;
       return false;
@@ -4254,13 +4264,13 @@ class Game {
     }
     this.aiBombCancelAttemptBombId = bomb.id;
     const beforeBombCancelled = !!info.bombCancelled;
-    const beforeBombCancelPending = !!info.bombCancelPending;
+    const beforeBombCancelPending = !!info.pendingBombClears?.length;
     this.explodeBomb(bomb);
     const afterInfo = this.pendingClear;
     const success = !!(
       bomb.dead ||
       afterInfo?.bombCancelled ||
-      (!beforeBombCancelPending && afterInfo?.bombCancelPending) ||
+      (!beforeBombCancelPending && afterInfo?.pendingBombClears?.length) ||
       (!beforeBombCancelled && afterInfo?.bombCancelled)
     );
     this.logAiBombDecision("ai-bomb-cancel-attempt", {
@@ -5560,10 +5570,17 @@ class Game {
       this.attemptSkillActivation(false, this.getJudyNickSkillButtonModeAt(pos));
       return;
     }
-    if (this.manualDragPointerId !== event.pointerId || this.deferredSkillInput) {
+    if (this.deferredSkillInput) {
       return;
     }
-    if (this.isGameplayInputLocked({ ignoreActionLock: true })) {
+    // A stationary contact must not own bomb input. Only an active trace does.
+    const bomb = this.findBombAt(pos.x, pos.y);
+    if (bomb && this.canAcceptBombInput() && !this.heldBombInput) {
+      this.heldBombInput = { bomb, pointerId: event.pointerId };
+      this.noteAction();
+      return;
+    }
+    if (this.manualDragPointerId !== event.pointerId || this.heldBombInput || this.dragging || this.isGameplayInputLocked({ ignoreActionLock: true })) {
       return;
     }
     if (!this.actionLock && this.inputRouter.beginBubbleGesture(pos, event.pointerId)) {
@@ -5574,19 +5591,10 @@ class Game {
       this.noteAction();
       return;
     }
-    if (this.actionLock && this.canBombCancelActiveChain()) {
-      const activeBomb = this.findBombAt(pos.x, pos.y);
-      if (activeBomb) {
-        this.heldBombInput = { bomb: activeBomb, pointerId: event.pointerId };
-        return;
-      }
-    }
     if (this.actionLock && !this.canQueueChainDuringActiveClear()) {
       return;
     }
-    const bomb = this.findBombAt(pos.x, pos.y);
     if (bomb) {
-      this.heldBombInput = { bomb, pointerId: event.pointerId };
       return;
     }
     if (this.inputRouter.handleChainStart(pos)) {
@@ -5617,6 +5625,13 @@ class Game {
       this.pendingClear.source === "chain" &&
       !this.pendingClear.bombCancelled
     );
+  }
+
+  canAcceptBombInput({ allowDeferred = false } = {}) {
+    if (this.state !== "playing" || this.paused || this.timeUp || this.dragging || (!allowDeferred && this.deferredSkillInput) ||
+      this.isCoingainInputLocked() || this.isGameplayInputLocked({ ignoreActionLock: true })) return false;
+    if (!this.actionLock) return true;
+    return ["chain", "bomb", "freeze", "bubble"].includes(this.pendingClear?.source);
   }
 
   resetAiChainAnimationState() {
@@ -5675,6 +5690,7 @@ class Game {
   }
 
   onPointerMove(event) {
+    if (this.heldBombInput) return;
     if (this.manualDragPointerId !== null && event.pointerId !== this.manualDragPointerId) {
       return;
     }
@@ -5739,12 +5755,12 @@ class Game {
         this.manualDragPointerId = null;
         this.manualDragPoint = null;
       }
-      if (event.type !== "pointercancel" && !this.deferredSkillInput && this.state === "playing") {
+      if (event.type !== "pointercancel" && this.canAcceptBombInput()) {
         this.explodeBomb(held.bomb);
       }
       return;
     }
-    if (this.manualDragPointerId !== null && event.pointerId !== this.manualDragPointerId) {
+    if (event.pointerId !== this.manualDragPointerId) {
       return;
     }
     this.dragPointer = this.getPointerPosition(event);
@@ -6669,6 +6685,7 @@ class Game {
       chain: this.dragging ? this.chain.slice() : null,
       chainWasValid: this.dragging && this.chain.length >= 3,
       bomb: this.heldBombInput?.bomb || null,
+      bombPointerId: this.heldBombInput?.pointerId ?? null,
       clear: null,
       clearQueue: [],
       startedTargetIds: new Set()
@@ -6678,6 +6695,7 @@ class Game {
     if ((deferred.chain || deferred.bomb) && this.manualDragPointerId !== null) {
       this.consumedPointerIds?.add(this.manualDragPointerId);
     }
+    if (deferred.bombPointerId !== null) this.consumedPointerIds?.add(deferred.bombPointerId);
     if (!moving && this.pendingClear?.sequentialChain) {
       deferred.clear = this.pendingClear;
       deferred.clearQueue = this.pendingChainClearQueue;
@@ -6706,7 +6724,8 @@ class Game {
       this.chainTypeId = this.boardState.getResolvedType(deferred.chain[0])?.id || null;
       this.chainRule = this.getChainBehaviorForStart(deferred.chain[0]);
     }
-    if (deferred.bomb) this.heldBombInput = { bomb: deferred.bomb, pointerId: this.manualDragPointerId };
+    if (deferred.bomb) this.heldBombInput = { bomb: deferred.bomb, pointerId: deferred.bombPointerId ?? this.manualDragPointerId };
+    if (deferred.bombPointerId != null) this.consumedPointerIds?.delete(deferred.bombPointerId);
     if (this.manualDragPointerId !== null) this.consumedPointerIds?.delete(this.manualDragPointerId);
   }
 
@@ -6770,7 +6789,7 @@ class Game {
       prune(entry);
       return entry.targets.length > 0;
     });
-    if (info && !info.targets.length) deferred.clear = null;
+    if (info && !info.targets.length && !info.pendingBombClears?.length) deferred.clear = null;
   }
 
   runDeferredInputAction(action, deferred) {
@@ -11327,7 +11346,7 @@ class Game {
   findBombAt(x, y) {
     for (let i = this.bombs.length - 1; i >= 0; i -= 1) {
       const bomb = this.bombs[i];
-      if (!bomb.dead && distance(x, y, bomb.x, bomb.y) <= this.getBodyRadius(bomb)) {
+      if (!bomb.dead && !bomb.removing && distance(x, y, bomb.x, bomb.y) <= this.getBodyRadius(bomb) * 1.2) {
         return bomb;
       }
     }
@@ -11819,7 +11838,7 @@ class Game {
     if (this.actionLock || this.dragging || this.pendingClear) {
       if (this.actionLock || this.pendingClear) {
         this.logBlockedAiBombCancelOpportunity(
-          this.pendingClear?.bombCancelPending
+          this.pendingClear?.pendingBombClears?.length
             ? "bombCancelPending-active"
             : "actionLock-or-pendingClear-before-ai-action"
         );
@@ -12607,10 +12626,10 @@ class Game {
   }
 
   explodeBomb(bomb) {
-    if (getLaserWeaveSession(this) && (this.dragging || this.pendingClear || this.timeUp)) return false;
-    if (this.isGameplayInputLocked({ ignoreActionLock: true })) {
+    if (!Game.prototype.canAcceptBombInput.call(this, { allowDeferred: true })) {
       return false;
     }
+    if (!bomb || bomb.dead || bomb.removing || !this.bombs.includes(bomb)) return false;
     const canBombCancel = this.canBombCancelActiveChain();
     this.logAiBombCancelDebug("explodeBomb-called", {
       actionType: "bomb",
@@ -12623,21 +12642,10 @@ class Game {
         y: Math.round(bomb.y)
       } : null,
       sequentialClear: this.getSequentialClearDebugState(),
-      bombCancelPending: !!this.pendingClear?.bombCancelPending,
+      bombCancelPending: !!this.pendingClear?.pendingBombClears?.length,
       canBombCancel,
       explodeBombCalled: true
     });
-    if (this.actionLock && !canBombCancel) {
-      this.logAiBombCancelDebug("explodeBomb-blocked", {
-        actionType: "bomb",
-        reason: "action-lock-without-bomb-cancel-window",
-        sequentialClear: this.getSequentialClearDebugState(),
-        bombCancelPending: !!this.pendingClear?.bombCancelPending,
-        explodeBombCalled: true,
-        failureReason: "action-lock-without-bomb-cancel-window"
-      });
-      return;
-    }
     let bombsToExplode = [bomb];
     let specialBombVisual = null;
     const skillTimingEnabled = this.skillVisualsEnabled !== false;
@@ -12677,7 +12685,7 @@ class Game {
         if (
           tsum.dead ||
           tsum.removing ||
-          (canBombCancel && (tsum.clearOccupying || tsum.inChain)) ||
+          tsum.clearOccupying || tsum.inChain ||
           !this.isTsumInPlayArea(tsum) ||
           seen.has(tsum.id) ||
           !this.boardState.canBombAffectNode(tsum, blast.bombType)
@@ -12735,7 +12743,7 @@ class Game {
         bombOnlyAffectedCount: bombOnlyAffected.length,
         chainRemainingCount: chainRemaining.length,
         sequentialClear: this.getSequentialClearDebugState(),
-        bombCancelPending: !!this.pendingClear?.bombCancelPending,
+        bombCancelPending: !!this.pendingClear?.pendingBombClears?.length,
         explodeBombCalled: true
       });
       return;
@@ -12747,9 +12755,10 @@ class Game {
         x: bomb.x,
         y: bomb.y,
         targets: bombOnlyAffected,
-        additionalClearCount: bombClearCountBonus,
+        // A cancelling bomb has already contributed its count to the chain.
+        additionalClearCount: canBombCancel ? 0 : bombClearCountBonus,
         bombType: bomb.bombType,
-        coingainBombCount: coingainBombCountBonus,
+        coingainBombCount: canBombCancel ? 0 : coingainBombCountBonus,
         correctionType: bomb.correctionType || null
       };
       if (bomb.bombType === "moanaSpecial" && !getLaserWeaveSession(this)) {
@@ -12761,21 +12770,7 @@ class Game {
           targetIds: bombOnlyAffected.map((target) => target.id)
         };
       }
-      if (canBombCancel && this.pendingClear?.sequentialChain) {
-        const bombPrepared = this.clearPipeline.buildPreparedClear(bombSpec);
-        if (bombPrepared) {
-          bombPrepared.targets = bombPrepared.targets.filter((target) => !chainRemainingIds.has(target.id));
-          if (bombPrepared.targets.length > 0) {
-            bombPrepared.targets.forEach((target) => target.beginRemove());
-            this.pendingClear.bombCancelPending = {
-              ...bombPrepared,
-              chainLength: bombPrepared.targets.length
-            };
-          }
-        }
-      } else {
-        this.clearPipeline.beginClear(bombSpec);
-      }
+      this.clearPipeline.beginClear(bombSpec);
     }
     this.logAiBombCancelDebug("explodeBomb-complete", {
       actionType: "bomb",
@@ -12784,7 +12779,7 @@ class Game {
       bombOnlyAffectedCount: bombOnlyAffected.length,
       chainRemainingCount: chainRemaining.length,
       sequentialClear: this.getSequentialClearDebugState(),
-      bombCancelPending: !!this.pendingClear?.bombCancelPending,
+      bombCancelPending: !!this.pendingClear?.pendingBombClears?.length,
       explodeBombCalled: true
     });
     this.noteAction();
@@ -13086,6 +13081,7 @@ class Game {
   }
 
   finalizePendingClear(info) {
+    if (info.pendingBombClears?.length) return;
     this.clearPipeline.finalize(info);
   }
 
