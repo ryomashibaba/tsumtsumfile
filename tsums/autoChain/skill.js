@@ -50,6 +50,67 @@ export function longestPath(nodes, connected, { minimum = 10, maxSteps = 120000,
   return { chain: complete && best.length >= minimum ? best.map(i => nodes[i]) : [], complete, steps };
 }
 
+// Find a usable path, not a proof of the longest path. Build neighbours lazily
+// so even graph construction shares the frame's time and work budget.
+export function findAutomaticPath(nodes, connected, { startIndex = 0, maxSteps = 120000, maxMs = 4 } = {}) {
+  const startedAt = performance.now(), adjacency = new Map();
+  let steps = 0, complete = true;
+  const spend = () => {
+    if (++steps > maxSteps || performance.now() - startedAt >= maxMs) complete = false;
+    return complete;
+  };
+  const neighbours = i => {
+    if (adjacency.has(i)) return adjacency.get(i);
+    const edges = [];
+    for (let j = 0; j < nodes.length; j++) {
+      if (!spend()) return edges;
+      if (i !== j && connected(nodes[i], nodes[j])) edges.push(j);
+    }
+    adjacency.set(i, edges);
+    return edges;
+  };
+  const path = [], used = new Set();
+  const visit = i => {
+    if (!spend()) return false;
+    path.push(i); used.add(i);
+    if (path.length >= 10) return true;
+    for (const j of neighbours(i)) {
+      if (!complete) break;
+      if (!used.has(j) && visit(j)) return true;
+    }
+    path.pop(); used.delete(i);
+    return false;
+  };
+  for (let offset = 0; offset < nodes.length; offset++) {
+    const start = (startIndex + offset) % nodes.length;
+    if (visit(start)) {
+      // Cheap extensions preserve the existing 10 + final 10..19 split.
+      // Never backtrack to prove optimality once a valid ten is available.
+      while (complete) {
+        const edges = neighbours(path.at(-1));
+        if (!complete) break;
+        const next = edges.find(j => !used.has(j));
+        if (next === undefined) break;
+        path.push(next); used.add(next);
+      }
+      return { chain: path.map(i => nodes[i]), complete, steps, nextStart: (start + 1) % nodes.length };
+    }
+    if (!complete) return { chain: [], complete, steps, nextStart: (start + 1) % nodes.length };
+  }
+  return { chain: [], complete, steps, nextStart: 0 };
+}
+
+function splitAutomaticPath(path) {
+  const groups = [];
+  let offset = 0;
+  while (path.length - offset > 19) {
+    groups.push(path.slice(offset, offset + 10));
+    offset += 10;
+  }
+  if (offset < path.length) groups.push(path.slice(offset));
+  return groups;
+}
+
 export const getAutoChainSession = game => game.skillRuntime?.sessions?.find(s => s.handlerId === 'autoChain');
 const now = game => game.autoChainNow?.() ?? performance.now();
 const eligible = (game, n) => n && !n.dead && !n.removing && !n.clearOccupying && !n.isBomb
@@ -106,6 +167,16 @@ export default function createSkill(tables, visuals) {
   const clear = (ctx, chain, finish = false, automatic = false) => {
     const game = ctx.game;
     if (!chain.length || chain.some(n => !game.tsums.includes(n) || !eligible(game, n))) return false;
+    if (automatic) {
+      const session = getAutoChainSession(game);
+      updateAutoChainClock(game);
+      if (session?.data.phase !== 'active' || chain.length < 10) return false;
+      const type = game.boardState.getResolvedType(chain[0]).id;
+      const rule = game.getChainBehaviorForStart(chain[0]);
+      if (new Set(chain).size !== chain.length || chain.some((n, i) =>
+        game.boardState.getResolvedType(n).id !== type ||
+        (i > 0 && !game.canConnectWithChainRule(rule, chain[i - 1], n, 4)))) return false;
+    }
     if (game.chain.some(n => chain.includes(n))) { game.cancelActiveChain(); game.cancelAiChainAnimation?.(); }
     const last = chain[chain.length - 1];
     visuals.burst(game, chain, finish);
@@ -123,7 +194,7 @@ export default function createSkill(tables, visuals) {
       game.bombs = [];
       game.autoChainVisual = { particles: [], pulseAt: now(game) };
       return ctx.createSession({ remainingMs: Infinity, data: { phase: 'active', count: 0,
-        deadline: now(game) + 10000, searchOverruns: 0 } });
+        deadline: now(game) + 10000, searchOverruns: 0, searchStart: 0 } });
     },
     onTick(ctx, session) {
       const game = ctx.game, d = session.data;
@@ -157,15 +228,25 @@ export default function createSkill(tables, visuals) {
         game.spawnReplacementTsums();
         return;
       }
-      // Rebuild after each clear; above-ceiling spawn bodies never enter the graph.
-      const nodes = game.tsums.filter(n => eligible(game, n));
-      const rules = new Map(nodes.map(n => [n, game.getChainBehaviorForStart(n)]));
-      const result = longestPath(nodes, (a, b) => game.boardState.getResolvedType(a).id === game.boardState.getResolvedType(b).id
-        && game.canConnectWithChainRule(rules.get(a), a, b, 4));
-      if (!result.complete) { d.searchOverruns++; return; }
-      if (now(game) >= d.deadline) { beginFinish(game, session); return; }
-      if (result.chain.length && clear(ctx, result.chain, false, true)) {
+      const startedAt = performance.now();
+      let stepsLeft = 120000;
+      // Rebuild after every successful group: clears can spawn or move bodies.
+      while (stepsLeft > 0 && performance.now() - startedAt < 4) {
+        const nodes = game.tsums.filter(n => eligible(game, n));
+        if (nodes.length < 10) return;
+        const rules = new Map(nodes.map(n => [n, game.getChainBehaviorForStart(n)]));
+        const result = findAutomaticPath(nodes, (a, b) => game.boardState.getResolvedType(a).id === game.boardState.getResolvedType(b).id
+          && game.canConnectWithChainRule(rules.get(a), a, b, 4),
+        { startIndex: d.searchStart, maxSteps: stepsLeft, maxMs: Math.max(0, 4 - (performance.now() - startedAt)) });
+        stepsLeft -= result.steps;
+        d.searchStart = result.nextStart;
+        if (!result.complete) d.searchOverruns++;
+        updateAutoChainClock(game);
+        if (d.phase !== 'active' || !result.chain.length) return;
+        const group = splitAutomaticPath(result.chain)[0];
+        if (!clear(ctx, group, false, true)) return;
         d.count++; game.autoChainVisual.pulseAt = now(game);
+        d.searchStart = 0;
       }
     },
     onChainCommit(ctx, session, chain) {

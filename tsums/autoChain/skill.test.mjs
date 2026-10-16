@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import definition from './definition.js';
-import { longestPath, getAutoChainSession, updateAutoChainClock } from './skill.js';
+import { longestPath, findAutomaticPath, getAutoChainSession, updateAutoChainClock } from './skill.js';
 import { makeTdkGame } from '../../tdk/testing.mjs';
 import { validateDefinition } from '../../tdk/core.js';
 import { resolveDevelopmentLaunch } from '../../tdk/development.js';
@@ -74,16 +74,17 @@ test('exact search matches exhaustive oracle on 100 deterministic small graphs',
     assert.deepEqual(graph(n, edges).chain, best);
   }
 });
-for (const length of [9, 10, 12]) test(`falling ${length}-node path threshold, exact clear and 10% charge`, () => {
+for (const length of [9, 10, 12]) test(`falling ${length}-node path threshold, usable clear and 10% charge`, () => {
   const {game, tick, activate} = setup(); fixture(game, length); const session = activate();
-  const coins = game.getCoinsByClearCount(length, 'autoChain', 'correction_0');
+  const cleared = length >= 10 ? 10 : 0;
+  const coins = game.getCoinsByClearCount(cleared, 'autoChain', 'correction_0');
   tick(20);
   assert.equal(session.data.count, length >= 10 ? 1 : 0);
-  assert.equal(game.totalCleared, length >= 10 ? length : 0);
+  assert.equal(game.totalCleared, cleared);
   assert.equal(game.coinBonus, length >= 10 ? coins : 0);
   assert.equal(game.pendingClear, null); assert.equal(game.bombs.length, 0);
   game.updateSkillChargeFlights(2000);
-  assert.ok(Math.abs(game.skillSystem.charge - (length >= 10 ? length * .1 : 0)) < 1e-8);
+  assert.ok(Math.abs(game.skillSystem.charge - cleared * .1) < 1e-8);
 });
 test('bombs are removed without explosion, scoring or collateral clear', () => {
   const {game, activate} = setup(); game.bombs = [{ x: 200, y: 350, dead: false }];
@@ -97,7 +98,7 @@ test('automatic path cancels an overlapping drag with no double award', () => {
   tick(20); const coins = game.coinBonus;
   assert.equal(game.dragging, false); assert.equal(session.data.count, 1);
   game.skillRuntime.dispatchChainCommit(nodes);
-  assert.equal(game.totalCleared, 12); assert.equal(game.coinBonus, coins);
+  assert.equal(game.totalCleared, 10); assert.equal(game.coinBonus, coins);
 });
 test('manual chain is instant, bomb-free, awards once and does not increment counter', () => {
   const {game, activate} = setup(); const nodes = fixture(game, 9); const session = activate();
@@ -109,13 +110,33 @@ test('manual chain is instant, bomb-free, awards once and does not increment cou
 test('manual commit gives automatic 10+ path priority', () => {
   const {game, activate} = setup(); const nodes = fixture(game, 12); const session = activate();
   game.skillRuntime.dispatchChainCommit(nodes);
-  assert.equal(game.totalCleared, 12); assert.equal(session.data.count, 1);
+  assert.equal(game.totalCleared, 10); assert.equal(session.data.count, 1);
 });
 test('board is reevaluated after each automatic clear', () => {
   const {game, tick, activate} = setup(); fixture(game, 12); const session = activate(); tick(20);
   fixture(game, 10); tick(40);
-  assert.equal(session.data.count, 2); assert.equal(game.totalCleared, 22);
+  assert.equal(session.data.count, 2); assert.equal(game.totalCleared, 20);
 });
+for (const [pathLength, expected] of [[20, [10, 10]], [24, [10, 14]], [39, [10, 10, 19]]]) {
+  test(`automatic ${pathLength}-node path clears as ${expected.join('+')}`, () => {
+    const {game, tick, activate} = setup(pathLength);
+    fixture(game, pathLength);
+    game.canConnectWithChainRule = () => true;
+    const session = activate();
+    const clearLengths = [];
+    const beginClear = game.clearPipeline.beginClear.bind(game.clearPipeline);
+    game.clearPipeline.beginClear = spec => {
+      clearLengths.push(spec.targets.length);
+      return beginClear(spec);
+    };
+
+    tick(20);
+
+    assert.deepEqual(clearLengths, expected);
+    assert.equal(session.data.count, expected.length);
+    assert.equal(game.totalCleared, pathLength);
+  });
+}
 test('above-ceiling bodies do not qualify', () => {
   const {game, tick, activate} = setup(); const nodes = fixture(game, 12); nodes.forEach(n => n.y = 80);
   const session = activate(); tick(20); assert.equal(session.data.count, 0);
@@ -244,4 +265,131 @@ test('finish queues exactly 10% of real my-tsum bodies and calls chain scoring o
   game.clearPipeline.beginClear=spec=>{myCount=spec.targets.filter(n=>game.boardState.getResolvedType(n).id===game.myTsum.id).length;assert.equal(spec.chargeMultiplier,.1);return clear(spec);};
   tick(10000);tick(10760);tick(10960);game.updateSkillChargeFlights(2000);
   assert.deepEqual(calls,[55]);assert.ok(Math.abs(game.skillSystem.charge-myCount*.1)<1e-8);
+});
+
+test('automatic search returns a usable path without proving the longest', () => {
+  const nodes = Array.from({length: 60}, (_, i) => i);
+  const connected = (a, b) => a !== b && (a < 20 && b < 20 || a === 20 || b === 20);
+  assert.equal(longestPath(nodes, connected, {maxSteps: 1000, maxMs: Infinity}).complete, false);
+  const result = findAutomaticPath(nodes, connected, {maxSteps: 1000, maxMs: Infinity});
+  assert.ok(result.chain.length >= 10);
+  assert.equal(new Set(result.chain).size, result.chain.length);
+  assert.ok(result.chain.every((n, i) => i === 0 || connected(result.chain[i - 1], n)));
+});
+
+test('budget includes adjacency construction and moves past an expensive starting node', () => {
+  const nodes = Array.from({length: 20}, (_, i) => i);
+  const connected = (a, b) => a !== b && (a < 9 && b < 9 || a >= 9 && b >= 9 && Math.abs(a - b) === 1);
+  let calls = 0;
+  let result = findAutomaticPath(nodes, (a, b) => { calls++; return connected(a, b); }, {maxSteps: 300, maxMs: Infinity});
+  assert.equal(result.complete, false);
+  assert.deepEqual(result.chain, []);
+  assert.ok(calls <= 300);
+  for (let retry = 0; retry < 20 && !result.chain.length; retry++) {
+    result = findAutomaticPath(nodes, connected, {startIndex: result.nextStart, maxSteps: 300, maxMs: Infinity});
+  }
+  assert.ok(result.chain.length >= 10);
+  assert.ok(result.chain.every(n => n >= 9));
+  const timedOut = findAutomaticPath(nodes, () => { throw new Error('budget must precede graph work'); }, {maxMs: 0});
+  assert.equal(timedOut.complete, false);
+  assert.deepEqual(timedOut.chain, []);
+});
+
+test('a connected star with ten bodies is not a ten-node automatic chain', () => {
+  const nodes = Array.from({length: 10}, (_, i) => i);
+  const result = findAutomaticPath(nodes, (a, b) => a !== b && (a === 0 || b === 0), {maxMs: Infinity});
+  assert.deepEqual(result.chain, []);
+  assert.equal(result.complete, true);
+});
+
+for (const limit of [45, 53, 100, 999, 'unlimited']) test(`automatic clears continue with real cheat board target ${limit}`, () => {
+  const {game, activate, tick} = setup();
+  game.updateCheatSettings({enabled: true, boardTarget: limit, tsumDiameter: 12, myTsumChance: 100});
+  const count = limit === 'unlimited' ? 120 : limit;
+  game.spawnTsumBatch(count - game.tsums.length, count);
+  assert.equal(game.tsums.length, count);
+  for (const [i, node] of game.tsums.entries()) {
+    node.type = game.myTsum;
+    node.x = 70 + i % 40 * 7;
+    node.y = 300 + Math.floor(i / 40) * 8;
+  }
+  const session = activate();
+  for (let i = 1; i <= 30 && game.totalCleared < 20; i++) tick(i * 16);
+  assert.ok(game.totalCleared >= 20);
+  assert.ok(session.data.count >= 2);
+  assert.equal(game.getTargetBodyCount(), limit === 'unlimited' ? Infinity : limit);
+  const settings = JSON.stringify(game.cheatSettings);
+  tick(10000); tick(10760); tick(10960);
+  assert.equal(game.autoChainLastResult.finishCount, session.data.count * 5);
+  assert.equal(getAutoChainSession(game), undefined);
+  assert.equal(JSON.stringify(game.cheatSettings), settings);
+  assert.equal(game.autoChainCapacity, undefined);
+});
+
+test('target changes during the skill take effect without restarting the session', () => {
+  const {game, activate, tick} = setup();
+  game.updateCheatSettings({enabled: true, boardTarget: 53});
+  fixture(game, 10);
+  const session = activate(); tick(20);
+  assert.equal(session.data.count, 1);
+  game.updateCheatSettings({boardTarget: 100});
+  game.spawnTsumBatch(10, 100); fixture(game, 10); tick(40);
+  assert.equal(session.data.count, 2);
+  game.updateCheatSettings({boardTarget: 9});
+  game.spawnTsumBatch(9, 9); fixture(game, 9); tick(60);
+  assert.equal(session.data.count, 2);
+  game.skillRuntime.reset();
+  assert.equal(game.getTargetBodyCount(), 9);
+  assert.equal(game.autoChainCapacity, undefined);
+});
+
+for (const excluded of ['dead', 'removing', 'clearOccupying', 'isBomb', 'frozen', 'outside']) {
+  test(`automatic chain excludes ${excluded} bodies`, () => {
+    const {game, activate, tick} = setup();
+    const nodes = fixture(game, 10);
+    if (excluded === 'frozen') game.boardState.isFrozen = n => n === nodes[0];
+    else if (excluded === 'outside') nodes[0].y = 80;
+    else nodes[0][excluded] = true;
+    const session = activate(); tick(20);
+    assert.equal(session.data.count, 0);
+    assert.equal(game.totalCleared, 0);
+  });
+}
+
+for (const change of ['removed', 'disconnected', 'deadline', 'rejected']) {
+  test(`automatic clear rechecks ${change} and counts only successful groups`, () => {
+    const {game, activate, tick, setClock} = setup();
+    const nodes = fixture(game, 20);
+    game.canConnectWithChainRule = () => true;
+    const session = activate();
+    const beginClear = game.clearPipeline.beginClear.bind(game.clearPipeline);
+    game.clearPipeline.beginClear = spec => {
+      if (change === 'rejected') return false;
+      const result = beginClear(spec);
+      if (change === 'removed') game.tsums = game.tsums.filter(n => !nodes.includes(n));
+      if (change === 'disconnected') game.canConnectWithChainRule = () => false;
+      if (change === 'deadline') setClock(10000);
+      return result;
+    };
+    tick(20);
+    assert.equal(session.data.count, change === 'rejected' ? 0 : 1);
+    assert.equal(game.totalCleared, change === 'rejected' ? 0 : 10);
+    if (change === 'deadline') {
+      assert.equal(session.data.phase, 'finish');
+      assert.equal(session.data.finishCount, 5);
+    }
+  });
+}
+
+test('connections are checked again immediately before awarding a candidate', () => {
+  const {game, activate, tick} = setup(); fixture(game, 10);
+  const getRule = game.getChainBehaviorForStart.bind(game);
+  let calls = 0;
+  game.getChainBehaviorForStart = n => {
+    if (++calls === 11) game.canConnectWithChainRule = () => false;
+    return getRule(n);
+  };
+  const session = activate(); tick(20);
+  assert.equal(session.data.count, 0);
+  assert.equal(game.totalCleared, 0);
 });
