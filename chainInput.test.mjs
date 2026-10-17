@@ -50,8 +50,81 @@ test('a segment grazing the edge intersects without a center sample', () => {
 test('chain start uses its own slightly larger input radius', () => {
   const a = node('a', 20, 20);
   const game = gameWith([a]);
-  assert.equal(game.findChainStartTsumAt(20 + 10 * 1.19, 20), a);
-  assert.equal(game.findChainStartTsumAt(20 + 10 * 1.21, 20), null);
+  assert.equal(game.findChainStartTsumAt(20 + 10 * 1.25, 20), a);
+  assert.equal(game.findChainStartTsumAt(20 + 10 * 1.27, 20), null);
+});
+
+test('endpoint assist accepts a slightly short head-on trace but not a wider miss', () => {
+  for (const [endX, expected] of [[16.1, 1], [15.9, 0]]) {
+    const game = gameWith([node('a', 0, 0), node('b', 30, 0)]);
+    assert.equal(game.extendChainSegment({ x: 0, y: 0 }, { x: endX, y: 0 }).added, expected);
+  }
+});
+
+test('endpoint assist does not pull sideways, backwards, or from a stationary finger', () => {
+  for (const [from, to, target] of [
+    [{ x: 0, y: 0 }, { x: 20, y: 0 }, node('b', 20, 13.5)],
+    [{ x: 16.5, y: 0 }, { x: 17, y: 0 }, node('b', 3, 0)],
+    [{ x: 16.5, y: 0 }, { x: 16.5, y: 0 }, node('b', 30, 0)]
+  ]) {
+    const game = gameWith([node('a', 0, 0), target]);
+    assert.equal(game.extendChainSegment(from, to).added, 0);
+  }
+});
+
+test('endpoint assist does not reach past a closer wrong-color Tsum', () => {
+  const game = gameWith([node('a', 0, 0), node('b', 30, 0), node('wrong', 29.5, 0, 'blue')]);
+  assert.equal(game.extendChainSegment({ x: 0, y: 0 }, { x: 16.5, y: 0 }).added, 0);
+});
+
+test('ambiguous endpoint targets do not receive assist, regardless of board order', () => {
+  for (const sign of [-1, 1]) {
+    const game = gameWith([node('a', 0, 0), node('b', 30, sign * 2), node('c', 30, -sign * 2)]);
+    assert.equal(game.extendChainSegment({ x: 0, y: 0 }, { x: 16.5, y: 0 }).added, 0);
+  }
+});
+
+function releaseGame() {
+  const game = gameWith([node('a', 0, 0), node('b', 20, 0), node('c', 40, 0)]);
+  game.manualDragPoint = { x: 0, y: 0 };
+  game.manualDragPointerId = 7;
+  game.state = 'playing';
+  game.canvas = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }) };
+  game.width = game.height = 100;
+  game.skillRuntime = { releaseHeldFinalBattleHookInput() {} };
+  game.inputRouter = { handlePointerUp: () => false, finishBubbleGesture: () => false };
+  game.isCoingainInputLocked = () => false;
+  game.finishChain = () => { game.committed = game.chain.map((item) => item.id); };
+  return game;
+}
+
+test('release includes the final movement even without a preceding pointermove', () => {
+  const game = releaseGame();
+  game.onPointerUp({ pointerId: 7, type: 'pointerup', clientX: 45, clientY: 0 });
+  assert.deepEqual(game.committed, ['a', 'b', 'c']);
+});
+
+test('release respects coalesced curves instead of connecting across their chord', () => {
+  const game = releaseGame();
+  game.tsums[1].y = 20;
+  game.onPointerUp({ pointerId: 7, type: 'pointerup', clientX: 45, clientY: 0,
+    getCoalescedEvents: () => [{ clientX: 20, clientY: 20 }] });
+  assert.deepEqual(game.committed, ['a', 'b', 'c']);
+});
+
+test('a stationary release does not select an overlapping neighbor', () => {
+  const game = releaseGame();
+  game.tsums[1].x = 10;
+  game.onPointerUp({ pointerId: 7, type: 'pointerup', clientX: 0, clientY: 0 });
+  assert.deepEqual(game.committed, ['a']);
+});
+
+test('cancelled input never adds the final segment or commits', () => {
+  const game = releaseGame();
+  game.onPointerUp({ pointerId: 7, type: 'pointercancel', clientX: 45, clientY: 0 });
+  assert.equal(game.committed, undefined);
+  assert.equal(game.tsums[1].inChain, false);
+  assert.equal(game.dragging, false);
 });
 
 test('an invalid crossed candidate does not block a valid candidate beyond it', () => {

@@ -164,7 +164,7 @@ import {
   shouldUseHighBodyCountBroadphase
 } from './tsumSpatialHash.js?v=high-body-count-1';
 import { GameFeelController, calculateVisualChainCount } from './gameFeel.js?v=game-feel-1';
-import { CHAIN_INPUT_TUNING, collectSegmentCandidates, shouldArmBacktrack, shouldBacktrack } from './chainInput.js?v=segment-chain-1';
+import { CHAIN_INPUT_TUNING, collectSegmentCandidates, shouldArmBacktrack, shouldBacktrack } from './chainInput.js?v=segment-chain-2';
 import { ChainTelemetry } from './chainTelemetry.js?v=advanced-settings-2';
 import { DOPA_TUNING, completeDopaFlight, getDopaCoinTable, registerDopaSkill, resetDopa } from './dopa.js?v=dopa-1';
 import { registerLaserWeaveSkill, getLaserWeaveSession, isLaserWeaveFiring, isLaserWeaveHeld, resetLaserWeave, updateLaserWeaveVisuals, updateLaserWeaveGameplay, finishLaserWeaveAtTimeUp, LASER_WEAVE_TUNING, unlockLaserWeaveAudio } from './laserWeave.js?v=photon-loom-26';
@@ -5785,6 +5785,7 @@ class Game {
       return;
     }
     this.dragPointer = this.getPointerPosition(event);
+    const finalSegmentStart = this.manualDragPoint;
     this.manualDragPoint = null;
     this.manualDragPointerId = null;
     this.skillRuntime.releaseHeldFinalBattleHookInput(event.pointerId);
@@ -5810,7 +5811,16 @@ class Game {
     }
     if (this.state === "playing" && this.dragging) {
       if (event.type === "pointercancel") this.cancelActiveChain();
-      else this.finishChain();
+      else {
+        if (finalSegmentStart && !this.paused && !this.isGameplayInputLocked({ ignoreActionLock: true })) {
+          let previous = finalSegmentStart;
+          for (const point of this.getManualDragPoints(event, this.canvas.getBoundingClientRect())) {
+            if (previous.x !== point.x || previous.y !== point.y) this.extendChainSegment(previous, point);
+            previous = point;
+          }
+        }
+        this.finishChain();
+      }
     }
   }
 
@@ -11775,7 +11785,8 @@ class Game {
       from, to, this.tsums,
       (tsum) => this.getBodyRadius(tsum) * CHAIN_INPUT_TUNING.extensionRadiusScale,
       (tsum) => !tsum.dead && !tsum.removing && !tsum.clearOccupying && !tsum.inChain &&
-        !this.boardState.isFrozen(tsum) && this.isTsumInPlayArea(tsum)
+        !this.boardState.isFrozen(tsum) && this.isTsumInPlayArea(tsum),
+      (tsum) => this.getBodyRadius(tsum) * CHAIN_INPUT_TUNING.endpointRadiusScale
     );
     stats.examined = examined;
     stats.crossed = hits.length;

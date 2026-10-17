@@ -18,5 +18,11 @@ Use the same iPhone, browser orientation, and board density for each comparison 
 | Namine, Jamil, Perfume Alice, other active skill rules | Character-specific chain restrictions and distance exceptions still apply. |
 | Skill button with a second finger, bomb hold | The tracing finger keeps control; the other action works as before. |
 | Pointer cancel / interrupted gesture | No chain is committed after cancellation. |
+| Lift immediately after a fast trace | The final movement before release selects the last intended Tsum, even without a final pointermove. |
+| Stop slightly short of the next center | A nearly head-on approach gets a small endpoint allowance; sideways passes and ambiguous equal-distance neighbors do not. |
+| Wrong color closer to the endpoint | Endpoint assistance does not reach past the closer wrong-color Tsum to select another one. |
+| Stationary release near a neighbor | Lifting without moving does not select an extra Tsum. |
 
-The automated `chainInput.test.mjs` covers ordered multi-selection, grazing, invalid candidate skipping, long segments, coalesced curves, a missing coalesced API, backtracking, and cancellation. The existing physics, skill, and multi-touch tests cover their related invariants.
+The automated `chainInput.test.mjs` covers ordered multi-selection, grazing, invalid candidate skipping, long segments, coalesced curves (including release), a missing coalesced API, backtracking, cancellation, final release movement, stationary release, and guarded endpoint assistance. The existing physics, skill, and multi-touch tests cover their related invariants.
+
+Input tuning: chain starts use 1.26 times the body radius. Swept extension keeps its existing 1.27 radius. Only the closest eligible endpoint target can receive the 1.4 radius allowance, and only when the movement points toward it with a direction cosine of at least 0.9. Equal-distance targets receive no endpoint allowance. Type and connection-distance checks still apply. Physical iPhone feel and crowded-board QA should be checked using the passes above; automated geometry tests do not establish device feel.
